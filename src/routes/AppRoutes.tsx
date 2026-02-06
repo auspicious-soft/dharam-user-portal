@@ -73,7 +73,7 @@ const AppRoutes = () => {
       />
       <Route element={<DashboardLayout />}>
         {/* Dashboard page */}
-        <Route index element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         {/* Course introduction page */}
         <Route path="/course-introduction" element={<CourseIntroduction />} />
         {/* Lessons videos page */}
