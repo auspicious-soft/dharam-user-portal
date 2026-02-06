@@ -1,0 +1,51 @@
+export type FileItem = {
+  id: string;
+  examName: string;
+  totalQuestions: string;
+  examTime: string;
+  attempts: string;
+  correctPercentage: string;
+  status: string;
+  isPremium?: boolean;
+};
+
+export const filesData: FileItem[] = [
+  {
+    id: "1",
+    examName: "Project Management Exam",
+    totalQuestions: "270 Questions",
+    examTime: "04:00:00",
+    attempts: "2",
+    correctPercentage: "15%",
+    status: "",
+    isPremium: true,
+  },
+  {
+    id: "2",
+    examName: "Project Management Quiz",
+    totalQuestions: "570 Questions",
+    examTime: "04:00:00",
+    correctPercentage: "15%",
+    status: "Complete",
+    attempts: "0",
+  },
+  {
+    id: "3",
+    examName: "Management Assessment",
+    totalQuestions: "70 Questions",
+    examTime: "04:00:00",
+    attempts: "5",
+    correctPercentage: "-",
+    status: "",
+    isPremium: true,
+  },
+  {
+    id: "4",
+    examName: "Exploring Literature Test",
+    totalQuestions: "170 Questions",
+    attempts: "2",
+    correctPercentage: "1%",
+    status: "Complete",
+    examTime: "04:00:00",
+  },
+];
