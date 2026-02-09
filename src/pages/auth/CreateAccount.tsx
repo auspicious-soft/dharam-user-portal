@@ -63,7 +63,7 @@ navigate("/enter-otp", {
     <div>
       <div className="mb-4 text-center flex flex-col gap-2">
         <h2 className="text-3xl font-bold capitalize leading-[46px] text-center text-[#1f1f1f]">
-          Create New Password
+        Create Account
         </h2>
         <p className="text-paragraph text-base font-normal max-w-80 w-full m-auto">
           By continuing, you agree to our{" "}

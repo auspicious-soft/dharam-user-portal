@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export const ExamsColumns: ColumnDef<ExamsItem>[] = [
   {
     accessorKey: "examName",
-    header: "Exam Name",
+    header: "Category Name",
   },
   {
     accessorKey: "date",

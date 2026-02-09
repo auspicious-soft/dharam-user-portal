@@ -55,20 +55,7 @@ const courses: Courses = {
           },
         ],
       },
-            {
-        id: "kvbs",
-        type: "bullets",
-        title: "Key Value Bullets",
-        items: [
-          {
-            description: "12 hours across 6 weeks with expert mentors.",
-          },
-          {
-            description:
-              "Claimable Professional Development Units aligned with PMI.",
-          },
-        ],
-      },
+
       {
         id: "wyl-1",
         type: "accordion",

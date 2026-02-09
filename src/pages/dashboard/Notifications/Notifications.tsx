@@ -1,8 +1,8 @@
-import CourseSelect from "@/components/reusableComponents/CourseSelect";
 import { DataTable } from "@/components/tableData/DataTable";
 import { NotificationsColumns } from "@/components/notifications/notifications.column";
 import { NotificationsTableData } from "@/components/notifications/notifications.data";
 import { useState } from "react";
+import TableSearch from "@/components/reusableComponents/TableSearch";
 
 const Notifications = () => {
 
@@ -23,7 +23,7 @@ const Notifications = () => {
         </h2>  
 
         <div className="flex flex-wrap flex-1 w-full gap-2 lg:gap-4 lg:justify-end">
-          <CourseSelect />
+           <TableSearch />
         </div>
       </div>
      <DataTable

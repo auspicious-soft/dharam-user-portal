@@ -33,7 +33,8 @@ export const DomainsModuleSection = ({
   return (
     <div className="space-y-1.5">
       {/* MODULE HEADER */}
-      <div className="flex items-center justify-between bg-light-blue rounded-lg px-3 py-2">
+      <div className="flex items-center justify-between bg-light-blue rounded-lg px-3 py-2 cursor-pointer"
+      onClick={() => setOpen(!open)}>
         <div className="flex items-center gap-3">
           <img src={DomainModuleIcon} alt="Domain Module" className="w-8 h-8" />
 
@@ -57,7 +58,7 @@ export const DomainsModuleSection = ({
             </button>
           )}
 
-          <button onClick={() => setOpen(!open)}>
+          <button >
             {open ? <ChevronUp /> : <ChevronDown />}
           </button>
         </div>

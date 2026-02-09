@@ -1,8 +1,8 @@
-import CourseSelect from "@/components/reusableComponents/CourseSelect";
 import { DataTable } from "@/components/tableData/DataTable";
 import { announcementColumns } from "@/components/Announcements/announcements.column";
 import { announcementTableData } from "@/components/Announcements/announcements.data";
 import { useState } from "react";
+import TableSearch from "@/components/reusableComponents/TableSearch";
 
 const Announcements = () => {
     const [data, setData] = useState(announcementTableData);
@@ -22,7 +22,7 @@ const Announcements = () => {
         </h2> 
 
         <div className="flex flex-wrap flex-1 w-full gap-2 lg:gap-4 lg:justify-end">
-          <CourseSelect />
+          <TableSearch />
         </div>
       </div>
       <DataTable 

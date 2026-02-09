@@ -20,10 +20,10 @@ const Login = () => {
     <div>
       <div className="mb-4 text-center flex flex-col gap-2">
         <h2 className="text-3xl font-bold capitalize leading-[46px] text-center text-[#1f1f1f]">
-          Create Account
+          Welcome Back
         </h2>
         <p className="text-paragraph text-base font-normal ">
-          By continuing, you agree to our Terms & Privacy Policy.
+         Login to Your account to access the exam simulator.
         </p>
       </div>
       <form onSubmit={handleLogin} className="flex flex-col gap-4">
