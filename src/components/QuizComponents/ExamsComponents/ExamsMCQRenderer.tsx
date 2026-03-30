@@ -1,22 +1,48 @@
 import { MCQQuestion } from "../quiz.types";
+import { getMaxSelection } from "../mcqUtils";
 
 interface MCQRendererProps {
   question: MCQQuestion;
-  selectedAnswer: string | null;
-  setSelectedAnswer: (answer: string | null) => void;
+  selectedAnswers: string[];
+  setSelectedAnswers: (answers: string[]) => void;
   showResult: boolean;
 }
 
 export const ExamsMCQRenderer = ({
   question,
-  selectedAnswer,
-  setSelectedAnswer,
+  selectedAnswers,
+  setSelectedAnswers,
   showResult,
 }: MCQRendererProps) => {
+  const maxSelection = getMaxSelection(question);
+  const isMultiSelect = maxSelection > 1;
+
+  const handleSelectOption = (optionId: string) => {
+    if (showResult) return;
+
+    setSelectedAnswers((prev) => {
+      if (!isMultiSelect) {
+        return [optionId];
+      }
+
+      if (prev.includes(optionId)) {
+        return prev.filter((id) => id !== optionId);
+      }
+
+      if (prev.length >= maxSelection) {
+        return prev;
+      }
+
+      return [...prev, optionId];
+    });
+  };
+
   return (
     <div className="space-y-[10px]">
       {question.options.map((option) => {
-        const isSelected = selectedAnswer === option.id;
+        const isSelected = selectedAnswers.includes(option.id);
+        const selectionLimitReached =
+          isMultiSelect && !isSelected && selectedAnswers.length >= maxSelection;
 
         return (
           <label
@@ -26,12 +52,12 @@ export const ExamsMCQRenderer = ({
             `}
           >
             <input
-              type="radio"
-              name="answer"
+              type={isMultiSelect ? "checkbox" : "radio"}
+              name={`answer-${question.id}`}
               value={option.id}
               checked={isSelected}
-              disabled={showResult}
-              onChange={(e) => setSelectedAnswer(e.target.value)}
+              disabled={showResult || selectionLimitReached}
+              onChange={() => handleSelectOption(option.id)}
               className="mt-[2px] md:mt-[5px] accent-current"
             />
             <div className="flex-1 flex justify-between items-start gap-2 flex-col lg:flex-row lg:items-center">

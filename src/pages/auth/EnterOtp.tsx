@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Input } from "../../components/ui/input";
 import { ArrowRight } from "iconoir-react";
 import { Button } from "@/components/ui/button";
+import api from "@/lib/axios";
+import { login } from "@/auth/Authenticated";
+import { toast } from "sonner";
 
 import SuccessDialog from "@/components/SuccessDialog";
 import SuccessIcon from "@/assets/account-created.png";
+
+const RESEND_SECONDS = 60;
 
 const EnterOtp = () => {
   const navigate = useNavigate();
@@ -17,29 +22,130 @@ const EnterOtp = () => {
   const [error, setError] = useState("");
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(RESEND_SECONDS);
 
-  const CORRECT_OTP = "1234";
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setResendSeconds((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatResendTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remaining = seconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(remaining).padStart(
+      2,
+      "0"
+    )} sec`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (otp.length !== 4) {
-      setError("Please enter a 4-digit OTP");
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a 6-digit OTP");
       return;
     }
 
-    if (otp !== CORRECT_OTP) {
-      setError("Invalid OTP. Please try again.");
+    if (isSubmitting) {
       return;
     }
 
     setError("");
+    setIsSubmitting(true);
 
-    // ✅ DIFFERENT FLOW
-    if (mode === "signup") {
-      setIsDialogOpen(true);
-    } else {
-      navigate("/create-new-password");
+    try {
+      const verificationToken = localStorage.getItem("verificationToken");
+      const response = await api.post(
+        "/verify-otp",
+        { otp },
+        verificationToken
+          ? {
+              headers: {
+                Authorization: `Bearer ${verificationToken}`,
+              },
+            }
+          : undefined
+      );
+      const accessToken =
+        (response.data as { data?: { accessToken?: string | null } })?.data
+          ?.accessToken ?? null;
+
+      if (accessToken) {
+        localStorage.setItem("authToken", accessToken);
+      }
+
+      const successMessage =
+        (response.data as { message?: string | null })?.message ??
+        "OTP verified";
+      toast.success(successMessage);
+
+      login();
+
+      if (mode === "signup") {
+        setIsDialogOpen(true);
+      } else {
+        navigate("/create-new-password");
+      }
+    } catch (requestError: unknown) {
+      const message =
+        (requestError as { response?: { data?: { message?: string } } })
+          .response?.data?.message ?? "OTP verification failed.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendSeconds > 0 || isResending) {
+      return;
+    }
+
+    const verificationToken = localStorage.getItem("verificationToken");
+    if (!verificationToken) {
+      setError("Verification token missing. Please sign up again.");
+      return;
+    }
+
+    setError("");
+    setIsResending(true);
+
+    try {
+      const response = await api.get(
+        "/resend-otp",
+        {
+          headers: {
+            Authorization: `Bearer ${verificationToken}`,
+          },
+        }
+      );
+
+      const newToken =
+        (response.data as { data?: { resetToken?: string | null } })?.data
+          ?.resetToken ?? null;
+
+      if (newToken) {
+        localStorage.setItem("verificationToken", newToken);
+      }
+
+      const successMessage =
+        (response.data as { message?: string | null })?.message ??
+        "OTP resent";
+      toast.success(successMessage);
+
+      setResendSeconds(RESEND_SECONDS);
+    } catch (requestError: unknown) {
+      const message =
+        (requestError as { response?: { data?: { message?: string } } })
+          .response?.data?.message ?? "Failed to resend OTP.";
+      setError(message);
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -64,8 +170,8 @@ const EnterOtp = () => {
         <div className="relative max-w-72 w-full m-auto">
           <Input
             type="text"
-            placeholder="1234"
-            maxLength={4}
+            placeholder="123456"
+            maxLength={6}
             value={otp}
             onChange={(e) => {
               setOtp(e.target.value);
@@ -79,8 +185,9 @@ const EnterOtp = () => {
           )}
         </div>
 
-        <Button type="submit" className="w-full">
-          Continue <ArrowRight className="w-5 h-5" />
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Verifying..." : "Continue"}{" "}
+          <ArrowRight className="w-5 h-5" />
         </Button>
 
         <div className="text-center">
@@ -88,16 +195,26 @@ const EnterOtp = () => {
             Haven't received it?{" "}
             <button
               type="button"
-              className="underline text-paragraph text-sm font-normal leading-[22px]"
+              className={`underline text-paragraph text-sm font-normal leading-[22px] ${
+                resendSeconds > 0 || isResending
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+              onClick={handleResend}
+              disabled={resendSeconds > 0 || isResending}
             >
-              Resend in
+              {resendSeconds > 0 ? "Resend in" : "Resend OTP"}
             </button>{" "}
-            <span className="font-bold text-Black_light">02:00 sec</span>
+            {resendSeconds > 0 && (
+              <span className="font-bold text-Black_light">
+                {formatResendTime(resendSeconds)}
+              </span>
+            )}
           </p>
         </div>
       </form>
 
-      {/* ✅ SUCCESS FOR SIGNUP */}
+      {/* SUCCESS FOR SIGNUP */}
       <SuccessDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}

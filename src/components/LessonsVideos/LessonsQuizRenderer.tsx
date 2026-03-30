@@ -7,11 +7,13 @@ import { QuizResultDialog } from "./QuizResultDialog";
 interface LessonsQuizRendererProps {
   quiz: QuizQuestion[];
   onClose: () => void;
+  onQuestionAttempt?: (questionId: string) => void;
 }
 
 const LessonsQuizRenderer = ({
   quiz,
   onClose,
+  onQuestionAttempt,
 }: LessonsQuizRendererProps) => {
   const [showQuizDialog, setShowQuizDialog] = useState(false);
   const [quizResults, setQuizResults] = useState({ correct: 0, incorrect: 0 });
@@ -34,7 +36,11 @@ const LessonsQuizRenderer = ({
 
   return (
     <div className="p-5 bg-light-blue rounded-[20px]">
-      <QuizRenderer quiz={quiz} onComplete={handleComplete} />
+      <QuizRenderer
+        quiz={quiz}
+        onComplete={handleComplete}
+        onQuestionAttempt={onQuestionAttempt}
+      />
 
       <QuizResultDialog
         isOpen={showQuizDialog}

@@ -10,6 +10,9 @@ import {
   User,
 } from "iconoir-react";
 import { Button } from "@/components/ui/button";
+import api from "@/lib/axios";
+import { getFcmToken } from "@/lib/fcm";
+import { toast } from "sonner";
 
 const CreateAccount = () => {
  const navigate = useNavigate();
@@ -26,9 +29,10 @@ const CreateAccount = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [confirmShowPassword, setConfirmShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!firstName || !email || !password || !confirmPassword) {
@@ -48,13 +52,62 @@ const CreateAccount = () => {
       return;
     }
 
+    if (isSubmitting) {
+      return;
+    }
+
     setError("");
-navigate("/enter-otp", {
-      state: {
-        mode: "signup",
-        email,
-      },
-    });
+    setIsSubmitting(true);
+
+    const fullName = `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
+
+    let fcmToken: string | null = null;
+    try {
+      fcmToken = await getFcmToken();
+    } catch (tokenError) {
+      // eslint-disable-next-line no-console
+      console.warn("FCM token not available", tokenError);
+    }
+
+    try {
+      const response = await api.post("/create-user", {
+        firstname: firstName.trim(),
+        lastname: lastName.trim(),
+        fullName,
+        email: email.trim(),
+        countryCode,
+        phoneNumber: phone.trim(),
+        password,
+        fcmToken: fcmToken ?? "",
+        deviceType: "WEB",
+      });
+
+      const verificationToken =
+        (response.data as { data?: { verificationToken?: string | null } })
+          ?.data?.verificationToken ?? null;
+      if (verificationToken) {
+        localStorage.setItem("verificationToken", verificationToken);
+      }
+
+      const successMessage =
+        (response.data as { message?: string | null })?.message ??
+        "Registration successful";
+      toast.success(successMessage);
+
+      navigate("/enter-otp", {
+        state: {
+          mode: "signup",
+          email,
+        },
+      });
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } }).response?.data
+          ?.message ?? "Registration failed. Please try again.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -218,8 +271,9 @@ navigate("/enter-otp", {
 
         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
-        <Button type="submit">
-          Create Account <ArrowRight className="w-5 h-5" />
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Creating..." : "Create Account"}{" "}
+          <ArrowRight className="w-5 h-5" />
         </Button>
                 <p className="text-xs text-paragraph  text-center ">We may send occasional emails and offers regarding the services on your email address</p>
                 <p className="text-sm text-paragraph text-center ">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 interface ImageUploaderProps {
   preview: string | null;
   onChange: (value: string | null) => void;
+  onFileSelect?: (file: File | null) => void;
   buttonLabel?: string;
   containerClass?: string;
 }
@@ -13,6 +14,7 @@ interface ImageUploaderProps {
 const ImageUploader: React.FC<ImageUploaderProps> = ({
   preview,
   onChange,
+  onFileSelect,
   buttonLabel = "Upload / Change Image",
   containerClass = "",
 }) => {
@@ -20,16 +22,24 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      onFileSelect?.(null);
+      return;
+    }
 
     if (!file.type.startsWith("image/")) {
       alert("Please select an image file");
+      onFileSelect?.(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => onChange(reader.result as string);
     reader.readAsDataURL(file);
+    onFileSelect?.(file);
   };
 
   return (

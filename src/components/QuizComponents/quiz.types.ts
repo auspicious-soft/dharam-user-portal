@@ -2,12 +2,15 @@ export interface BaseQuestion {
   id: string;
   question: string;
   qExplanation: string;
+  isAttempted?: boolean;
 }
 
 export interface MCQQuestion extends BaseQuestion {
   type: "mcq";
   options: { id: string; text: string }[];
   correctAnswer: string;
+  correctAnswers?: string[];
+  maxSelection?: number;
 }
 
 export interface DragDropQuestion extends BaseQuestion {
@@ -26,7 +29,7 @@ export interface FillBlankQuestion extends BaseQuestion {
   questionTemplate: string;
   blanks: {
     id: string;
-    correctAnswer: string;
+    correctAnswers: string[];
   }[];
   options: string[];
 }

@@ -5,11 +5,15 @@ import { Button } from "@/components/ui/button";
 import { MCQRenderer } from "@/components/QuizComponents/MCQRenderer";
 import { flashCardsData } from "@/components/flashCards/flashCards.data";
 import { ArrowLeft } from "lucide-react";
+import {
+  formatCorrectAnswerLabel,
+  getCorrectAnswerIds,
+} from "@/components/QuizComponents/mcqUtils";
 
 const FlashCardDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
   const [showResult, setShowResult] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
 
@@ -77,7 +81,7 @@ const FlashCardDetail = () => {
               <div className="flex justify-end gap-4">
                 <Button
                   onClick={handleSubmit}
-                  disabled={selectedAnswer === null}
+                  disabled={selectedAnswers.length === 0}
                   variant="link"
                   className="text-primary_heading"
                 >
@@ -98,8 +102,8 @@ const FlashCardDetail = () => {
               <div className="mt-4">
                 <MCQRenderer
                   question={flashCard.question}
-                  selectedAnswer={selectedAnswer}
-                  setSelectedAnswer={setSelectedAnswer}
+                  selectedAnswers={selectedAnswers}
+                  setSelectedAnswers={setSelectedAnswers}
                   showResult={false}
                 />
               </div>
@@ -124,8 +128,10 @@ const FlashCardDetail = () => {
 
                   <div className="px-4 py-2 bg-[#6aa56d] rounded-lg inline-flex justify-center items-center gap-2.5">
                     <div className="justify-start text-white text-sm font-medium leading-6">
-                      Option {flashCard.question.correctAnswer.toUpperCase()} is
-                      correct answer
+                      {getCorrectAnswerIds(flashCard.question).length > 1
+                        ? "Correct answers:"
+                        : "Correct answer:"}{" "}
+                      {formatCorrectAnswerLabel(flashCard.question)}
                     </div>
                   </div>
 

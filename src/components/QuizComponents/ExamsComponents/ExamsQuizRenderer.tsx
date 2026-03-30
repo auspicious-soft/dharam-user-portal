@@ -12,6 +12,10 @@ import { ExamsDragDropRenderer } from "./ExamsDragDropRenderer";
 import { ExamsFillBlankRenderer } from "./ExamsFillBlankRenderer";
 import { ExamsMCQRenderer } from "./ExamsMCQRenderer";
 import { ReportProblemDialog } from "@/components/exams/ReportProblemDialog";
+import {
+  getMaxSelection,
+  isMCQSelectionCorrect,
+} from "../mcqUtils";
 
 interface QuizRendererProps {
   quiz: QuizQuestion[];
@@ -34,11 +38,11 @@ export const ExamsQuizRenderer = ({
   setMarked,
 }: QuizRendererProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
 
   const [showResult, setShowResult] = useState(false);
 
-  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string | null>>(
+  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string[]>>(
     {},
   );
 
@@ -68,13 +72,13 @@ export const ExamsQuizRenderer = ({
     let isCorrect: boolean | null = null;
 
     // ---------- MCQ ----------
-    if (question.type === "mcq" && selectedAnswer !== null) {
+    if (question.type === "mcq" && selectedAnswers.length > 0) {
       setMcqAnswers((prev) => ({
         ...prev,
-        [currentQuestionIndex]: selectedAnswer,
+        [currentQuestionIndex]: selectedAnswers,
       }));
 
-      isCorrect = selectedAnswer === question.correctAnswer;
+      isCorrect = isMCQSelectionCorrect(question, selectedAnswers);
     }
 
     // ---------- DRAG DROP ----------
@@ -130,7 +134,7 @@ export const ExamsQuizRenderer = ({
     const nextIndex = currentQuestionIndex + 1;
 
     setCurrentQuestionIndex(nextIndex);
-    setSelectedAnswer(mcqAnswers[nextIndex] ?? null);
+    setSelectedAnswers(mcqAnswers[nextIndex] ?? []);
     setShowResult(false);
   };
 
@@ -144,7 +148,7 @@ export const ExamsQuizRenderer = ({
     const prevIndex = currentQuestionIndex - 1;
 
     setCurrentQuestionIndex(prevIndex);
-    setSelectedAnswer(mcqAnswers[prevIndex] ?? null);
+    setSelectedAnswers(mcqAnswers[prevIndex] ?? []);
 
     setShowResult(false);
   };
@@ -222,7 +226,7 @@ export const ExamsQuizRenderer = ({
       {question.type === "mcq" && (
         <div className="mb-4">
           <span className="px-[18px] bg-white rounded-[99px] outline outline-1 outline-offset-[-1px] outline-paragraph inline-flex justify-start items-center gap-2.5 text-paragraph text-xs font-medium leading-[30px]">
-            Max Selections: 1
+            Max Selections: {getMaxSelection(question)}
           </span>
         </div>
       )}
@@ -240,8 +244,8 @@ export const ExamsQuizRenderer = ({
         {question.type === "mcq" && (
           <ExamsMCQRenderer
             question={question}
-            selectedAnswer={selectedAnswer}
-            setSelectedAnswer={setSelectedAnswer}
+            selectedAnswers={selectedAnswers}
+            setSelectedAnswers={setSelectedAnswers}
             showResult={showResult}
           />
         )}

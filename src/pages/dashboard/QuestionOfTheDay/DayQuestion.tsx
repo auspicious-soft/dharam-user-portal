@@ -4,6 +4,12 @@ import { MCQRenderer } from "@/components/QuizComponents/MCQRenderer";
 import { DragDropRenderer } from "@/components/QuizComponents/DragDropRenderer";
 import { FillBlankRenderer } from "@/components/QuizComponents/FillBlankRenderer";
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
+import {
+  formatCorrectAnswerLabel,
+  getCorrectAnswerIds,
+  getMaxSelection,
+  isMCQSelectionCorrect,
+} from "@/components/QuizComponents/mcqUtils";
 import QuestionDayIcon from "@/assets/edit-question-icon.png";
 import { useNavigate } from "react-router-dom";
 
@@ -69,9 +75,9 @@ const DAILY_QUESTIONS: QuizQuestion[] = [
 ];
 
 const DayQuestion = () => {
-      const navigate = useNavigate();
+  const navigate = useNavigate();
   const [question, setQuestion] = useState<QuizQuestion | null>(null);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
   const [dragDropAnswers, setDragDropAnswers] = useState<
     Record<number, Record<string, string>>
   >({});
@@ -127,7 +133,7 @@ const DayQuestion = () => {
     if (!question) return false;
 
     if (question.type === "mcq") {
-      return selectedAnswer !== null;
+      return selectedAnswers.length > 0;
     } else if (question.type === "dragdrop") {
       const currentAnswers = dragDropAnswers[0] || {};
       return Object.keys(currentAnswers).length === question.dropZones.length;
@@ -146,7 +152,7 @@ const DayQuestion = () => {
     let correct = false;
 
     if (question.type === "mcq") {
-      correct = selectedAnswer === question.correctAnswer;
+      correct = isMCQSelectionCorrect(question, selectedAnswers);
     } else if (question.type === "dragdrop") {
       const currentAnswers = dragDropAnswers[0] || {};
       correct = question.dropZones.every(
@@ -272,7 +278,7 @@ const DayQuestion = () => {
           {question.type === "mcq" && (
             <div className="mb-4">
               <span className="px-[18px] bg-white rounded-[99px] outline outline-1 outline-offset-[-1px] outline-paragraph inline-flex justify-start items-center gap-2.5 text-paragraph text-xs font-medium leading-[30px]">
-                Max Selections: 1
+                Max Selections: {getMaxSelection(question)}
               </span>
             </div>
           )}
@@ -288,8 +294,8 @@ const DayQuestion = () => {
             {question.type === "mcq" && (
               <MCQRenderer
                 question={question}
-                selectedAnswer={selectedAnswer}
-                setSelectedAnswer={setSelectedAnswer}
+                selectedAnswers={selectedAnswers}
+                setSelectedAnswers={setSelectedAnswers}
                 showResult={showResult}
               />
             )}
@@ -324,8 +330,10 @@ const DayQuestion = () => {
               {question.type === "mcq" && (
                 <div className="px-4 py-2 bg-[#6aa56d] rounded-lg inline-flex justify-center items-center gap-2.5">
                   <div className="justify-start text-white text-sm font-medium leading-6">
-                    Option {question.correctAnswer.toUpperCase()} is correct
-                    answer
+                    {getCorrectAnswerIds(question).length > 1
+                      ? "Correct answers:"
+                      : "Correct answer:"}{" "}
+                    {formatCorrectAnswerLabel(question)}
                   </div>
                 </div>
               )}

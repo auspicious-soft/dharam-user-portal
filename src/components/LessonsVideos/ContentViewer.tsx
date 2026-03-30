@@ -1,5 +1,5 @@
 // ContentViewer.tsx
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { SelectedContent } from "./types";
@@ -11,21 +11,44 @@ import { Button } from "../ui/button";
 import LessonsQuizRenderer from "./LessonsQuizRenderer";
 
 // Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;  
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface ContentViewerProps {
   content: SelectedContent;
   onClose: () => void;
+  onQuestionAttempt?: (moduleId: string, questionId: string) => void;
 }
 
 export const ContentViewer: React.FC<ContentViewerProps> = ({
   content,
   onClose,
+  onQuestionAttempt,
 }) => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(1);
   const [numPages, setNumPages] = useState<number>(0);
 
   const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const pdfContainerRef = useRef<HTMLDivElement | null>(null);
+  const [pdfWidth, setPdfWidth] = useState<number | null>(null);
+  const pdfDevicePixelRatio =
+    typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2.5) : 1;
+  const pdfRenderMode: "canvas" | "svg" = "svg";
+
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+    const element = pdfContainerRef.current;
+    const updateWidth = () => {
+      const nextWidth = Math.floor(element.clientWidth);
+      if (nextWidth > 0) setPdfWidth(nextWidth);
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(() => updateWidth());
+    resizeObserver.observe(element);
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -51,41 +74,10 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
             {content.title}
           </h2>
         </div>
-        <h3 className="justify-start text-Black_light text-lg md:text-xl font-bold mb-2">
-          PMP® Online Mentoring Programs
-        </h3>
-        <p className="justify-start text-paragraph text-sm font-medium ">
-          {content.description}
-        </p>
-
-        <h4 className="justify-start text-Black_light text-lg md:text-xl font-bold mb-2 mt-6">
-          Key Value Bullets
-        </h4>
-
-        <div className="self-stretch justify-start text-paragraph text-sm font-medium  leading-[26px]">
-          <div className="flex gap-2">
-            •{" "}
-            <p>
-              Live mentor‑led learning: 12 hours across 6 weeks, 2 hours per
-              week, with interactive problem‑solving and feedback.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            •{" "}
-            <p>
-              {" "}
-              Earn PDUs: Prepare efficiently and earn claimable Professional
-              Development Units aligned with PMI’s Talent Triangle.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            •{" "}
-            <p>
-              Exam‑ready practice: Weekly mock quizzes, situational questions,
-              and timed practice blocks to build speed and accuracy.
-            </p>
-          </div>
-        </div>
+        <div
+          className="justify-start text-paragraph text-sm font-medium"
+          dangerouslySetInnerHTML={{ __html: content.description || "" }}
+        />
       </div>
     );
   }
@@ -134,6 +126,10 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
       }
     };
 
+    const isImage =
+      typeof content.pdfUrl === "string" &&
+      /\.(png|jpe?g|gif|webp|svg)$/i.test(content.pdfUrl);
+
     return (
       <div className="h-full flex flex-col">
         <div className="flex justify-between items-center mb-4">
@@ -145,59 +141,75 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
         {/* PDF Viewer Container */}
         <div className="flex-1 py-6 px-4 md:p-6 bg-[#EDF4FD] rounded-[20px] overflow-hidden flex flex-col gap-5">
           {/* Navigation Controls */}
-          <div className="flex justify-between w-full">
-            <Button
-              onClick={handlePreviousSlide}
-              disabled={currentSlideIndex === 1}
-              variant="link"
-              className="text-primary_heading"
-            >
-              Previous
-            </Button>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-Black_light">
-                Slide {currentSlideIndex} of {numPages || "..."}
-              </p>
-            </div>
-
-            <Button
-              onClick={handleNextSlide}
-              disabled={currentSlideIndex === numPages}
-              variant="link"
-              className="text-primary_heading"
-            >
-              Next
-            </Button>
-          </div>
-          {/* PDF Display Area */}
-          <div className="flex-1 flex items-center justify-center ">
-            {content.pdfUrl ? (
-              <Document
-                file={content.pdfUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={
-                  <div className="flex items-center justify-center">
-                    <div className="text-center">
-                      <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
-                      <p className="text-paragraph">Loading PDF...</p>
-                    </div>
-                  </div>
-                }
-                error={
-                  <div className="text-center text-red-600">
-                    <p>Failed to load PDF</p>
-                    <p className="text-sm text-paragraph mt-2">
-                      Please check the file path or URL
-                    </p>
-                  </div>
-                }
+          {!isImage && (
+            <div className="flex justify-between w-full">
+              <Button
+                onClick={handlePreviousSlide}
+                disabled={currentSlideIndex === 1}
+                variant="link"
+                className="text-primary_heading"
               >
-                <Page
-                  pageNumber={currentSlideIndex}
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
+                Previous
+              </Button>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-Black_light">
+                  Slide {currentSlideIndex} of {numPages || "..."}
+                </p>
+              </div>
+
+              <Button
+                onClick={handleNextSlide}
+                disabled={currentSlideIndex === numPages}
+                variant="link"
+                className="text-primary_heading"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+          {/* PDF Display Area */}
+          <div
+            className="flex-1 flex items-center justify-center w-full"
+            ref={pdfContainerRef}
+          >
+            {content.pdfUrl ? (
+              isImage ? (
+                <img
+                  src={content.pdfUrl}
+                  alt={content.title}
+                  className="max-h-full max-w-full rounded-lg"
                 />
-              </Document>
+              ) : (
+                <Document
+                  file={content.pdfUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  loading={
+                    <div className="flex items-center justify-center">
+                      <div className="text-center">
+                        <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
+                        <p className="text-paragraph">Loading PDF...</p>
+                      </div>
+                    </div>
+                  }
+                  error={
+                    <div className="text-center text-red-600">
+                      <p>Failed to load PDF</p>
+                      <p className="text-sm text-paragraph mt-2">
+                        Please check the file path or URL
+                      </p>
+                    </div>
+                  }
+                >
+                  <Page
+                    pageNumber={currentSlideIndex}
+                    renderMode={pdfRenderMode}
+                    renderTextLayer={pdfRenderMode === "canvas"}
+                    renderAnnotationLayer={true}
+                    width={pdfWidth ?? undefined}
+                    devicePixelRatio={pdfDevicePixelRatio}
+                  />
+                </Document>
+              )
             ) : (
               <div className="text-center">
                 <FileText className="w-24 h-24 mx-auto mb-4 text-primary_heading" />
@@ -209,16 +221,29 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
       </div>
     );
   }
-// Quiz View
+  // Quiz View
 
-if (content.type === "quiz" && content.quiz) {
-  return (
-    <LessonsQuizRenderer
-      quiz={content.quiz}
-      onClose={onClose}
-    />
-  );
-}
+  if (content.type === "quiz") {
+    if (!content.quiz || content.quiz.length === 0) {
+      return (
+        <div className="p-5 bg-light-blue rounded-[20px] text-paragraph text-sm">
+          {content.quizAllAttempted
+            ? "You have already attempted all questions for this module."
+            : "Questions are not available yet for this module."}
+        </div>
+      );
+    }
+
+    return (
+      <LessonsQuizRenderer
+        quiz={content.quiz}
+        onClose={onClose}
+        onQuestionAttempt={(questionId) =>
+          onQuestionAttempt?.(content.moduleId, questionId)
+        }
+      />
+    );
+  }
 
   return null;
 };

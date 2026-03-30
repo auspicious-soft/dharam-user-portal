@@ -22,6 +22,7 @@ export const QuestionsColumns = (): ColumnDef<FileItem>[] => {
                 if (!isPremium) {
                   navigate(
                     `/practice-questions/questions-view/${row.original.id}`,
+                    { state: { examName: row.original.categoryName } }
                   );
                 }
               }}
@@ -61,7 +62,9 @@ export const QuestionsColumns = (): ColumnDef<FileItem>[] => {
         ) : (
           <Button
             onClick={() =>
-              navigate(`/practice-questions/questions-view/${row.original.id}`)
+              navigate(`/practice-questions/questions-view/${row.original.id}`, {
+                state: { examName: row.original.categoryName },
+              })
             }
             size="icon"
             variant="link"

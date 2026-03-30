@@ -44,7 +44,7 @@ export const FillBlankRenderer = ({
     const blank = question.blanks.find((b) => b.id === selectedBlank);
     if (!blank) return false;
 
-    return question.options[optionIndex] === blank.correctAnswer;
+    return blank.correctAnswers.includes(question.options[optionIndex]);
   };
 
   const renderTemplate = () => {
@@ -66,7 +66,7 @@ export const FillBlankRenderer = ({
                 : "";
 
             const blank = question.blanks.find((b) => b.id === blankId);
-            const correctAnswer = blank?.correctAnswer || "";
+            const correctAnswer = blank?.correctAnswers?.[0] || "";
             const isCorrectAnswer =
               showResult && selectedText === correctAnswer;
             const isWrongAnswer =

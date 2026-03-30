@@ -47,19 +47,65 @@ const AppRoutes = () => {
           )
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
       {/* Auth routes */}
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/create-account" element={<CreateAccount />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/enter-otp" element={<EnterOtp />} />
-        <Route path="/create-new-password" element={<CreateNewPassword />} />
+        <Route
+          path="/login"
+          element={
+            isAuthenticated() ? <Navigate to="/dashboard" replace /> : <Login />
+          }
+        />
+        <Route
+          path="/create-account"
+          element={
+            isAuthenticated() ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <CreateAccount />
+            )
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            isAuthenticated() ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <ForgotPassword />
+            )
+          }
+        />
+        <Route
+          path="/enter-otp"
+          element={
+            isAuthenticated() ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <EnterOtp />
+            )
+          }
+        />
+        <Route
+          path="/create-new-password"
+          element={
+            isAuthenticated() ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <CreateNewPassword />
+            )
+          }
+        />
       </Route>
       
       {/*ExamStart routes */}
-      <Route element={<ExamStart />}>
+      <Route
+        element={
+          <ProtectedRoute>
+            <ExamStart />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/exams/start/:id" element={<StartExam />} />
       </Route>
 
@@ -70,8 +116,7 @@ const AppRoutes = () => {
             <DashboardLayout />
           </ProtectedRoute>
         }
-      />
-      <Route element={<DashboardLayout />}>
+      >
         {/* Dashboard page */}
         <Route path="/dashboard" element={<Dashboard />} />
         {/* Course introduction page */}

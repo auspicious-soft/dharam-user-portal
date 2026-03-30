@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Module } from "@/components/DomainsTasks/types";
@@ -6,24 +6,50 @@ import { DomainsModuleSection } from "@/components/DomainsTasks/DomainsModuleSec
 import { NavArrowLeft } from "iconoir-react";
 import DomainQuestionIcon from "@/assets/domain-question-icon.png";
 import { Link } from "react-router-dom";
+import api from "@/lib/axios";
 
 const DomainsTasks = () => {
-  const [userHasPremium] = React.useState(false);
+  const [userHasPremium] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [modules, setModules] = useState<Module[]>([]);
 
   const [bookmarkedItems, setBookmarkedItems] = React.useState<Set<string>>(
     new Set()
   );
 
-  const toggleBookmark = (itemId: string) => {
+  const toggleBookmark = async (itemId: string) => {
+    let nextIsBookmarked = false;
+
     setBookmarkedItems((prev) => {
       const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
-      } else {
+      nextIsBookmarked = !next.has(itemId);
+      if (nextIsBookmarked) {
         next.add(itemId);
+      } else {
+        next.delete(itemId);
       }
       return next;
     });
+
+    try {
+      await api.post("/user/bookmark", {
+        type: "TASK",
+        taskId: itemId,
+        isBookmarked: nextIsBookmarked,
+      });
+    } catch (error) {
+      setBookmarkedItems((prev) => {
+        const next = new Set(prev);
+        if (nextIsBookmarked) {
+          next.delete(itemId);
+        } else {
+          next.add(itemId);
+        }
+        return next;
+      });
+      // eslint-disable-next-line no-console
+      console.error("Failed to update task bookmark", error);
+    }
   };
 
   const [showBookmarks, setShowBookmarks] = React.useState(false);
@@ -31,7 +57,13 @@ const DomainsTasks = () => {
   const hasBookmarks = bookmarkedItems.size > 0;
 
   const getBookmarkedItemsData = () => {
-    const data: { id: string; title: string; moduleTitle: string }[] = [];
+    const data: {
+      id: string;
+      title: string;
+      taskLabel?: string;
+      taskName?: string;
+      moduleTitle: string;
+    }[] = [];
 
     modules.forEach((module) => {
       module.items.forEach((item) => {
@@ -39,6 +71,8 @@ const DomainsTasks = () => {
           data.push({
             id: item.id,
             title: item.title,
+            taskLabel: item.taskLabel,
+            taskName: item.taskName,
             moduleTitle: module.title,
           });
         }
@@ -48,33 +82,78 @@ const DomainsTasks = () => {
     return data;
   };
 
-  const [modules] = React.useState<Module[]>([
-    {
-      id: "d1",
-      title: "Strategic Program Management",
-      task: 8,
-      isPremium: false,
-      items: [
-        {
-          id: "d1-1",
-          title:
-            "Perform an initial program assessment by vCare Project Management",
-        },
-        { id: "d1-2", title: "Dummy Name of the slide" },
-        { id: "d1-3", title: "Dummy Name of the quiz" },
-      ],
-    },
-    {
-      id: "d2",
-      title: "Benefits Management",
-      task: 6,
-      isPremium: true,
-      items: [
-        { id: "d2-1", title: "Benefits realization overview" },
-        { id: "d2-2", title: "Dummy Name of the slide" },
-      ],
-    },
-  ]);
+  useEffect(() => {
+    const courseId = localStorage.getItem("selectedCourseId");
+    if (!courseId) return;
+
+    const fetchDomainsTasks = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get(`/user/domain-tasks/${courseId}`);
+        const data = (response.data as { data?: any[] })?.data ?? [];
+
+        const mappedModules: Module[] = (Array.isArray(data) ? data : []).map(
+          (module: any) => {
+            const rawItems =
+              (Array.isArray(module.tasks) && module.tasks) ||
+              (Array.isArray(module.items) && module.items) ||
+              (Array.isArray(module.domainTasks) && module.domainTasks) ||
+              (Array.isArray(module.taskList) && module.taskList) ||
+              [];
+
+            const items = rawItems
+              .filter(
+                (item: any) =>
+                  !item.status || String(item.status).toUpperCase() === "ACTIVE"
+              )
+              .map((item: any, index: number) => ({
+                id:
+                  item._id ??
+                  item.id ??
+                  item.taskId ??
+                  `${module._id}-${index}`,
+                title:
+                  item.taskName ??
+                  item.taskLabel ??
+                  item.title ??
+                  item.task ??
+                  item.name ??
+                  "Task",
+                taskLabel: item.taskLabel ?? undefined,
+                taskName: item.taskName ?? undefined,
+                isPremium: item.isPremium ?? false,
+              }));
+
+            const taskCount =
+              typeof module.task === "number"
+                ? module.task
+                : typeof module.tasks === "number"
+                ? module.tasks
+                : typeof module.totalTasks === "number"
+                ? module.totalTasks
+                : items.length;
+
+            return {
+              id: module._id ?? module.id ?? `${module.title}-${module.order ?? 0}`,
+              title: module.domain ?? module.title ?? module.module ?? "Domain",
+              task: taskCount,
+              isPremium: module.isPremium ?? false,
+              items,
+            } as Module;
+          }
+        );
+
+        setModules(mappedModules);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch domain tasks", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchDomainsTasks();
+  }, []);
 
   return (
     <div className="flex flex-col gap-5">
@@ -113,16 +192,26 @@ const DomainsTasks = () => {
       {/* MODULE LIST */}
       <div className="space-y-2.5">
         {!showBookmarks ? (
-          modules.map((module, index) => (
-            <DomainsModuleSection
-              key={module.id}
-              module={module}
-              defaultOpen={index === 0}
-              userHasPremium={userHasPremium}
-              bookmarkedItems={bookmarkedItems}
-              onToggleBookmark={toggleBookmark}
-            />
-          ))
+          isLoading ? (
+            <div className="p-4 text-sm text-paragraph">
+              Loading domains and tasks...
+            </div>
+          ) : modules.length ? (
+            modules.map((module, index) => (
+              <DomainsModuleSection
+                key={module.id}
+                module={module}
+                defaultOpen={index === 0}
+                userHasPremium={userHasPremium}
+                bookmarkedItems={bookmarkedItems}
+                onToggleBookmark={toggleBookmark}
+              />
+            ))
+          ) : (
+            <div className="p-4 text-sm text-paragraph">
+              No domains or tasks available yet.
+            </div>
+          )
         ) : (
           <div className="bg-light-blue rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
@@ -161,10 +250,10 @@ const DomainsTasks = () => {
                       />
                       <div>
                         <p className="text-xs text-paragraph font-medium">
-                          {moduleShortCode} {index + 1}
+                          {item.taskLabel ?? `${moduleShortCode} ${index + 1}`}
                         </p>
                         <h4 className="text-Black_light text-sm font-semibold truncate max-w-[320px]">
-                          {item.title}
+                          {item.taskName ?? item.title}
                         </h4>
                       </div>
                     </Link>

@@ -131,6 +131,7 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
               const isItemLocked = !canAccessModule;
               const isItemSelected = selectedId === item.id;
               const isBookmarked = bookmarkedItems.has(item.id);
+              const canBookmark = item.type !== "quiz";
 
               return (
                 <div
@@ -162,18 +163,20 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
                         : "cursor-pointer"
                     } ${isItemSelected ? "" : ""}`}
                   >
-                    <button
-                      className="p-2 hover:bg-gray-100 transition-colors"
-                      onClick={(e) => handleBookmarkClick(e, item.id)}
-                    >
-                      <Bookmark
-                        className={`w-4 h-4 transition-colors ${
-                          isBookmarked
-                            ? "fill-paragraph text-paragraph"
-                            : "text-paragraph"
-                        }`}
-                      />
-                    </button>
+                    {canBookmark && (
+                      <button
+                        className="p-2 hover:bg-gray-100 transition-colors"
+                        onClick={(e) => handleBookmarkClick(e, item.id)}
+                      >
+                        <Bookmark
+                          className={`w-4 h-4 transition-colors ${
+                            isBookmarked
+                              ? "fill-paragraph text-paragraph"
+                              : "text-paragraph"
+                          }`}
+                        />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

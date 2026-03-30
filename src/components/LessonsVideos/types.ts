@@ -23,6 +23,7 @@ export interface Module {
   questions: number;
   isPremium: boolean;
   items: ModuleItem[];
+  progress?: number;
 }
 
 /** Selected content shown in ContentViewer */
@@ -34,4 +35,7 @@ export type SelectedContent =
     }
   | ({
       type: "video" | "slide" | "quiz";
+      quizAllAttempted?: boolean;
     } & ModuleItem);
+
+export type ContentItem = ModuleItem;

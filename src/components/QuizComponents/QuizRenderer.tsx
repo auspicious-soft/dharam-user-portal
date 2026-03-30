@@ -4,28 +4,48 @@ import { QuizQuestion } from "./quiz.types";
 import { MCQRenderer } from "./MCQRenderer";
 import { DragDropRenderer } from "./DragDropRenderer";
 import { FillBlankRenderer } from "./FillBlankRenderer";
+import api from "@/lib/axios";
+import {
+  formatCorrectAnswerLabel,
+  getCorrectAnswerIds,
+  getMaxSelection,
+  isMCQSelectionCorrect,
+} from "./mcqUtils";
 
 interface QuizRendererProps {
   quiz: QuizQuestion[];
   onComplete?: (results: { correct: number; incorrect: number }) => void;
+  onQuestionAttempt?: (questionId: string) => void;
+  attemptConfig?: {
+    type: "QUESTION" | "TASK";
+    taskId?: string;
+  };
 }
 
-export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
+export const QuizRenderer = ({
+  quiz,
+  onComplete,
+  onQuestionAttempt,
+  attemptConfig,
+}: QuizRendererProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
   const [showResult, setShowResult] = useState(false);
   // Separate state for different answer types
-  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string | null>>({});
+  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string[]>>({});
   const [dragDropAnswers, setDragDropAnswers] = useState<Record<number, Record<string, string>>>({});
   const [fillBlankAnswers, setFillBlankAnswers] = useState<Record<number, Record<number, string>>>({});
   const [results, setResults] = useState<Record<number, boolean>>({}); // Track correct/incorrect
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
+  const isLocked = Boolean(question?.isAttempted);
+  const showResultState = showResult || isLocked;
 
   const isAnswered = () => {
+    if (isLocked) return true;
     if (question.type === "mcq") {
-      return selectedAnswer !== null;
+      return selectedAnswers.length > 0;
     } else if (question.type === "dragdrop") {
       const currentAnswers = dragDropAnswers[currentQuestionIndex] || {};
       return Object.keys(currentAnswers).length === question.dropZones.length;
@@ -41,7 +61,7 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
     let isCorrect = false;
 
     if (question.type === "mcq") {
-      isCorrect = selectedAnswer === question.correctAnswer;
+      isCorrect = isMCQSelectionCorrect(question, selectedAnswers);
     } else if (question.type === "dragdrop") {
       const currentAnswers = dragDropAnswers[currentQuestionIndex] || {};
       isCorrect = question.dropZones.every(
@@ -54,7 +74,9 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
           (key) => currentAnswers[parseInt(key)] === blank.id
         );
         if (assignedOptionIndex === undefined) return false;
-        return question.options[parseInt(assignedOptionIndex)] === blank.correctAnswer;
+        return blank.correctAnswers.includes(
+          question.options[parseInt(assignedOptionIndex)]
+        );
       });
     }
 
@@ -62,14 +84,34 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
   };
 
   const handleSubmit = () => {
+    if (isLocked) return;
     if (question.type === "mcq") {
-      setMcqAnswers({ ...mcqAnswers, [currentQuestionIndex]: selectedAnswer });
+      setMcqAnswers({ ...mcqAnswers, [currentQuestionIndex]: selectedAnswers });
     }
     
     // Check if answer is correct and store result
     const isCorrect = checkAnswer();
     setResults({ ...results, [currentQuestionIndex]: isCorrect });
+
+    onQuestionAttempt?.(question.id);
     
+    if (attemptConfig?.type === "TASK") {
+      if (attemptConfig.taskId) {
+        void api.post("/user/mark-attempted", {
+          type: "TASK",
+          taskId: attemptConfig.taskId,
+          questionId: question.id,
+          isAttempted: true,
+        });
+      }
+    } else {
+      void api.post("/user/mark-attempted", {
+        type: "QUESTION",
+        questionId: question.id,
+        isAttempted: true,
+      });
+    }
+
     setShowResult(true);
   };
 
@@ -77,7 +119,7 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
     setCurrentQuestionIndex((prev) => prev + 1);
     const nextQuestion = quiz[currentQuestionIndex + 1];
     if (nextQuestion && nextQuestion.type === "mcq") {
-      setSelectedAnswer(mcqAnswers[currentQuestionIndex + 1] ?? null);
+      setSelectedAnswers(mcqAnswers[currentQuestionIndex + 1] ?? []);
     }
     setShowResult(false);
   };
@@ -107,7 +149,7 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
   return (
     <div className="flex overflow-hidden flex-col gap-2.5">
       <div className="flex justify-end gap-4">
-        {!showResult ? (
+        {!showResultState ? (
           <Button
             onClick={handleSubmit}
             disabled={!isAnswered()}
@@ -139,6 +181,17 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
         <h2 className="text-paragraph text-base font-semibold">
           Question {currentQuestionIndex + 1} / {totalQuestions}
         </h2>
+        {showResult && results[currentQuestionIndex] !== undefined && (
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              results[currentQuestionIndex]
+                ? "bg-[#D2FFC9] text-Black_light"
+                : "bg-[#FFE6E6] text-Black_light"
+            }`}
+          >
+            {results[currentQuestionIndex] ? "Correct" : "Incorrect"}
+          </span>
+        )}
       </div>
 
       <p className="justify-start text-paragraph text-base leading-6">
@@ -148,7 +201,7 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
       {question.type === "mcq" && (
         <div className="mb-4">
           <span className="px-[18px] bg-white rounded-[99px] outline outline-1 outline-offset-[-1px] outline-paragraph inline-flex justify-start items-center gap-2.5 text-paragraph text-xs font-medium leading-[30px]">
-            Max Selections: 1
+            Max Selections: {getMaxSelection(question)}
           </span>
         </div>
       )}
@@ -164,9 +217,9 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
         {question.type === "mcq" && (
           <MCQRenderer
             question={question}
-            selectedAnswer={selectedAnswer}
-            setSelectedAnswer={setSelectedAnswer}
-            showResult={showResult}
+            selectedAnswers={selectedAnswers}
+            setSelectedAnswers={setSelectedAnswers}
+            showResult={showResultState}
           />
         )}
 
@@ -175,7 +228,7 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
             question={question}
             answers={dragDropAnswers}
             setAnswers={setDragDropAnswers}
-            showResult={showResult}
+            showResult={showResultState}
             currentQuestionIndex={currentQuestionIndex}
           />
         )}
@@ -185,13 +238,13 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
             question={question}
             answers={fillBlankAnswers}
             setAnswers={setFillBlankAnswers}
-            showResult={showResult}
+            showResult={showResultState}
             currentQuestionIndex={currentQuestionIndex}
           />
         )}
       </div>
 
-      {showResult && question.qExplanation && (
+      {showResultState && question.qExplanation && (
         <div className="self-stretch p-4 bg-white rounded-lg inline-flex flex-col border border-light-blue justify-start items-start gap-2.5 mt-5">
           <div className="justify-start text-Desc-464646 text-base font-semibold leading-5 mb-2">
             Solution
@@ -199,7 +252,10 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
           {question.type === "mcq" && (
             <div className="px-4 py-2 bg-[#6aa56d] rounded-lg inline-flex justify-center items-center gap-2.5">
               <div className="justify-start text-white text-sm font-medium leading-6">
-                Option {question.correctAnswer.toUpperCase()} is correct answer
+                {getCorrectAnswerIds(question).length > 1
+                  ? "Correct answers:"
+                  : "Correct answer:"}{" "}
+                {formatCorrectAnswerLabel(question)}
               </div>
             </div>
           )}
@@ -243,7 +299,7 @@ export const QuizRenderer = ({ quiz, onComplete }: QuizRendererProps) => {
                         const blank = question.blanks.find(
                           (b) => b.id === blankId,
                         );
-                        const correctAnswer = blank?.correctAnswer || "";
+                        const correctAnswer = blank?.correctAnswers?.[0] || "";
                         return (
                           <span
                             key={idx}

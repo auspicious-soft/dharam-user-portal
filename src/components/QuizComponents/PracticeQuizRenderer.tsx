@@ -10,25 +10,37 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowLeft, ArrowRight, InfoCircle } from "iconoir-react";
+import api from "@/lib/axios";
+import {
+  formatCorrectAnswerLabel,
+  getCorrectAnswerIds,
+  getMaxSelection,
+  isMCQSelectionCorrect,
+} from "./mcqUtils";
 
 interface QuizRendererProps {
   quiz: QuizQuestion[];
   onComplete?: (results: { correct: number; incorrect: number }) => void;
   onQuestionChange?: (index: number) => void;
+  attemptConfig?: {
+    examId: string;
+    attemptNumber: number;
+  };
 }
 
 export const PracticeQuizRenderer = ({
   quiz,
   onComplete,
   onQuestionChange,
+  attemptConfig,
 }: QuizRendererProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
 
   const [showResult, setShowResult] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
 
-  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string | null>>(
+  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string[]>>(
     {},
   );
   const [dragDropAnswers, setDragDropAnswers] = useState<
@@ -52,7 +64,7 @@ export const PracticeQuizRenderer = ({
 
   const isAnswered = () => {
     if (question.type === "mcq") {
-      return selectedAnswer !== null;
+      return selectedAnswers.length > 0;
     }
 
     if (question.type === "dragdrop") {
@@ -72,7 +84,7 @@ export const PracticeQuizRenderer = ({
 
   const checkAnswer = () => {
     if (question.type === "mcq") {
-      return selectedAnswer === question.correctAnswer;
+      return isMCQSelectionCorrect(question, selectedAnswers);
     }
 
     if (question.type === "dragdrop") {
@@ -111,7 +123,7 @@ export const PracticeQuizRenderer = ({
     if (question.type === "mcq") {
       setMcqAnswers({
         ...mcqAnswers,
-        [currentQuestionIndex]: selectedAnswer,
+        [currentQuestionIndex]: selectedAnswers,
       });
     }
 
@@ -122,6 +134,15 @@ export const PracticeQuizRenderer = ({
       [currentQuestionIndex]: isCorrect,
     });
 
+    if (attemptConfig?.examId && typeof attemptConfig.attemptNumber === "number") {
+      void api.post("/user/practice-exam-questions", {
+        examId: attemptConfig.examId,
+        attemptNumber: attemptConfig.attemptNumber,
+        questionId: question.id,
+        isCorrect,
+      });
+    }
+
     setShowResult(true);
     setShowSolution(true);
   };
@@ -130,7 +151,7 @@ export const PracticeQuizRenderer = ({
     const nextIndex = currentQuestionIndex + 1;
 
     setCurrentQuestionIndex(nextIndex);
-    setSelectedAnswer(mcqAnswers[nextIndex] ?? null);
+    setSelectedAnswers(mcqAnswers[nextIndex] ?? []);
 
     setShowResult(false);
     setShowSolution(false);
@@ -142,7 +163,7 @@ export const PracticeQuizRenderer = ({
     const prevIndex = currentQuestionIndex - 1;
 
     setCurrentQuestionIndex(prevIndex);
-    setSelectedAnswer(mcqAnswers[prevIndex] ?? null);
+    setSelectedAnswers(mcqAnswers[prevIndex] ?? []);
 
     setShowResult(false);
     setShowSolution(false);
@@ -150,7 +171,15 @@ export const PracticeQuizRenderer = ({
 
   const handleSkip = () => {
     if (currentQuestionIndex < totalQuestions - 1) {
-      setCurrentQuestionIndex((p) => p + 1);
+      const nextIndex = currentQuestionIndex + 1;
+      const nextQuestion = quiz[nextIndex];
+
+      setCurrentQuestionIndex(nextIndex);
+      if (nextQuestion?.type === "mcq") {
+        setSelectedAnswers(mcqAnswers[nextIndex] ?? []);
+      } else {
+        setSelectedAnswers([]);
+      }
       setShowResult(false);
       setShowSolution(false);
     }
@@ -205,7 +234,7 @@ export const PracticeQuizRenderer = ({
       {question.type === "mcq" && (
         <div className="mb-4">
           <span className="px-[18px] bg-white rounded-[99px] outline outline-1 outline-offset-[-1px] outline-paragraph inline-flex justify-start items-center gap-2.5 text-paragraph text-xs font-medium leading-[30px]">
-            Max Selections: 1
+            Max Selections: {getMaxSelection(question)}
           </span>
         </div>
       )}
@@ -221,8 +250,8 @@ export const PracticeQuizRenderer = ({
         {question.type === "mcq" && (
           <MCQRenderer
             question={question}
-            selectedAnswer={selectedAnswer}
-            setSelectedAnswer={setSelectedAnswer}
+            selectedAnswers={selectedAnswers}
+            setSelectedAnswers={setSelectedAnswers}
             showResult={showResult}
           />
         )}
@@ -309,7 +338,10 @@ export const PracticeQuizRenderer = ({
           {question.type === "mcq" && (
             <div className="px-4 py-2 bg-[#6aa56d] rounded-lg inline-flex justify-center items-center gap-2.5">
               <div className="justify-start text-white text-sm font-medium leading-6">
-                Option {question.correctAnswer.toUpperCase()} is correct answer
+                {getCorrectAnswerIds(question).length > 1
+                  ? "Correct answers:"
+                  : "Correct answer:"}{" "}
+                {formatCorrectAnswerLabel(question)}
               </div>
             </div>
           )}

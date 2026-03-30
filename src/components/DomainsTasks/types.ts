@@ -1,6 +1,8 @@
 export interface DomainItem {
   id: string;
   title: string;
+  taskLabel?: string;
+  taskName?: string;
   isPremium?: boolean;
 }
 

@@ -3,21 +3,70 @@ import { Link, useNavigate } from "react-router-dom";
 import { Input } from "../../components/ui/input";
 import { MailOpen, ArrowRight } from "iconoir-react";
 import { Button } from "@/components/ui/button";
+import api from "@/lib/axios";
+import { toast } from "sonner";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    navigate("/enter-otp", {
-      state: {
-        mode: "forgot",
-        email,
-      },
-    });
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setError("Please enter your email");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await api.post("/forget-password", {
+        email: trimmedEmail,
+      });
+
+      const resetToken =
+        (response.data as { data?: { resetToken?: string | null } })?.data
+          ?.resetToken ?? null;
+      if (resetToken) {
+        localStorage.setItem("verificationToken", resetToken);
+      }
+
+      const successMessage =
+        (response.data as { message?: string | null })?.message ??
+        "OTP sent successfully";
+      toast.success(successMessage);
+
+      navigate("/enter-otp", {
+        state: {
+          mode: "forgot",
+          email: trimmedEmail,
+        },
+      });
+    } catch (requestError: unknown) {
+      const message =
+        (requestError as { response?: { data?: { message?: string } } })
+          .response?.data?.message ?? "Failed to send OTP.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -42,12 +91,18 @@ const ForgotPassword = () => {
             placeholder="Email Address"
             className="pl-12"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError("");
+            }}
           />
         </div>
 
-        <Button type="submit">
-          Verify Email <ArrowRight className="w-5 h-5" />
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Sending..." : "Verify Email"}{" "}
+          <ArrowRight className="w-5 h-5" />
         </Button>
 
         <div className="text-center">

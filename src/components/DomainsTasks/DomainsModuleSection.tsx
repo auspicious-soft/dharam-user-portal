@@ -92,10 +92,10 @@ export const DomainsModuleSection = ({
                   />
                   <div>
                     <p className="text-xs text-paragraph font-medium">
-                      {moduleShortCode} {index + 1}
+                      {item.taskLabel ?? `${moduleShortCode} ${index + 1}`}
                     </p>
                     <h4 className="text-Black_light text-sm font-semibold truncate max-w-[200px] lg:max-w-[320px] w-full">
-                      {item.title}
+                      {item.taskName ?? item.title}
                     </h4>
                   </div>
                 </Link>

@@ -1,9 +1,8 @@
 // LearningManagementSystem.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Bookmark } from "lucide-react";
 import { ModuleSection } from "@/components/LessonsVideos/ModuleSection";
 import { ContentViewer } from "@/components/LessonsVideos/ContentViewer";
-import { modules } from "@/components/LessonsVideos/mockData";
 import {
   Module,
   ContentItem,
@@ -12,30 +11,280 @@ import {
 import { contentIconMap } from "@/components/LessonsVideos/contentIcons";
 import { Button } from "@/components/ui/button";
 import { NavArrowLeft } from "iconoir-react";
+import api from "@/lib/axios";
+import { getPublicUrlForKey } from "@/utils/s3Upload";
+import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
 
 const LearningManagementSystem: React.FC = () => {
-  const [openModuleId, setOpenModuleId] = useState<string | null>("m1");
+  const [modules, setModules] = useState<Module[]>([]);
+  const [openModuleId, setOpenModuleId] = useState<string | null>(null);
   const [selectedContent, setSelectedContent] = useState<SelectedContent | null>(null);
-  
+
   const [userHasPremium] = useState(false);
   const [bookmarkedItems, setBookmarkedItems] = useState<Set<string>>(
     new Set()
   );
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [moduleQuiz, setModuleQuiz] = useState<Record<string, QuizQuestion[]>>(
+    {}
+  );
+  const [attemptedQuestionsByModule, setAttemptedQuestionsByModule] = useState<
+    Record<string, Set<string>>
+  >({});
+  const attemptedLessonsRef = useRef<Set<string>>(new Set());
 
-  // ✅ NEW: Track completed content items
-  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const resolveFileUrl = (url: string) => {
+    if (!url) return "";
+    return /^https?:\/\//i.test(url) ? url : getPublicUrlForKey(url);
+  };
 
-  // Show Module 1 introduction by default on mount
-  useEffect(() => {
-    const firstModule = modules[0];
-    if (firstModule) {
-      setSelectedContent({
-        type: "module",
-        title: firstModule.title,
-        description: firstModule.description,
+  const mapQuestions = (questions: any[]): QuizQuestion[] => {
+    return (Array.isArray(questions) ? questions : [])
+      .map((question) => {
+        const type = String(question.type ?? "").toUpperCase();
+
+        if (type === "MCQ") {
+          const options = (question.mcq ?? []).map(
+            (option: any, index: number) => ({
+              id: String.fromCharCode(97 + index),
+              text: option.text ?? "",
+            })
+          );
+          const correctAnswers = (question.mcq ?? [])
+            .map((option: any, index: number) =>
+              option.isCorrect ? String.fromCharCode(97 + index) : null
+            )
+            .filter(Boolean) as string[];
+          const maxSelection =
+            typeof question.maxSelection === "number" &&
+            question.maxSelection > 0
+              ? question.maxSelection
+              : Math.max(1, correctAnswers.length || 1);
+          const correctAnswer = correctAnswers[0] ?? "a";
+
+          return {
+            id: question._id,
+            type: "mcq",
+            question: question.question ?? "",
+            qExplanation: question.explaination ?? "",
+            options,
+            correctAnswer,
+            correctAnswers,
+            maxSelection,
+            isAttempted: Boolean(question.isAttempted),
+          } as QuizQuestion;
+        }
+
+        if (type === "FIB") {
+          const fibItems = Array.isArray(question.fib) ? question.fib : [];
+          const orderedFibItems = fibItems.filter((item: any) => {
+            const order = Number(item.correctOrder);
+            return Number.isFinite(order) && order > 0;
+          });
+          const maxSelection =
+            typeof question.maxSelection === "number" &&
+            question.maxSelection > 0
+              ? question.maxSelection
+              : Math.max(
+                  1,
+                  ...orderedFibItems.map((item: any) =>
+                    Number(item.correctOrder) || 0
+                  )
+                );
+
+          let blankIndex = 1;
+          const questionTemplate = String(question.question ?? "").replace(
+            /BLANK/g,
+            () => `__${blankIndex++}__`
+          );
+
+          const blanks = Array.from({ length: maxSelection }, (_, index) => {
+            const blankOrder = index + 1;
+            const matches = orderedFibItems.filter(
+              (item: any) => Number(item.correctOrder) === blankOrder
+            );
+            return {
+              id: String(blankOrder),
+              correctAnswers: matches.map((item: any) => item.answer ?? ""),
+            };
+          });
+
+          return {
+            id: question._id,
+            type: "fillblank",
+            question: question.question ?? "",
+            qExplanation: question.explaination ?? "",
+            questionTemplate,
+            blanks,
+            options: fibItems.map((blank: any) => blank.answer ?? ""),
+            isAttempted: Boolean(question.isAttempted),
+          } as QuizQuestion;
+        }
+
+        if (type === "DND") {
+          const draggableItems = (question.dnd?.options ?? []).map(
+            (option: any) => ({
+              id: option.id,
+              text: option.text ?? "",
+            })
+          );
+          const dropZones = (question.dnd?.pairs ?? []).map((pair: any) => ({
+            id: pair.leftId,
+            label: pair.leftText ?? "",
+            correctItemId: pair.rightId,
+            displayText: pair.leftText ?? "",
+          }));
+
+          return {
+            id: question._id,
+            type: "dragdrop",
+            question: question.question ?? "",
+            qExplanation: question.explaination ?? "",
+            draggableItems,
+            dropZones,
+            isAttempted: Boolean(question.isAttempted),
+          } as QuizQuestion;
+        }
+
+        return null;
+      })
+      .filter(Boolean) as QuizQuestion[];
+  };
+
+  const fetchQuestions = async (moduleId: string) => {
+    try {
+      const response = await api.get(`/user/get-questions?moduleId=${moduleId}`);
+      const questions = (response.data as { data?: any[] })?.data ?? [];
+      const mapped = mapQuestions(questions);
+      const attemptedIds = mapped
+        .filter((question) => question.isAttempted)
+        .map((question) => question.id);
+      const availableQuestions = mapped.filter(
+        (question) => !question.isAttempted
+      );
+      const allAttempted =
+        mapped.length > 0 && availableQuestions.length === 0;
+
+      setAttemptedQuestionsByModule((prev) => {
+        const existing = prev[moduleId] ?? new Set<string>();
+        const merged = new Set(existing);
+        attemptedIds.forEach((id) => merged.add(id));
+
+        setModules((prevModules) =>
+          prevModules.map((module) => {
+            if (module.id !== moduleId) return module;
+            const totalQuestions = Math.max(
+              module.questions ?? 0,
+              mapped.length
+            );
+            if (!totalQuestions) return module;
+            const progress = Math.min(
+              100,
+              Math.round((merged.size / totalQuestions) * 100)
+            );
+            return { ...module, progress };
+          })
+        );
+
+        return { ...prev, [moduleId]: merged };
       });
+      setModuleQuiz((prev) => ({ ...prev, [moduleId]: availableQuestions }));
+      return { questions: availableQuestions, allAttempted };
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to fetch module questions", error);
+      return { questions: [], allAttempted: false };
     }
+  };
+
+  useEffect(() => {
+    const courseId =
+      localStorage.getItem("selectedCourseId") 
+
+    const fetchLessonsVideos = async () => {
+      try {
+        const response = await api.get(`/user/lessons-videos/${courseId}`);
+        const data = (response.data as { data?: any[] })?.data ?? [];
+
+        const bookmarked = new Set<string>();
+
+        const mappedModules: Module[] = (Array.isArray(data) ? data : [])
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .map((module: any) => {
+            const lessons = (module.lessons ?? [])
+              .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+              .map((lesson: any) => {
+                const rawType = String(lesson.fileType ?? "").toUpperCase();
+                const type = rawType === "VIDEO" ? "video" : "slide";
+                const resolvedUrl = resolveFileUrl(lesson.fileLink ?? "");
+
+                if (lesson.isBookmarked) {
+                  bookmarked.add(lesson._id);
+                }
+
+                return {
+                  id: lesson._id,
+                  title: lesson.lessonName ?? lesson.fileName ?? "Lesson",
+                  duration: lesson.duration ?? "",
+                  type,
+                  moduleId: module._id,
+                  videoUrl: type === "video" ? resolvedUrl : undefined,
+                  pdfUrl: type === "slide" ? resolvedUrl : undefined,
+                } as ContentItem;
+              });
+
+            if ((module.questions ?? 0) > 0) {
+              lessons.push({
+                id: `${module._id}-quiz`,
+                title: "Questions",
+                duration: `${module.questions} Questions`,
+                type: "quiz",
+                moduleId: module._id,
+                quiz: [],
+              });
+            }
+
+            const videosCount =
+              typeof module.videos === "number"
+                ? module.videos
+                : lessons.filter((item) => item.type === "video").length;
+            const slidesCount =
+              typeof module.files === "number"
+                ? module.files
+                : lessons.filter((item) => item.type === "slide").length;
+
+            return {
+              id: module._id,
+              title: (module.module ?? "Module").trim(),
+              description: module.moduleIntroduction ?? "",
+              videos: videosCount,
+              slides: slidesCount,
+              questions: module.questions ?? 0,
+              isPremium: false,
+              items: lessons,
+              progress: module.progress ?? 0,
+            } as Module;
+          });
+
+        setModules(mappedModules);
+        setBookmarkedItems(bookmarked);
+
+        const firstModule = mappedModules[0];
+        if (firstModule) {
+          setOpenModuleId(firstModule.id);
+          setSelectedContent({
+            type: "module",
+            title: firstModule.title,
+            description: firstModule.description,
+          });
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch lessons videos", error);
+      }
+    };
+
+    fetchLessonsVideos();
   }, []);
 
   const handleToggleModule = (moduleId: string) => {
@@ -50,27 +299,90 @@ const LearningManagementSystem: React.FC = () => {
     });
   };
 
-  // ✅ UPDATED: mark item as completed when opened
-  const handleSelectItem = (item: ContentItem) => {
-    setSelectedContent(item);
+  // mark item as completed when opened
+  const handleSelectItem = async (item: ContentItem) => {
+    if (item.type === "quiz") {
+      const existing = moduleQuiz[item.moduleId];
+      let quizData = existing;
+      let allAttempted = false;
 
-    setCompletedItems((prev) => {
-      const updated = new Set(prev);
-      updated.add(item.id);
-      return updated;
-    });
+      if (!quizData) {
+        const result = await fetchQuestions(item.moduleId);
+        quizData = result.questions;
+        allAttempted = result.allAttempted;
+      } else {
+        const attemptedCount =
+          attemptedQuestionsByModule[item.moduleId]?.size ?? 0;
+        const remainingCount = quizData.length;
+        const totalQuestions = Math.max(
+          modules.find((module) => module.id === item.moduleId)?.questions ?? 0,
+          remainingCount + attemptedCount
+        );
+        allAttempted = totalQuestions > 0 && attemptedCount >= totalQuestions;
+      }
+
+      setSelectedContent({
+        ...item,
+        quiz: quizData,
+        quizAllAttempted: allAttempted,
+      });
+    } else {
+      setSelectedContent(item);
+      void markLessonAttempted(item.id);
+    }
   };
 
-  const handleToggleBookmark = (itemId: string) => {
+  const markLessonAttempted = async (lessonId: string) => {
+    if (attemptedLessonsRef.current.has(lessonId)) return;
+    attemptedLessonsRef.current.add(lessonId);
+
+    try {
+      await api.post("/user/mark-attempted", {
+        type: "LESSON",
+        lessonId,
+        isAttempted: true,
+      });
+    } catch (error) {
+      attemptedLessonsRef.current.delete(lessonId);
+      // eslint-disable-next-line no-console
+      console.error("Failed to mark lesson attempted", error);
+    }
+  };
+
+  const handleToggleBookmark = async (itemId: string) => {
+    let nextIsBookmarked = false;
+
     setBookmarkedItems((prev) => {
       const newBookmarks = new Set(prev);
-      if (newBookmarks.has(itemId)) {
-        newBookmarks.delete(itemId);
-      } else {
+      nextIsBookmarked = !newBookmarks.has(itemId);
+      if (nextIsBookmarked) {
         newBookmarks.add(itemId);
+      } else {
+        newBookmarks.delete(itemId);
       }
       return newBookmarks;
     });
+
+    try {
+      await api.post("/user/bookmark", {
+        type: "LESSON",
+        lessonId: itemId,
+        isBookmarked: nextIsBookmarked,
+      });
+    } catch (error) {
+      // revert optimistic update
+      setBookmarkedItems((prev) => {
+        const newBookmarks = new Set(prev);
+        if (nextIsBookmarked) {
+          newBookmarks.delete(itemId);
+        } else {
+          newBookmarks.add(itemId);
+        }
+        return newBookmarks;
+      });
+      // eslint-disable-next-line no-console
+      console.error("Failed to update bookmark", error);
+    }
   };
 
   const getBookmarkedItemsData = () => {
@@ -91,15 +403,45 @@ const LearningManagementSystem: React.FC = () => {
 
   const hasBookmarks = bookmarkedItems.size > 0;
 
-  // ✅ NEW: Calculate module progress (0–100)
+  // Calculate module progress (0-100)
   const getModuleProgress = (module: Module) => {
-    if (!module.items.length) return 0;
+    return module.progress ?? 0;
+  };
 
-    const completedCount = module.items.filter((item) =>
-      completedItems.has(item.id)
-    ).length;
+  const handleQuestionAttempt = (moduleId: string, questionId: string) => {
+    setAttemptedQuestionsByModule((prev) => {
+      const existing = prev[moduleId] ?? new Set<string>();
+      if (existing.has(questionId)) return prev;
 
-    return Math.round((completedCount / module.items.length) * 100);
+      const nextSet = new Set(existing);
+      nextSet.add(questionId);
+
+      setModules((prevModules) =>
+        prevModules.map((module) => {
+          if (module.id !== moduleId) return module;
+          const availableCount = moduleQuiz[moduleId]?.length ?? 0;
+          const totalQuestions = Math.max(
+            module.questions ?? 0,
+            availableCount + nextSet.size
+          );
+          if (!totalQuestions) return module;
+          const progress = Math.min(
+            100,
+            Math.round((nextSet.size / totalQuestions) * 100)
+          );
+          return { ...module, progress };
+        })
+      );
+
+      setModuleQuiz((prevQuiz) => {
+        const current = prevQuiz[moduleId];
+        if (!current) return prevQuiz;
+        const filtered = current.filter((question) => question.id !== questionId);
+        return { ...prevQuiz, [moduleId]: filtered };
+      });
+
+      return { ...prev, [moduleId]: nextSet };
+    });
   };
 
   return (
@@ -146,7 +488,7 @@ const LearningManagementSystem: React.FC = () => {
                 key={module.id}
                 module={{
                   ...module,
-                  progress: getModuleProgress(module), // ✅ PASS PROGRESS
+                  progress: getModuleProgress(module),
                 }}
                 isOpen={openModuleId === module.id}
                 onToggle={() => handleToggleModule(module.id)}
@@ -172,7 +514,7 @@ const LearningManagementSystem: React.FC = () => {
                   onClick={() => setShowBookmarks(false)}
                   className="text-primary_blue hover:text-primary_heading text-sm font-medium flex items-center gap-1"
                 >
-                 <NavArrowLeft className="w-5 h-5"/> Back to Modules
+                  <NavArrowLeft className="w-5 h-5" /> Back to Modules
                 </button>
               </div>
 
@@ -185,7 +527,7 @@ const LearningManagementSystem: React.FC = () => {
                         handleSelectItem(item);
                         setShowBookmarks(false);
                       }}
-                      className="flex items-center justify-between border-b border-[#dce5ed] py-2 last:border-b-0 transition-colors cursor-pointer" 
+                      className="flex items-center justify-between border-b border-[#dce5ed] py-2 last:border-b-0 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-3 flex-1">
                         <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
@@ -199,17 +541,19 @@ const LearningManagementSystem: React.FC = () => {
                             {item.duration}
                           </p>
                         </div>
-                      </div>  
+                      </div>
 
-                      <button
-                        className="p-2 hover:bg-gray-100 rounded transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleBookmark(item.id);
-                        }}
-                      >
-                        <Bookmark className="w-4 h-4 fill-paragraph text-paragraph" />
-                      </button>
+                      {item.type !== "quiz" && (
+                        <button
+                          className="p-2 hover:bg-gray-100 rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleBookmark(item.id);
+                          }}
+                        >
+                          <Bookmark className="w-4 h-4 fill-paragraph text-paragraph" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -224,12 +568,13 @@ const LearningManagementSystem: React.FC = () => {
         </div>
 
         {/* RIGHT PANEL */}
-          {selectedContent && (
-            <ContentViewer
-              content={selectedContent}
-              onClose={() => setSelectedContent(null)}
-            />
-          )}
+        {selectedContent && (
+          <ContentViewer
+            content={selectedContent}
+            onClose={() => setSelectedContent(null)}
+            onQuestionAttempt={handleQuestionAttempt}
+          />
+        )}
       </div>
     </div>
   );

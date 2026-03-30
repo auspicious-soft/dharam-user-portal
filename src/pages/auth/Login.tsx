@@ -5,15 +5,102 @@ import { Input } from "../../components/ui/input";
 import { Lock, Eye, EyeClosed, MailOpen, ArrowRight } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/utils/svgicons";
+import { signInWithPopup } from "firebase/auth";
+import { firebaseAuth, googleProvider } from "@/lib/firebase";
+import api from "@/lib/axios";
+import { getFcmToken } from "@/lib/fcm";
+import { toast } from "sonner";
 
 const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    login(); // fake login
-    navigate("/", { replace: true });
+
+    if (!email || !password) {
+      setError("Please enter email and password");
+      return;
+    }
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setError("");
+    setIsSubmitting(true);
+
+    let fcmToken: string | null = null;
+    try {
+      fcmToken = await getFcmToken();
+    } catch (tokenError) {
+      // eslint-disable-next-line no-console
+      console.warn("FCM token not available", tokenError);
+    }
+
+    try {
+      const response = await api.post("/user-login", {
+        email: email.trim(),
+        password,
+        fcmToken: fcmToken ?? "",
+      });
+
+      const responseData = response.data as {
+        data?: {
+          accessToken?: string | null;
+          refreshToken?: string | null;
+          user?: unknown;
+        };
+      };
+
+      const accessToken = responseData?.data?.accessToken ?? null;
+      const refreshToken = responseData?.data?.refreshToken ?? null;
+      const user = responseData?.data?.user ?? null;
+
+      if (accessToken) {
+        localStorage.setItem("authToken", accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      }
+      if (user) {
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      const successMessage =
+        (response.data as { message?: string | null })?.message ??
+        "Login successful";
+      toast.success(successMessage);
+
+      login();
+      navigate("/dashboard", { replace: true });
+    } catch (requestError: unknown) {
+      const message =
+        (requestError as { response?: { data?: { message?: string } } })
+          .response?.data?.message ?? "Login failed. Please try again.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(firebaseAuth, googleProvider);
+      const idToken = await result.user.getIdToken();
+
+      localStorage.setItem("authToken", idToken);
+      login();
+      await sendFcmToken("login");
+      navigate("/", { replace: true });
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Google login failed", error);
+    }
   };
 
   return (
@@ -33,7 +120,16 @@ const Login = () => {
             className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-input-888"
             strokeWidth={0.9}
           />
-          <Input type="email" placeholder="Email Address" className="pl-12" />
+          <Input
+            type="email"
+            placeholder="Email Address"
+            className="pl-12"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError("");
+            }}
+          />
         </div>
 
         {/* Password Field */}
@@ -46,6 +142,11 @@ const Login = () => {
             type={showPassword ? "text" : "password"}
             placeholder="Password"
             className="pl-12 pr-10"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError("");
+            }}
           />
           <button
             type="button"
@@ -59,6 +160,8 @@ const Login = () => {
             )}
           </button>
         </div>
+
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
         <div className="mt-[-6px] text-right ">
           <Link
             to="/forgot-password"
@@ -68,8 +171,9 @@ const Login = () => {
           </Link>
         </div>
 
-        <Button type="submit">
-          Login <ArrowRight className="w-5 h-5" />
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Logging in..." : "Login"}{" "}
+          <ArrowRight className="w-5 h-5" />
         </Button>
         <p className="text-sm text-paragraph text-center ">
           Don’t have an account? {" "} 
@@ -88,6 +192,8 @@ const Login = () => {
         <Button
           className="shadow-[0px_1px_2px_0px_rgba(228,229,231,0.24)]"
           variant="secondary"
+          type="button"
+          onClick={handleGoogleLogin}
         >
           <GoogleIcon />
           <div className=" text-sm ">Continue with Google</div>
