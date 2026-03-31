@@ -3,15 +3,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { SelectedContent } from "./types";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
+import PdfWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 import { Youtube } from "iconoir-react";
 import { Button } from "../ui/button";
 import LessonsQuizRenderer from "./LessonsQuizRenderer";
 
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+// Set up PDF.js worker (Vite-friendly)
+pdfjs.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 interface ContentViewerProps {
   content: SelectedContent;

@@ -12,12 +12,17 @@ import { ArrowRight } from "iconoir-react";
 
 interface ExitExamDialogProps {
   open: boolean; 
-  onClose: () => void;
+  onResume: () => void;
+  onConfirmPause: () => void;
 }
 
-export const PauseExamDialog = ({ open, onClose }: ExitExamDialogProps) => {
+export const PauseExamDialog = ({
+  open,
+  onResume,
+  onConfirmPause,
+}: ExitExamDialogProps) => {
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open}>
       <DialogContent className="max-w-md rounded-2xl p-7">
         {/* Header */}
         <DialogHeader className="items-center space-y-4 mb-4">
@@ -37,9 +42,16 @@ export const PauseExamDialog = ({ open, onClose }: ExitExamDialogProps) => {
         </DialogHeader>
 
         {/* Footer */}
-        <DialogFooter>
-          <Button className="flex-1 max-h-[44px]">
-           Resume <ArrowRight />
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 max-h-[44px]"
+            onClick={onConfirmPause}
+          >
+            Yes, Pause
+          </Button>
+          <Button className="flex-1 max-h-[44px]" onClick={onResume}>
+            Resume <ArrowRight />
           </Button>
         </DialogFooter>
       </DialogContent>

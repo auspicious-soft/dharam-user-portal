@@ -1,62 +1,90 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Module, ContentItem, SelectedContent } from "@/components/examStrategy/examtypes";
 import { ExamModuleSection } from "@/components/examStrategy/ExamModuleSection";
 import { ExamViewer } from "@/components/examStrategy/ExamViewer";
-
-const modules: Module[] = [
-  {
-    id: "e1",
-    title: "Name Goes Here",
-    items: [
-      {
-        id: "1",
-        title: "Dummy Name of the PDF",
-        type: "pdf",
-        pdfUrl: "https://www.aeee.in/wp-content/uploads/2020/08/Sample-pdf.pdf",
-      },
-      {
-        id: "2",
-        title: "Dummy Name of the video",
-        type: "video",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      },
-      {
-        id: "3",
-        title: "Dummy Name of the PDF",
-        type: "pdf",
-        pdfUrl: "https://www.aeee.in/wp-content/uploads/2020/08/Sample-pdf.pdf",
-      },
-    ],
-  },
-  {
-    id: "e2",
-    title: "Name Goes Here",
-    items: [
-      {
-        id: "1",
-        title: "Dummy Name of the PDF",
-        type: "pdf",
-        pdfUrl: "https://www.aeee.in/wp-content/uploads/2020/08/Sample-pdf.pdf",
-      },
-      {
-        id: "2",
-        title: "Dummy Name of the video",
-        type: "video",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      },
-      {
-        id: "3",
-        title: "Dummy Name of the PDF",
-        type: "pdf",
-        pdfUrl: "https://www.aeee.in/wp-content/uploads/2020/08/Sample-pdf.pdf",
-      },
-    ],
-  },
-];
+import api from "@/lib/axios";
+import { getPublicUrlForKey } from "@/utils/s3Upload";
 
 const ExamStrategy = () => {
+  const [modules, setModules] = useState<Module[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedContent, setSelectedContent] = useState<SelectedContent | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  const normalizeVideoUrl = useMemo(
+    () => (url?: string) => {
+      if (!url) return "";
+
+      try {
+        const parsed = new URL(url);
+        if (parsed.hostname.includes("youtube.com")) {
+          const id = parsed.searchParams.get("v");
+          return id ? `https://www.youtube.com/embed/${id}` : url;
+        }
+        if (parsed.hostname.includes("youtu.be")) {
+          const id = parsed.pathname.replace("/", "");
+          return id ? `https://www.youtube.com/embed/${id}` : url;
+        }
+      } catch {
+        return url;
+      }
+
+      return url;
+    },
+    [],
+  );
+
+  const resolveFileUrl = useMemo(
+    () => (url?: string) => {
+      if (!url) return "";
+      return /^https?:\/\//i.test(url) ? url : getPublicUrlForKey(url);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const courseId =
+      localStorage.getItem("selectedCourseId") ??
+      "695777e1b2583161bd12b88e";
+
+    const fetchExamStrategy = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get(`/user/exam-strategy/${courseId}`);
+        const data = (response.data as { data?: any[] })?.data ?? [];
+        const mapped: Module[] = (Array.isArray(data) ? data : [])
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .map((module: any) => ({
+            id: module._id ?? module.id,
+            title: module.name ?? "Module",
+            items: (Array.isArray(module.data) ? module.data : []).map(
+              (item: any) => {
+                const rawType = String(item.fileType ?? "").toUpperCase();
+                const type = rawType === "VIDEO" ? "video" : "pdf";
+                const link = resolveFileUrl(String(item.fileLink ?? ""));
+                return {
+                  id: item._id ?? item.id,
+                  title: item.fileName ?? "Item",
+                  type,
+                  pdfUrl: type === "pdf" ? link : undefined,
+                  videoUrl:
+                    type === "video" ? normalizeVideoUrl(link) : undefined,
+                };
+              },
+            ),
+          }));
+        setModules(mapped);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch exam strategy", error);
+        setModules([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchExamStrategy();
+  }, [normalizeVideoUrl, resolveFileUrl]);
 
   const handleItemClick = (item: ContentItem) => {
     const content: SelectedContent = {
@@ -76,15 +104,25 @@ const ExamStrategy = () => {
          <h2 className="justify-start text-2xl font-bold w-full lg:w-auto">
           Exam Strategy
         </h2>
-        {modules.map((module, index) => (
-          <ExamModuleSection
-            key={module.id}
-            module={module}
-            defaultOpen={index === 0}
-            onItemClick={handleItemClick}
-            selectedItemId={selectedItemId || undefined}
-          />
-        ))}
+        {isLoading ? (
+          <div className="p-4 text-sm text-paragraph">
+            Loading exam strategy...
+          </div>
+        ) : modules.length ? (
+          modules.map((module, index) => (
+            <ExamModuleSection
+              key={module.id}
+              module={module}
+              defaultOpen={index === 0}
+              onItemClick={handleItemClick}
+              selectedItemId={selectedItemId || undefined}
+            />
+          ))
+        ) : (
+          <div className="p-4 text-sm text-paragraph">
+            No exam strategy data available.
+          </div>
+        )}
       </div>
 
       {/* Right Section - Content Viewer (only shows when content is selected) */}

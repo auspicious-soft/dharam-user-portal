@@ -7,6 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowLeft, ArrowRight, Check, InfoCircle } from "iconoir-react";
+import api from "@/lib/axios";
 
 import { ExamsDragDropRenderer } from "./ExamsDragDropRenderer";
 import { ExamsFillBlankRenderer } from "./ExamsFillBlankRenderer";
@@ -21,6 +22,8 @@ interface QuizRendererProps {
   quiz: QuizQuestion[];
   onComplete?: (results: { correct: number; incorrect: number }) => void;
   onQuestionChange?: (index: number) => void;
+  examId?: string;
+  availableTime?: number;
 
   results: Record<number, boolean>;
   setResults: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
@@ -33,6 +36,8 @@ export const ExamsQuizRenderer = ({
   quiz,
   onComplete,
   onQuestionChange,
+  examId,
+  availableTime,
   results,
   setResults,
   setMarked,
@@ -61,7 +66,23 @@ export const ExamsQuizRenderer = ({
     onQuestionChange?.(currentQuestionIndex);
   }, [currentQuestionIndex, onQuestionChange]);
 
-    const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
+  const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
+
+  const submitQuestionResponse = (isCorrect: boolean | null) => {
+    if (!examId || isCorrect === null) return;
+
+    void api
+      .post("/user/submit-question-response", {
+        questionId: question.id,
+        isCorrect,
+        examId,
+        availableTime: typeof availableTime === "number" ? availableTime : 0,
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("Failed to submit question response", error);
+      });
+  };
   // ---------------------------------------------------
   // NEXT
   // ---------------------------------------------------
@@ -98,19 +119,18 @@ export const ExamsQuizRenderer = ({
     if (question.type === "fillblank") {
       const currentAnswers = fillBlankAnswers[currentQuestionIndex];
 
-      if (currentAnswers) {
-        const correct = question.blanks.every((blank) => {
-          const assignedOptionIndex = Object.keys(currentAnswers).find(
-            (key) => currentAnswers[parseInt(key)] === blank.id,
-          );
+        if (currentAnswers) {
+          const correct = question.blanks.every((blank) => {
+            const assignedOptionIndex = Object.keys(currentAnswers).find(
+              (key) => currentAnswers[parseInt(key)] === blank.id,
+            );
 
-          if (!assignedOptionIndex) return false;
+            if (!assignedOptionIndex) return false;
 
-          return (
-            question.options[parseInt(assignedOptionIndex)] ===
-            blank.correctAnswer
-          );
-        });
+            return blank.correctAnswers.includes(
+              question.options[parseInt(assignedOptionIndex)],
+            );
+          });
 
         isCorrect = correct;
       }
@@ -128,6 +148,8 @@ export const ExamsQuizRenderer = ({
         copy.delete(currentQuestionIndex);
         return copy;
       });
+
+      submitQuestionResponse(isCorrect);
     }
 
     // ---------- MOVE ----------
@@ -158,10 +180,71 @@ export const ExamsQuizRenderer = ({
   // ---------------------------------------------------
 
   const handleComplete = () => {
+    let isCorrect: boolean | null = null;
+
+    if (question.type === "mcq" && selectedAnswers.length > 0) {
+      setMcqAnswers((prev) => ({
+        ...prev,
+        [currentQuestionIndex]: selectedAnswers,
+      }));
+
+      isCorrect = isMCQSelectionCorrect(question, selectedAnswers);
+    }
+
+    if (question.type === "dragdrop") {
+      const currentAnswers = dragDropAnswers[currentQuestionIndex];
+
+      if (currentAnswers) {
+        const correct = question.dropZones.every(
+          (zone) => currentAnswers[zone.id] === zone.correctItemId,
+        );
+
+        isCorrect = correct;
+      }
+    }
+
+    if (question.type === "fillblank") {
+      const currentAnswers = fillBlankAnswers[currentQuestionIndex];
+
+      if (currentAnswers) {
+        const correct = question.blanks.every((blank) => {
+          const assignedOptionIndex = Object.keys(currentAnswers).find(
+            (key) => currentAnswers[parseInt(key)] === blank.id,
+          );
+
+          if (!assignedOptionIndex) return false;
+
+          return blank.correctAnswers.includes(
+            question.options[parseInt(assignedOptionIndex)],
+          );
+        });
+
+        isCorrect = correct;
+      }
+    }
+
+    if (isCorrect !== null) {
+      setResults((prev) => ({
+        ...prev,
+        [currentQuestionIndex]: isCorrect,
+      }));
+
+      setMarked((prev) => {
+        const copy = new Set(prev);
+        copy.delete(currentQuestionIndex);
+        return copy;
+      });
+
+      submitQuestionResponse(isCorrect);
+    }
+
     if (!onComplete) return;
 
-    const correct = Object.values(results).filter((r) => r).length;
-
+    const currentAnswered = Object.keys(results).length;
+    const currentCorrect = Object.values(results).filter((r) => r).length;
+    const willCountCurrent =
+      isCorrect !== null && results[currentQuestionIndex] === undefined;
+    const correct = willCountCurrent && isCorrect ? currentCorrect + 1 : currentCorrect;
     const incorrect = totalQuestions - correct;
 
     onComplete({ correct, incorrect });

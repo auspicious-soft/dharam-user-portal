@@ -1,16 +1,16 @@
 // ContentViewer.tsx
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { SelectedContent } from "./examtypes";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
+import PdfWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 import { Youtube } from "iconoir-react";
 import { Button } from "../ui/button";
 
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;  
+// Set up PDF.js worker (Vite-friendly)
+pdfjs.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 interface ContentViewerProps {
   content: SelectedContent;
@@ -24,6 +24,29 @@ export const ExamViewer: React.FC<ContentViewerProps> = ({
   const [numPages, setNumPages] = useState<number>(0);
 
   const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const pdfContainerRef = useRef<HTMLDivElement | null>(null);
+  const [pdfWidth, setPdfWidth] = useState<number | null>(null);
+  const pdfDevicePixelRatio =
+    typeof window !== "undefined"
+      ? Math.min(window.devicePixelRatio || 1, 2.5)
+      : 1;
+  const pdfRenderMode: "canvas" | "svg" = "svg";
+
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+    const element = pdfContainerRef.current;
+    const updateWidth = () => {
+      const nextWidth = Math.floor(element.clientWidth);
+      if (nextWidth > 0) setPdfWidth(nextWidth);
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(() => updateWidth());
+    resizeObserver.observe(element);
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -83,6 +106,10 @@ export const ExamViewer: React.FC<ContentViewerProps> = ({
       }
     };
 
+    const isImage =
+      typeof content.pdfUrl === "string" &&
+      /\.(png|jpe?g|gif|webp|svg)$/i.test(content.pdfUrl);
+
     return (
       <div className="h-full flex flex-col">
         <div className="flex justify-between items-center mb-4">
@@ -94,59 +121,75 @@ export const ExamViewer: React.FC<ContentViewerProps> = ({
         {/* PDF Viewer Container */}
         <div className="flex-1 py-6 px-4 md:p-6 bg-[#EDF4FD] rounded-[20px] overflow-hidden flex flex-col gap-5">
           {/* Navigation Controls */}
-          <div className="flex justify-between w-full">
-            <Button
-              onClick={handlePreviousSlide}
-              disabled={currentSlideIndex === 1}
-              variant="link"
-              className="text-primary_heading"
-            >
-              Previous
-            </Button>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-Black_light">
-                Slide {currentSlideIndex} of {numPages || "..."}
-              </p>
-            </div>
-
-            <Button
-              onClick={handleNextSlide}
-              disabled={currentSlideIndex === numPages}
-              variant="link"
-              className="text-primary_heading"
-            >
-              Next
-            </Button>
-          </div>
-          {/* PDF Display Area */}
-          <div className="flex-1 flex items-center justify-center ">
-            {content.pdfUrl ? (
-              <Document
-                file={content.pdfUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={
-                  <div className="flex items-center justify-center">
-                    <div className="text-center">
-                      <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
-                      <p className="text-paragraph">Loading PDF...</p>
-                    </div>
-                  </div>
-                }
-                error={
-                  <div className="text-center text-red-600">
-                    <p>Failed to load PDF</p>
-                    <p className="text-sm text-paragraph mt-2">
-                      Please check the file path or URL
-                    </p>
-                  </div>
-                }
+          {!isImage && (
+            <div className="flex justify-between w-full">
+              <Button
+                onClick={handlePreviousSlide}
+                disabled={currentSlideIndex === 1}
+                variant="link"
+                className="text-primary_heading"
               >
-                <Page
-                  pageNumber={currentSlideIndex}
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
+                Previous
+              </Button>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-Black_light">
+                  Slide {currentSlideIndex} of {numPages || "..."}
+                </p>
+              </div>
+
+              <Button
+                onClick={handleNextSlide}
+                disabled={currentSlideIndex === numPages}
+                variant="link"
+                className="text-primary_heading"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+          {/* PDF Display Area */}
+          <div
+            className="flex-1 flex items-center justify-center w-full"
+            ref={pdfContainerRef}
+          >
+            {content.pdfUrl ? (
+              isImage ? (
+                <img
+                  src={content.pdfUrl}
+                  alt={content.title}
+                  className="max-h-full max-w-full rounded-lg"
                 />
-              </Document>
+              ) : (
+                <Document
+                  file={content.pdfUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  loading={
+                    <div className="flex items-center justify-center">
+                      <div className="text-center">
+                        <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
+                        <p className="text-paragraph">Loading PDF...</p>
+                      </div>
+                    </div>
+                  }
+                  error={
+                    <div className="text-center text-red-600">
+                      <p>Failed to load PDF</p>
+                      <p className="text-sm text-paragraph mt-2">
+                        Please check the file path or URL
+                      </p>
+                    </div>
+                  }
+                >
+                  <Page
+                    pageNumber={currentSlideIndex}
+                    renderMode={pdfRenderMode}
+                    renderTextLayer={pdfRenderMode === "canvas"}
+                    renderAnnotationLayer={true}
+                    width={pdfWidth ?? undefined}
+                    devicePixelRatio={pdfDevicePixelRatio}
+                  />
+                </Document>
+              )
             ) : (
               <div className="text-center">
                 <FileText className="w-24 h-24 mx-auto mb-4 text-primary_heading" />

@@ -4,10 +4,30 @@ import RedDot from "@/assets/red-dot.png";
 import BlueDot from "@/assets/blue-dot.png";
 import GreenDot from "@/assets/green-dot.png";
 import { ArrowRight } from "lucide-react";
+import api from "@/lib/axios";
 
 const MockExams = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const handleStartExam = async () => {
+    let mockExamData: any = null;
+
+    try {
+      const response = await api.get(
+        `/user/mock-exam-questions/${id}`,
+        {
+          params: { type: "STARTED" },
+        },
+      );
+      mockExamData = (response.data as { data?: any })?.data ?? null;
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to fetch mock exam questions", error);
+    }
+
+    navigate(`/exams/start/${id}`, { state: { mockExam: mockExamData } });
+  };
 
   return (
     <div className="flex flex-col gap-7">
@@ -80,7 +100,7 @@ const MockExams = () => {
       </div>
       <div className="flex items-center justify-center w-full mt-3">
         <Button
-          onClick={() => navigate(`/exams/start/${id}`)}
+          onClick={handleStartExam}
           className="max-w-96 w-full rounded-[10px]"
         >
           Start Exam <ArrowRight />

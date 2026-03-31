@@ -1,15 +1,54 @@
 import { NavLink } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 import Logo from "@/assets/auth-logo.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-const data = {
-  user: {
-    name: "Arisu Anama",
-    avatar: "/avatars/shadcn.jpg",
-  },
-};
 
 export function ExamHeader() {
-  const { user } = data;
+  const [user, setUser] = useState<{ name: string; avatar: string }>({
+    name: "User",
+    avatar: "",
+  });
+
+  const readUserFromStorage = useCallback(() => {
+    if (typeof window === "undefined") {
+      return { name: "User", avatar: "" };
+    }
+
+    const raw = localStorage.getItem("user");
+    if (!raw) {
+      return { name: "User", avatar: "" };
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        firstname?: string | null;
+        lastname?: string | null;
+        email?: string | null;
+        image?: string | null;
+      };
+      const name =
+        [parsed.firstname, parsed.lastname]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || parsed.email || "User";
+      return { name, avatar: parsed.image ?? "" };
+    } catch {
+      return { name: "User", avatar: "" };
+    }
+  }, []);
+
+  useEffect(() => {
+    const updateUser = () => setUser(readUserFromStorage());
+    updateUser();
+
+    window.addEventListener("storage", updateUser);
+    window.addEventListener("userUpdated", updateUser as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", updateUser);
+      window.removeEventListener("userUpdated", updateUser as EventListener);
+    };
+  }, [readUserFromStorage]);
 
   return (
     <header className="sticky top-0 z-10 group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex  shrink-0 items-center gap-2 bg-light-blue transition-[width,height] ease-linear py-3">

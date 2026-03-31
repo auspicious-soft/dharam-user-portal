@@ -10,6 +10,9 @@ interface Props {
   results: Record<number, boolean>;
   marked: Set<number>;
   onJump: (index: number) => void;
+  onPauseChange?: (paused: boolean) => void;
+  onSubmitExam?: () => void;
+  onConfirmPause?: () => void;
 }
 
 export const RightQuestionSidebar = ({
@@ -18,6 +21,9 @@ export const RightQuestionSidebar = ({
   results,
   marked,
   onJump,
+  onPauseChange,
+  onSubmitExam,
+  onConfirmPause,
 }: Props) => {
   const getStatus = (i: number) => {
     // Marked questions (red) - highest priority
@@ -36,6 +42,21 @@ export const RightQuestionSidebar = ({
 
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [pauseExitDialog, setPauseExitDialog] = useState(false);
+  const handlePauseOpen = () => {
+    setPauseExitDialog(true);
+    onPauseChange?.(true);
+  };
+
+  const handlePauseResume = () => {
+    setPauseExitDialog(false);
+    onPauseChange?.(false);
+  };
+
+  const handlePauseConfirm = () => {
+    setPauseExitDialog(false);
+    onPauseChange?.(true);
+    onConfirmPause?.();
+  };
 
   // Calculate counts
   const completedCount = Object.keys(results).length;
@@ -76,7 +97,7 @@ export const RightQuestionSidebar = ({
           <Button
             size="icon"
             className="rounded-[10px] !bg-white text-primary_blue w-[50px] h-[50px]"
-            onClick={() => setPauseExitDialog(true)}
+            onClick={handlePauseOpen}
           >
             <PauseSolid />
           </Button>
@@ -117,11 +138,13 @@ export const RightQuestionSidebar = ({
       </div>
       <PauseExamDialog
         open={pauseExitDialog}
-        onClose={() => setPauseExitDialog(false)}
+        onResume={handlePauseResume}
+        onConfirmPause={handlePauseConfirm}
       />
       <SubmitExamDialog
         open={showExitDialog}
         onClose={() => setShowExitDialog(false)}
+        onSubmit={onSubmitExam}
       />
     </div>
   );

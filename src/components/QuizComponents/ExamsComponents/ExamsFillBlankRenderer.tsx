@@ -44,7 +44,7 @@ export const ExamsFillBlankRenderer = ({
     const blank = question.blanks.find((b) => b.id === selectedBlank);
     if (!blank) return false;
 
-    return question.options[optionIndex] === blank.correctAnswer;
+    return blank.correctAnswers.includes(question.options[optionIndex]);
   };
 
   const renderTemplate = () => {

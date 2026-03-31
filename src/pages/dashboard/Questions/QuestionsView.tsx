@@ -6,19 +6,20 @@ import { PracticeQuizRenderer } from "@/components/QuizComponents/PracticeQuizRe
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
 import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
 import { ExitExamDialog } from "@/components/Questions/ExitExamDialog";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/lib/axios";
 
 //  Timer hook 
-function useTimer() {
+function useTimer(isPaused: boolean) {
   const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
+    if (isPaused) return;
     const interval = setInterval(() => {
       setSeconds((s) => s + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isPaused]);
 
   const hh = String(Math.floor(seconds / 3600)).padStart(2, "0");
   const mm = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
@@ -36,9 +37,10 @@ const QuestionsView = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [attemptNumber, setAttemptNumber] = useState<number | null>(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
-  const timeDisplay = useTimer();
+  const timeDisplay = useTimer(showExitDialog);
   const { id: examId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
  
 
   const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
@@ -218,6 +220,22 @@ const QuestionsView = () => {
     setQuizKey((prev) => prev + 1); // remount the renderer fresh
   };
 
+  const handleEndPracticing = async () => {
+    if (examId && attemptNumber !== null) {
+      try {
+        await api.get("/user/practice-exam-result-board", {
+          params: { examId, attemptNumber },
+        });
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch practice exam result board", error);
+      }
+    }
+
+    setShowExitDialog(false);
+    navigate("/practice-questions");
+  };
+
   return (
     <div className="flex flex-col gap-7">
       <div className="flex justify-between flex-wrap gap-4 items-center">
@@ -304,6 +322,7 @@ const QuestionsView = () => {
       <ExitExamDialog
         open={showExitDialog}
         onClose={() => setShowExitDialog(false)}
+        onEnd={handleEndPracticing}
       />
     </div>
   );

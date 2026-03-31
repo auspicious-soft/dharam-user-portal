@@ -105,9 +105,8 @@ export const PracticeQuizRenderer = ({
 
         if (assignedOptionIndex === undefined) return false;
 
-        return (
-          question.options[parseInt(assignedOptionIndex)] ===
-          blank.correctAnswer
+        return blank.correctAnswers.includes(
+          question.options[parseInt(assignedOptionIndex)],
         );
       });
     }
@@ -385,7 +384,7 @@ export const PracticeQuizRenderer = ({
                         const blank = question.blanks.find(
                           (b) => b.id === blankId,
                         );
-                        const correctAnswer = blank?.correctAnswer || "";
+                        const correctAnswer = blank?.correctAnswers?.[0] || "";
                         return (
                           <span
                             key={idx}

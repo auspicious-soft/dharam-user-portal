@@ -1,170 +1,237 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
 import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
 import { ExamsQuizRenderer } from "@/components/QuizComponents/ExamsComponents/ExamsQuizRenderer";
 import { RightQuestionSidebar } from "../../../components/QuizComponents/ExamsComponents/RightQuestionSidebar";
+import api from "@/lib/axios";
 
-const quiz: QuizQuestion[] = [
-  // MCQ Question
-  {
-    id: "q1",
-    type: "mcq",
-    question:
-      "Which action is most important during the initial program assessment?",
-    options: [
-      { id: "a", text: "Deciding the project budget" },
-      { id: "b", text: "Identifying technical resources" },
-      {
-        id: "c",
-        text: "Defining program objectives and requirements",
-      },
-      { id: "d", text: "Selecting team members" },
-    ],
-    correctAnswer: "c",
-    qExplanation:
-      "Defining objectives and requirements ensures alignment with organizational strategy.",
-  },
-  // Drag & Drop Question
-  {
-    id: "q2",
-    type: "dragdrop",
-    question:
-      "Match each change control process step to its correct scope category:",
-    draggableItems: [
-      { id: "item1", text: "Change follow change control process" },
-      { id: "item2", text: "Scope in predictive" },
-      { id: "item3", text: "Requirements gathering" },
-      { id: "item4", text: "Stakeholder approval" },
-    ],
-    dropZones: [
-      {
-        id: "zone1",
-        label: "Step 1",
-        correctItemId: "item1",
-        displayText: "Scope in predictive.",
-      },
-      {
-        id: "zone2",
-        label: "Step 2",
-        correctItemId: "item2",
-        displayText: "Scope in predictive.",
-      },
-      {
-        id: "zone3",
-        label: "Step 3",
-        correctItemId: "item3",
-        displayText: "Scope in predictive.",
-      },
-      {
-        id: "zone4",
-        label: "Step 4",
-        correctItemId: "item4",
-        displayText: "Scope in predictive.",
-      },
-    ],
-    qExplanation:
-      "Each process step must be matched to ensure proper change control workflow.",
-  },
-  // Fill in the Blanks Question
-  {
-    id: "q3",
-    type: "fillblank",
-    question: "Complete the following statement about project management:",
-    questionTemplate:
-      "The __1__ creates the __2__ which authorizes the __3__ and gives the __4__ authority to use __5__ resources.",
-    blanks: [
-      { id: "1", correctAnswer: "Sponsor" },
-      { id: "2", correctAnswer: "Project Charter" },
-      { id: "3", correctAnswer: "Project" },
-      { id: "4", correctAnswer: "Project Manager" },
-      { id: "5", correctAnswer: "Organizational" },
-    ],
-    options: [
-      "Sponsor",
-      "Project Charter",
-      "Project",
-      "Project Manager",
-      "Organizational",
-      "Stakeholder",
-      "Budget",
-      "Team Members",
-      "Schedule",
-      "Requirements",
-    ],
-    qExplanation:
-      "The sponsor creates the project charter to formally authorize the project and give the project manager authority.",
-  },
-  // Another MCQ
-  {
-    id: "q4",
-    type: "mcq",
-    question: "What is the primary purpose of a project charter?",
-    options: [
-      { id: "a", text: "Define project budget" },
-      { id: "b", text: "Formally authorize the project" },
-      { id: "c", text: "Assign team members" },
-      { id: "d", text: "Create project schedule" },
-    ],
-    correctAnswer: "b",
-    qExplanation:
-      "The project charter formally authorizes the project and gives the project manager authority.",
-  },
-  // Another Fill in the Blanks
-  {
-    id: "q5",
-    type: "fillblank",
-    question: "Complete the project scope statement:",
-    questionTemplate:
-      "The __1__ defines the __2__ deliverables and the __3__ required to complete the project.",
-    blanks: [
-      { id: "1", correctAnswer: "Scope Statement" },
-      { id: "2", correctAnswer: "Project" },
-      { id: "3", correctAnswer: "Work" },
-    ],
-    options: [
-      "Scope Statement",
-      "Project",
-      "Work",
-      "Budget",
-      "Timeline",
-      "Resources",
-      "Quality",
-      "Risks",
-    ],
-    qExplanation:
-      "The scope statement is a detailed description of the project and product scope.",
-  },
-];
+const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
+  return (Array.isArray(rawQuestions) ? rawQuestions : [])
+    .map((question) => {
+      const type = String(question.type ?? "").toUpperCase();
+
+      if (type === "MCQ") {
+        const options = (question.mcq ?? []).map(
+          (option: any, index: number) => ({
+            id: String.fromCharCode(97 + index),
+            text: option.text ?? "",
+          }),
+        );
+        const correctAnswers = (question.mcq ?? [])
+          .map((option: any, index: number) =>
+            option.isCorrect ? String.fromCharCode(97 + index) : null,
+          )
+          .filter(Boolean) as string[];
+        const maxSelection =
+          typeof question.maxSelection === "number" &&
+          question.maxSelection > 0
+            ? question.maxSelection
+            : Math.max(1, correctAnswers.length || 1);
+        const correctAnswer = correctAnswers[0] ?? "a";
+
+        return {
+          id: question._id,
+          type: "mcq",
+          question: question.question ?? "",
+          qExplanation: question.explaination ?? "",
+          options,
+          correctAnswer,
+          correctAnswers,
+          maxSelection,
+        } as QuizQuestion;
+      }
+
+      if (type === "FIB") {
+        const fibItems = Array.isArray(question.fib) ? question.fib : [];
+        const hasExplicitBlanks = /BLANK/i.test(
+          String(question.question ?? ""),
+        );
+        const blankCount = (
+          String(question.question ?? "").match(/BLANK/gi) || []
+        ).length;
+        const hasZeroBasedOrder = fibItems.some(
+          (item: any) => Number(item.correctOrder) === 0,
+        );
+        const normalizeOrder = (order: number) =>
+          hasZeroBasedOrder ? order + 1 : order;
+
+        const normalizedFibItems = fibItems
+          .map((item: any) => {
+            const order = Number(item.correctOrder);
+            if (!Number.isFinite(order)) return null;
+            const normalizedOrder = hasExplicitBlanks
+              ? normalizeOrder(order)
+              : order + 1;
+            if (normalizedOrder < 1) return null;
+            return { ...item, normalizedOrder };
+          })
+          .filter(Boolean) as Array<{ answer: string; normalizedOrder: number }>;
+
+        const maxSelection =
+          typeof question.maxSelection === "number" &&
+          question.maxSelection > 0
+            ? question.maxSelection
+            : hasExplicitBlanks && blankCount > 0
+              ? blankCount
+              : Math.max(
+                  1,
+                  ...normalizedFibItems.map((item) => item.normalizedOrder || 0),
+                );
+
+        const usableFibItems = normalizedFibItems.filter(
+          (item) => item.normalizedOrder <= maxSelection,
+        );
+
+        let blankIndex = 1;
+        const questionTemplate = hasExplicitBlanks
+          ? String(question.question ?? "").replace(/BLANK/g, () => {
+              const token = `__${blankIndex}__`;
+              blankIndex += 1;
+              return token;
+            })
+          : `${question.question ?? ""} ${Array.from(
+              { length: maxSelection },
+              (_, index) => `__${index + 1}__`,
+            ).join(" ")}`.trim();
+
+        const blanks = Array.from({ length: maxSelection }, (_, index) => {
+          const blankOrder = index + 1;
+          const matches = usableFibItems.filter(
+            (item) => item.normalizedOrder === blankOrder,
+          );
+          return {
+            id: String(blankOrder),
+            correctAnswers: matches.map((item) => item.answer ?? ""),
+          };
+        });
+
+        return {
+          id: question._id,
+          type: "fillblank",
+          question: question.question ?? "",
+          qExplanation: question.explaination ?? "",
+          questionTemplate,
+          blanks,
+          options: fibItems.map((blank: any) => blank.answer ?? ""),
+        } as QuizQuestion;
+      }
+
+      if (type === "DND") {
+        const draggableItems = (question.dnd?.options ?? []).map(
+          (option: any) => ({
+            id: option.id,
+            text: option.text ?? "",
+          }),
+        );
+        const dropZones = (question.dnd?.pairs ?? []).map((pair: any) => ({
+          id: pair.leftId,
+          label: pair.leftText ?? "",
+          correctItemId: pair.rightId,
+          displayText: pair.leftText ?? "",
+        }));
+
+        return {
+          id: question._id,
+          type: "dragdrop",
+          question: question.question ?? "",
+          qExplanation: question.explaination ?? "",
+          draggableItems,
+          dropZones,
+        } as QuizQuestion;
+      }
+
+      return null;
+    })
+    .filter(Boolean) as QuizQuestion[];
+};
 
 // ─── Timer hook ───
-function useTimer() {
-  const [seconds, setSeconds] = useState(0);
+function useTimer(initialSeconds: number, isPaused: boolean) {
+  const [seconds, setSeconds] = useState(initialSeconds);
 
   useEffect(() => {
+    setSeconds(initialSeconds);
+  }, [initialSeconds]);
+
+  useEffect(() => {
+    if (isPaused || seconds <= 0) return;
     const interval = setInterval(() => {
-      setSeconds((s) => s + 1);
+      setSeconds((s) => (s > 0 ? s - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [seconds, isPaused]);
 
   const hh = String(Math.floor(seconds / 3600)).padStart(2, "0");
   const mm = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
 
-  return `${hh}:${mm}:${ss}`;
+  return { display: `${hh}:${mm}:${ss}`, seconds };
 }
 
 // ─── Main Component ───
 const StartExam = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const mockExamData = (location.state as { mockExam?: any })?.mockExam;
+
+  const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(1);
-  const timeDisplay = useTimer();
+  const [isPaused, setIsPaused] = useState(false);
   const [results, setResults] = useState<Record<number, any>>({});
   const [marked, setMarked] = useState<Set<number>>(new Set());
 
+  const initialSeconds = useMemo(() => {
+    const raw = String(mockExamData?.timeInMin ?? "");
+    if (!raw) return 0;
+    const parts = raw.split(":").map((part) => Number(part));
+    if (parts.some((part) => Number.isNaN(part))) return 0;
+    if (parts.length === 3) {
+      const [h, m, s] = parts;
+      return h * 3600 + m * 60 + s;
+    }
+    if (parts.length === 2) {
+      const [m, s] = parts;
+      return m * 60 + s;
+    }
+    if (parts.length === 1) {
+      return parts[0];
+    }
+    return 0;
+  }, [mockExamData?.timeInMin]);
+
+  const { display: timeDisplay, seconds: remainingSeconds } = useTimer(
+    initialSeconds,
+    isPaused,
+  );
+
+  const timeTaken = useMemo(() => {
+    const elapsed = Math.max(0, initialSeconds - remainingSeconds);
+    const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
+    const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
+    const ss = String(elapsed % 60).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }, [initialSeconds, remainingSeconds]);
+
+  useEffect(() => {
+    if (!mockExamData) return;
+
+    const mapped = mapQuestions(mockExamData.questions ?? []);
+    setQuiz(mapped);
+    setCurrentQuestion(1);
+    setResults({});
+    setMarked(new Set());
+    setIsPaused(false);
+  }, [mockExamData]);
+
   const totalQuestions = quiz.length;
-  const progressPercent = (currentQuestion / totalQuestions) * 100;
+  const progressPercent = totalQuestions
+    ? (currentQuestion / totalQuestions) * 100
+    : 0;
+  const hasQuiz = totalQuestions > 0;
+  const examTitle = mockExamData?.examName ?? "Mock Exam";
 
   const handleQuestionChange = (index: number) => {
     setCurrentQuestion(index + 1);
@@ -172,6 +239,39 @@ const StartExam = () => {
 
   const handleJump = (index: number) => {
     setCurrentQuestion(index + 1);
+  };
+
+  const handleSubmitExam = async () => {
+    if (!mockExamData?.examId) return;
+
+    try {
+      await api.get("/user/mock-exam-result", {
+        params: { examId: mockExamData.examId, timeTaken },
+      });
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to submit mock exam result", error);
+    } finally {
+      navigate("/exams");
+    }
+  };
+
+  const handleConfirmPause = async () => {
+    if (!mockExamData?.examId) return;
+
+    try {
+      await api.put(
+        `/user/mock-exam-questions/${mockExamData.examId}`,
+        null,
+        {
+          params: { timeTaken },
+        },
+      );
+      navigate("/exams");
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to pause mock exam", error);
+    }
   };
 
   return (
@@ -182,7 +282,7 @@ const StartExam = () => {
             <div className="flex items-center gap-2 md:gap-4 self-stretch justify-start">
               <PracticeIcon />
               <h3 className="text-Black_light text-lg font-bold">
-                Practice Question Set 2
+                {examTitle}
               </h3>
             </div>
 
@@ -219,14 +319,23 @@ const StartExam = () => {
             </div>
           </div>
 
-          <ExamsQuizRenderer
-            quiz={quiz}
-            onQuestionChange={handleQuestionChange}
-            results={results}
-            setResults={setResults}
-            marked={marked}
-            setMarked={setMarked}
-          />
+          {hasQuiz ? (
+            <ExamsQuizRenderer
+              quiz={quiz}
+              onQuestionChange={handleQuestionChange}
+              examId={mockExamData?.examId}
+              availableTime={remainingSeconds}
+              results={results}
+              setResults={setResults}
+              marked={marked}
+              setMarked={setMarked}
+              onComplete={handleSubmitExam}
+            />
+          ) : (
+            <div className="p-5 bg-light-blue rounded-[20px] text-paragraph text-sm">
+              No questions available for this exam.
+            </div>
+          )}
 
           <div className="inline-flex justify-center items-center md:mt-5">
             <div className="border-[1px] border-light-blue flex justify-start items-start gap-y-4 gap-x-4 md:gap-x-7 lg:gap-x-[60px] p-3 rounded-[10px] flex-wrap">
@@ -273,13 +382,18 @@ const StartExam = () => {
             </div>
           </div>
         </div>
-         <RightQuestionSidebar
-        total={totalQuestions}
-        current={currentQuestion - 1} 
-        results={results}
-        marked={marked}
-        onJump={handleJump}
-      />
+         {hasQuiz && (
+          <RightQuestionSidebar
+            total={totalQuestions}
+            current={currentQuestion - 1}
+            results={results}
+            marked={marked}
+            onJump={handleJump}
+            onPauseChange={setIsPaused}
+            onSubmitExam={handleSubmitExam}
+            onConfirmPause={handleConfirmPause}
+          />
+        )}
       </div>
     </div>
   );

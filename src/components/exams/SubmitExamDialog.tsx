@@ -14,9 +14,19 @@ import { ArrowRight } from "iconoir-react";
 interface ExitExamDialogProps {
   open: boolean; 
   onClose: () => void;
+  onSubmit?: () => void;
 }
 
-export const SubmitExamDialog = ({ open, onClose }: ExitExamDialogProps) => {
+export const SubmitExamDialog = ({
+  open,
+  onClose,
+  onSubmit,
+}: ExitExamDialogProps) => {
+  const handleSubmit = () => {
+    onSubmit?.();
+    onClose();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md rounded-2xl p-7">
@@ -39,10 +49,10 @@ export const SubmitExamDialog = ({ open, onClose }: ExitExamDialogProps) => {
 
         {/* Footer */}
         <DialogFooter  className="gap-2">
-            <DialogClose asChild>
-              <Button className="flex-1 max-h-[44px]" variant="outline">Not Now</Button>
-            </DialogClose>
-          <Button className="flex-1 max-h-[44px]">
+          <DialogClose asChild>
+            <Button className="flex-1 max-h-[44px]" variant="outline">Not Now</Button>
+          </DialogClose>
+          <Button className="flex-1 max-h-[44px]" onClick={handleSubmit}>
            Yes, Submit <ArrowRight />
           </Button>
         </DialogFooter>

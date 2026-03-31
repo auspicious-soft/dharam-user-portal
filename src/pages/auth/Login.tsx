@@ -93,10 +93,47 @@ const Login = () => {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
       const idToken = await result.user.getIdToken();
 
-      localStorage.setItem("authToken", idToken);
+      let fcmToken: string | null = null;
+      try {
+        fcmToken = await getFcmToken();
+      } catch (tokenError) {
+        // eslint-disable-next-line no-console
+        console.warn("FCM token not available", tokenError);
+      }
+
+      const response = await api.post("/social-login", {
+        authType: "GOOGLE",
+        idToken,
+        fcmToken: fcmToken ?? "",
+        deviceType: "WEB",
+      });
+
+      const responseData = response.data as {
+        data?: {
+          accessToken?: string | null;
+          refreshToken?: string | null;
+          user?: unknown;
+        };
+        message?: string | null;
+      };
+
+      const accessToken = responseData?.data?.accessToken ?? null;
+      const refreshToken = responseData?.data?.refreshToken ?? null;
+      const user = responseData?.data?.user ?? null;
+
+      if (accessToken) {
+        localStorage.setItem("authToken", accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      }
+      if (user) {
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      toast.success(responseData?.message ?? "Login successful");
       login();
-      await sendFcmToken("login");
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Google login failed", error);

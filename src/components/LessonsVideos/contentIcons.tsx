@@ -1,10 +1,32 @@
 import { ContentType } from "./types";
-import VideoIcon from "@/assets/video-icon.png"
-import slideIcon from "@/assets/slide-icon.png"
-import QuizIcon from "@/assets/question-icon.png"
+
+const videoIconUrl = new URL("../../assets/video-icon.png", import.meta.url)
+  .href;
+const slideIconUrl = new URL("../../assets/slide-icon.png", import.meta.url)
+  .href;
+const quizIconUrl = new URL("../../assets/question-icon.png", import.meta.url)
+  .href;
 
 export const contentIconMap: Record<ContentType, JSX.Element> = {
-  video: <img src={VideoIcon} alt="Video icon" className="max-w-[32px] rounded-full" />,
-  slide: <img src={slideIcon} alt="Slide icon" className="max-w-[32px] rounded-full" />,
-  quiz: <img src={QuizIcon} alt="Quiz icon" className="max-w-[32px] rounded-full" />,
+  video: (
+    <img
+      src={videoIconUrl}
+      alt="Video icon"
+      className="max-w-[32px] rounded-full"
+    />
+  ),
+  slide: (
+    <img
+      src={slideIconUrl}
+      alt="Slide icon"
+      className="max-w-[32px] rounded-full"
+    />
+  ),
+  quiz: (
+    <img
+      src={quizIconUrl}
+      alt="Quiz icon"
+      className="max-w-[32px] rounded-full"
+    />
+  ),
 };

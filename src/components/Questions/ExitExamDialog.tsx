@@ -13,9 +13,22 @@ import { ArrowRight } from "iconoir-react";
 interface ExitExamDialogProps {
   open: boolean;
   onClose: () => void;
+  onEnd?: () => void;
 }
 
-export const ExitExamDialog = ({ open, onClose }: ExitExamDialogProps) => {
+export const ExitExamDialog = ({
+  open,
+  onClose,
+  onEnd,
+}: ExitExamDialogProps) => {
+  const handleEnd = () => {
+    if (onEnd) {
+      onEnd();
+      return;
+    }
+    onClose();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md rounded-2xl p-7">
@@ -39,9 +52,18 @@ export const ExitExamDialog = ({ open, onClose }: ExitExamDialogProps) => {
 
         {/* Footer */}
         <DialogFooter>
-          <Button className="w-full max-h-[44px]">
-            Resume <ArrowRight />
-          </Button>
+          <div className="flex w-full gap-3">
+            <Button className="w-full max-h-[44px]" onClick={onClose}>
+              Resume <ArrowRight />
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full max-h-[44px]"
+              onClick={handleEnd}
+            >
+              End Practicing
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
