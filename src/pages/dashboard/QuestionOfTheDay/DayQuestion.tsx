@@ -12,67 +12,7 @@ import {
 } from "@/components/QuizComponents/mcqUtils";
 import QuestionDayIcon from "@/assets/edit-question-icon.png";
 import { useNavigate } from "react-router-dom";
-
-// Sample questions pool - you can expand this with more questions
-const DAILY_QUESTIONS: QuizQuestion[] = [
-  {
-    id: "daily-q1",
-    type: "mcq",
-    question:
-      "Which action is most important during the initial program assessment?",
-    options: [
-      { id: "a", text: "Deciding the project budget" },
-      { id: "b", text: "Identifying technical resources" },
-      { id: "c", text: "Defining program objectives and requirements" },
-      { id: "d", text: "Selecting team members" },
-    ],
-    correctAnswer: "c",
-    qExplanation:
-      "Defining objectives and requirements ensures alignment with organizational strategy.",
-  },
-  {
-    id: "daily-q2",
-    type: "fillblank",
-    question: "Complete the following statement about project management:",
-    questionTemplate:
-      "The __1__ creates the __2__ which authorizes the __3__ and gives the __4__ authority to use __5__ resources.",
-    blanks: [
-      { id: "1", correctAnswer: "Sponsor" },
-      { id: "2", correctAnswer: "Project Charter" },
-      { id: "3", correctAnswer: "Project" },
-      { id: "4", correctAnswer: "Project Manager" },
-      { id: "5", correctAnswer: "Organizational" },
-    ],
-    options: [
-      "Sponsor",
-      "Project Charter",
-      "Project",
-      "Project Manager",
-      "Organizational",
-      "Stakeholder",
-      "Budget",
-      "Team Members",
-      "Schedule",
-      "Requirements",
-    ],
-    qExplanation:
-      "The sponsor creates the project charter to formally authorize the project and give the project manager authority.",
-  },
-  {
-    id: "daily-q3",
-    type: "mcq",
-    question: "What is the primary purpose of a project charter?",
-    options: [
-      { id: "a", text: "Define project budget" },
-      { id: "b", text: "Formally authorize the project" },
-      { id: "c", text: "Assign team members" },
-      { id: "d", text: "Create project schedule" },
-    ],
-    correctAnswer: "b",
-    qExplanation:
-      "The project charter formally authorizes the project and gives the project manager authority.",
-  },
-];
+import api from "@/lib/axios";
 
 const DayQuestion = () => {
   const navigate = useNavigate();
@@ -87,46 +27,189 @@ const DayQuestion = () => {
   const [showResult, setShowResult] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [, setIsCorrect] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
 
-  // Get today's date in YYYY-MM-DD format
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  };
+  const mapQuestion = (rawQuestion: any): QuizQuestion | null => {
+    if (!rawQuestion) return null;
+    const type = String(rawQuestion.type ?? "").toUpperCase();
 
-  // Get question index based on date (cycles through available questions)
-  const getQuestionIndexForToday = () => {
-    const today = getTodayDate();
-    const startDate = new Date("2025-01-01"); // Reference start date
-    const currentDate = new Date(today);
-    const daysDiff = Math.floor(
-      (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    return daysDiff % DAILY_QUESTIONS.length;
-  };
+    if (type === "MCQ") {
+      const options = (rawQuestion.mcq ?? []).map(
+        (option: any, index: number) => ({
+          id: String.fromCharCode(97 + index),
+          text: option.text ?? "",
+        }),
+      );
+      const correctAnswers = (rawQuestion.mcq ?? [])
+        .map((option: any, index: number) =>
+          option.isCorrect ? String.fromCharCode(97 + index) : null,
+        )
+        .filter(Boolean) as string[];
+      const maxSelection =
+        typeof rawQuestion.maxSelection === "number" &&
+        rawQuestion.maxSelection > 0
+          ? rawQuestion.maxSelection
+          : Math.max(1, correctAnswers.length || 1);
+      const correctAnswer = correctAnswers[0] ?? "a";
 
-  // Check if user has already completed today's question
-  const checkCompletionStatus = () => {
-    const today = getTodayDate();
-    const storedDate = localStorage.getItem("dailyQuestionDate");
-    const storedCompleted = localStorage.getItem("dailyQuestionCompleted");
-
-    if (storedDate === today && storedCompleted === "true") {
-      setIsCompleted(true);
-      return true;
+      return {
+        id: rawQuestion._id ?? rawQuestion.id,
+        type: "mcq",
+        question: rawQuestion.question ?? "",
+        qExplanation: rawQuestion.explaination ?? "",
+        options,
+        correctAnswer,
+        correctAnswers,
+        maxSelection,
+        isAttempted: Boolean(rawQuestion.isAttempted),
+      } as QuizQuestion;
     }
-    return false;
+
+    if (type === "FIB") {
+      const fibItems = Array.isArray(rawQuestion.fib) ? rawQuestion.fib : [];
+      const hasExplicitBlanks = /BLANK/i.test(
+        String(rawQuestion.question ?? ""),
+      );
+      const blankCount = (
+        String(rawQuestion.question ?? "").match(/BLANK/gi) || []
+      ).length;
+      const hasZeroBasedOrder = fibItems.some(
+        (item: any) => Number(item.correctOrder) === 0,
+      );
+      const normalizeOrder = (order: number) =>
+        hasZeroBasedOrder ? order + 1 : order;
+
+      const normalizedFibItems = fibItems
+        .map((item: any) => {
+          const order = Number(item.correctOrder);
+          if (!Number.isFinite(order)) return null;
+          const normalizedOrder = hasExplicitBlanks
+            ? normalizeOrder(order)
+            : order + 1;
+          if (normalizedOrder < 1) return null;
+          return { ...item, normalizedOrder };
+        })
+        .filter(Boolean) as Array<{ answer: string; normalizedOrder: number }>;
+
+      const maxSelection =
+        typeof rawQuestion.maxSelection === "number" &&
+        rawQuestion.maxSelection > 0
+          ? rawQuestion.maxSelection
+          : hasExplicitBlanks && blankCount > 0
+            ? blankCount
+            : Math.max(
+                1,
+                ...normalizedFibItems.map((item) => item.normalizedOrder || 0),
+              );
+
+      const usableFibItems = normalizedFibItems.filter(
+        (item) => item.normalizedOrder <= maxSelection,
+      );
+
+      let blankIndex = 1;
+      const questionTemplate = hasExplicitBlanks
+        ? String(rawQuestion.question ?? "").replace(/BLANK/g, () => {
+            const token = `__${blankIndex}__`;
+            blankIndex += 1;
+            return token;
+          })
+        : `${rawQuestion.question ?? ""} ${Array.from(
+            { length: maxSelection },
+            (_, index) => `__${index + 1}__`,
+          ).join(" ")}`.trim();
+
+      const blanks = Array.from({ length: maxSelection }, (_, index) => {
+        const blankOrder = index + 1;
+        const matches = usableFibItems.filter(
+          (item) => item.normalizedOrder === blankOrder,
+        );
+        return {
+          id: String(blankOrder),
+          correctAnswers: matches.map((item) => item.answer ?? ""),
+        };
+      });
+
+      return {
+        id: rawQuestion._id ?? rawQuestion.id,
+        type: "fillblank",
+        question: rawQuestion.question ?? "",
+        qExplanation: rawQuestion.explaination ?? "",
+        questionTemplate,
+        blanks,
+        options: fibItems.map((blank: any) => blank.answer ?? ""),
+        isAttempted: Boolean(rawQuestion.isAttempted),
+      } as QuizQuestion;
+    }
+
+    if (type === "DND") {
+      const draggableItems = (rawQuestion.dnd?.options ?? []).map(
+        (option: any) => ({
+          id: option.id,
+          text: option.text ?? "",
+        }),
+      );
+      const dropZones = (rawQuestion.dnd?.pairs ?? []).map((pair: any) => ({
+        id: pair.leftId,
+        label: pair.leftText ?? "",
+        correctItemId: pair.rightId,
+        displayText: pair.leftText ?? "",
+      }));
+
+      return {
+        id: rawQuestion._id ?? rawQuestion.id,
+        type: "dragdrop",
+        question: rawQuestion.question ?? "",
+        qExplanation: rawQuestion.explaination ?? "",
+        draggableItems,
+        dropZones,
+        isAttempted: Boolean(rawQuestion.isAttempted),
+      } as QuizQuestion;
+    }
+
+    return null;
   };
 
-  // Initialize question on component mount
   useEffect(() => {
-    const alreadyCompleted = checkCompletionStatus();
+    const courseId =
+      localStorage.getItem("selectedCourseId")
 
-    if (!alreadyCompleted) {
-      const questionIndex = getQuestionIndexForToday();
-      setQuestion(DAILY_QUESTIONS[questionIndex]);
-    }
+    const fetchQuestionOfTheDay = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get(`/user/home/${courseId}`);
+        const payload =
+          (response.data as { data?: any })?.data ?? response.data ?? {};
+        const rawQuestion =
+          payload?.questionOfTheDay ??
+          payload?.questionOfDay ??
+          payload?.dailyQuestion ??
+          payload?.question ??
+          null;
+
+        const mapped = mapQuestion(rawQuestion);
+        setQuestion(mapped);
+        setIsCompleted(Boolean(rawQuestion?.isAttempted ?? false));
+        setAttemptId(rawQuestion?.attemptId ?? null);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch question of the day", error);
+        setQuestion(null);
+        setAttemptId(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchQuestionOfTheDay();
   }, []);
+
+  useEffect(() => {
+    setSelectedAnswers([]);
+    setDragDropAnswers({});
+    setFillBlankAnswers({});
+    setShowResult(false);
+  }, [question?.id]);
 
   // Check if answer is provided
   const isAnswered = () => {
@@ -165,9 +248,8 @@ const DayQuestion = () => {
           (key) => currentAnswers[parseInt(key)] === blank.id,
         );
         if (assignedOptionIndex === undefined) return false;
-        return (
-          question.options[parseInt(assignedOptionIndex)] ===
-          blank.correctAnswer
+        return blank.correctAnswers.includes(
+          question.options[parseInt(assignedOptionIndex)],
         );
       });
     }
@@ -176,16 +258,27 @@ const DayQuestion = () => {
   };
 
   // Handle submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!question) return;
+
     const correct = checkAnswer();
     setIsCorrect(correct);
     setShowResult(true);
 
-    // Mark as completed for today
-    const today = getTodayDate();
-    localStorage.setItem("dailyQuestionDate", today);
-    localStorage.setItem("dailyQuestionCompleted", "true");
-    setIsCompleted(true);
+    try {
+      const courseId =
+        localStorage.getItem("selectedCourseId")
+      // const payload: { id: string; attemptId?: string } = { id: question.id };
+      // if (attemptId) {
+      //   payload.attemptId = attemptId;
+      // }
+      await api.post(`/user/question-of-the-day/${courseId}`, {id : attemptId});
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to submit question of the day", error);
+    } finally {
+      setIsCompleted(true);
+    }
   };
 
   // Get question type label
@@ -240,13 +333,26 @@ const DayQuestion = () => {
     );
   }
 
-  if (!question) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-5">
         <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-Black_light  mb-2 capitalize">
           Question of the day
         </h2>
         <div className="p-6 text-center text-gray-500">Loading question...</div>
+      </div>
+    );
+  }
+
+  if (!question) {
+    return (
+      <div className="flex flex-col gap-5">
+        <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-Black_light  mb-2 capitalize">
+          Question of the day
+        </h2>
+        <div className="p-6 text-center text-gray-500">
+          No question available right now.
+        </div>
       </div>
     );
   }

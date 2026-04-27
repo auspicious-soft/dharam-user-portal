@@ -6,6 +6,26 @@ import { useNavigate } from "react-router-dom";
 import { FileItem } from "@/components/exams/examsPage.data";
 import api from "@/lib/axios";
 
+type MockExam = {
+  _id?: string | null;
+  name?: string | null;
+  numberOfQuestions?: number | null;
+  timeInMin?: string | null;
+  isPremium?: boolean | null;
+  totalAttempt?: number | null;
+  order?: number | null;
+};
+
+type PausedExam = {
+  _id?: string | null;
+  attemptNumber?: number | null;
+  mockExamId?: MockExam | null;
+  currentStatus?: string | null;
+  timeTaken?: string | null;
+  timeLeft?: string | null;
+  overallPercentage?: number | null;
+};
+
 const Exams = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<FileItem[]>([]);
@@ -19,16 +39,45 @@ const Exams = () => {
       setIsLoading(true);
       try {
         const response = await api.get(
-          "/user/mock-exam/695777e1b2583161bd12b88e",
-          
+          `/user/mock-exam/${courseId}`
         );
-        const examData = (response.data as { data?: { examData?: any[] } })
-          ?.data?.examData ?? [];
+        const payload = (response.data as {
+          data?: {
+            examData?: MockExam[];
+            pausedExams?: PausedExam[];
+          };
+        })?.data;
 
-        const mapped: FileItem[] = (Array.isArray(examData) ? examData : [])
+        const examData = payload?.examData ?? [];
+        const pausedExams = payload?.pausedExams ?? [];
+
+        const mappedPaused: FileItem[] = (Array.isArray(pausedExams)
+          ? pausedExams
+          : []
+        ).map((item) => {
+          const mock = item.mockExamId ?? {};
+          const percentage =
+            typeof item.overallPercentage === "number"
+              ? `${item.overallPercentage}%`
+              : "-";
+
+          return {
+            id: mock._id ?? item._id ?? "",
+            resumeId: item._id ?? "",
+            examName: mock.name ?? "Mock Exam",
+            totalQuestions: `${mock.numberOfQuestions ?? 0} Questions`,
+            examTime: item.timeLeft ?? mock.timeInMin ?? "Untimed",
+            attempts: String(item.attemptNumber ?? 0),
+            correctPercentage: percentage,
+            status: "Paused",
+            isPremium: mock.isPremium ?? false,
+          };
+        });
+
+        const mappedExams: FileItem[] = (Array.isArray(examData) ? examData : [])
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          .map((item: any) => ({
-            id: item._id ?? item.id,
+          .map((item) => ({
+            id: item._id ?? "",
             examName: item.name ?? "Mock Exam",
             totalQuestions: `${item.numberOfQuestions ?? 0} Questions`,
             examTime: item.timeInMin ?? "Untimed",
@@ -38,7 +87,7 @@ const Exams = () => {
             isPremium: item.isPremium ?? false,
           }));
 
-        setData(mapped);
+        setData([...mappedPaused, ...mappedExams]);
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to fetch mock exam", error);

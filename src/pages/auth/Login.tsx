@@ -5,7 +5,7 @@ import { Input } from "../../components/ui/input";
 import { Lock, Eye, EyeClosed, MailOpen, ArrowRight } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/utils/svgicons";
-import { signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { firebaseAuth, googleProvider } from "@/lib/firebase";
 import api from "@/lib/axios";
 import { getFcmToken } from "@/lib/fcm";
@@ -69,6 +69,7 @@ const Login = () => {
       }
       if (user) {
         localStorage.setItem("user", JSON.stringify(user));
+        window.dispatchEvent(new Event("userUpdated"));
       }
 
       const successMessage =
@@ -91,7 +92,12 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     try {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
-      const idToken = await result.user.getIdToken();
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const googleIdToken = credential?.idToken ?? null;
+
+      if (!googleIdToken) {
+        throw new Error("Missing Google ID token from popup result.");
+      }
 
       let fcmToken: string | null = null;
       try {
@@ -103,7 +109,7 @@ const Login = () => {
 
       const response = await api.post("/social-login", {
         authType: "GOOGLE",
-        idToken,
+        idToken: googleIdToken,
         fcmToken: fcmToken ?? "",
         deviceType: "WEB",
       });
@@ -129,6 +135,7 @@ const Login = () => {
       }
       if (user) {
         localStorage.setItem("user", JSON.stringify(user));
+        window.dispatchEvent(new Event("userUpdated"));
       }
 
       toast.success(responseData?.message ?? "Login successful");

@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import AuthLayout from "../layouts/AuthLayout";
 import DashboardLayout from "../layouts/DashboardLayout";
@@ -34,13 +35,29 @@ import StartExam from "@/pages/dashboard/Exams/StartExam";
 import ExamStart from "@/layouts/ExamStart";
 
 const AppRoutes = () => {
+  const [isAuth, setIsAuth] = useState(isAuthenticated());
+
+  useEffect(() => {
+    const handleAuthUpdate = () => setIsAuth(isAuthenticated());
+    window.addEventListener("storage", handleAuthUpdate);
+    window.addEventListener("authUpdated", handleAuthUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", handleAuthUpdate);
+      window.removeEventListener(
+        "authUpdated",
+        handleAuthUpdate as EventListener
+      );
+    };
+  }, []);
+
   return (
     <Routes>
       {/* Root redirect */}
       <Route
         path="/"
         element={
-          isAuthenticated() ? (
+          isAuth ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <Navigate to="/login" replace />
@@ -53,13 +70,13 @@ const AppRoutes = () => {
         <Route
           path="/login"
           element={
-            isAuthenticated() ? <Navigate to="/dashboard" replace /> : <Login />
+            isAuth ? <Navigate to="/dashboard" replace /> : <Login />
           }
         />
         <Route
           path="/create-account"
           element={
-            isAuthenticated() ? (
+            isAuth ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <CreateAccount />
@@ -69,7 +86,7 @@ const AppRoutes = () => {
         <Route
           path="/forgot-password"
           element={
-            isAuthenticated() ? (
+            isAuth ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <ForgotPassword />
@@ -79,7 +96,7 @@ const AppRoutes = () => {
         <Route
           path="/enter-otp"
           element={
-            isAuthenticated() ? (
+            isAuth ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <EnterOtp />
@@ -89,7 +106,7 @@ const AppRoutes = () => {
         <Route
           path="/create-new-password"
           element={
-            isAuthenticated() ? (
+            isAuth ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <CreateNewPassword />

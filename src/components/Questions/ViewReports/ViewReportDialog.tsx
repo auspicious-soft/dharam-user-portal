@@ -13,12 +13,12 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 /* -------------------- Types -------------------- */
 
-type DomainScore = {
+export type DomainScore = {
   name: string;
   percentage: number;
 };
 
-type ReportData = {
+export type ReportData = {
   score: number;
   timeSpent: string;
   correct: number;
@@ -30,21 +30,8 @@ type ReportData = {
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-};
-
-/* -------------------- Dummy Data -------------------- */
-
-const dummyReportData: ReportData = {
-  score: 66,
-  timeSpent: "04:20:16 hrs",
-  correct: 16,
-  incorrect: 16,
-  unanswered: 16,
-  domains: [
-    { name: "Domain 1", percentage: 66 },
-    { name: "Domain 2", percentage: 72 },
-    { name: "Domain 3", percentage: 58 },
-  ],
+  report?: ReportData | null;
+  isLoading?: boolean;
 };
 
 /* -------------------- Components -------------------- */
@@ -69,14 +56,19 @@ const SummaryCard = ({
 
 /* -------------------- Main Dialog -------------------- */
 
-const ViewReportDialog = ({ open, onOpenChange }: Props) => {
-  const report = dummyReportData;
+const ViewReportDialog = ({ open, onOpenChange, report, isLoading }: Props) => {
+  const total = report
+    ? report.correct + report.incorrect + report.unanswered
+    : 0;
 
-  const total = report.correct + report.incorrect + report.unanswered;
+  const correctPercent = total ? (report?.correct ?? 0) / total * 100 : 0;
+  const incorrectPercent = total ? (report?.incorrect ?? 0) / total * 100 : 0;
+  const unansweredPercent = total ? (report?.unanswered ?? 0) / total * 100 : 0;
 
-  const correctPercent = (report.correct / total) * 100;
-  const incorrectPercent = (report.incorrect / total) * 100;
-  const unansweredPercent = (report.unanswered / total) * 100;
+  const formatPercent = (value?: number) => {
+    if (!Number.isFinite(value)) return "0";
+    return value % 1 === 0 ? String(value) : value.toFixed(2);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,16 +81,22 @@ const ViewReportDialog = ({ open, onOpenChange }: Props) => {
           />
 
           <DialogTitle className="text-center text-2xl lg:text-3xl font-bold">
-            You’ve Scored
+            You've Scored
           </DialogTitle>
           <VisuallyHidden>
             <DialogDescription></DialogDescription>
           </VisuallyHidden>
 
           <div className="text-center text-primary_heading text-3xl md:text-[50px] font-bold leading-snug">
-            {report.score}%
+            {formatPercent(report?.score)}%
           </div>
         </DialogHeader>
+
+        {isLoading ? (
+          <div className="text-sm text-paragraph text-center">
+            Loading report...
+          </div>
+        ) : null}
 
         {/* Total Time Spent */}
         <div className="px-4 py-[13px] bg-white rounded-lg flex justify-between border border-[#0a4ba8]/10">
@@ -106,7 +104,7 @@ const ViewReportDialog = ({ open, onOpenChange }: Props) => {
             Total Time Spent
           </p>
           <p className="text-primary_heading text-base font-semibold">
-            {report.timeSpent}
+            {report?.timeSpent ?? "-"}
           </p>
         </div>
 
@@ -128,15 +126,19 @@ const ViewReportDialog = ({ open, onOpenChange }: Props) => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-[10px]">
-          <SummaryCard label="Correct" value={report.correct} color="#53A32D" />
+          <SummaryCard
+            label="Correct"
+            value={report?.correct ?? 0}
+            color="#53A32D"
+          />
           <SummaryCard
             label="Incorrect"
-            value={report.incorrect}
+            value={report?.incorrect ?? 0}
             color="#ff2121"
           />
           <SummaryCard
             label="Unanswered"
-            value={report.unanswered}
+            value={report?.unanswered ?? 0}
             color="#ffa421"
           />
         </div>
@@ -145,16 +147,20 @@ const ViewReportDialog = ({ open, onOpenChange }: Props) => {
         <div className="p-4 lg:p-5 bg-white rounded-lg border border-[#0a4ba8]/10">
           <h3 className="text-sm font-semibold mb-2">Score Breakdown</h3>
 
-          {report.domains.map((domain, index) => (
-            <div key={index} className="flex justify-between py-2">
-              <span className="text-paragraph text-base font-medium">
-                {domain.name}
-              </span>
-              <span className="text-primary_heading text-base font-semibold">
-                {domain.percentage}% Correct
-              </span>
-            </div>
-          ))}
+          {report?.domains?.length ? (
+            report.domains.map((domain, index) => (
+              <div key={index} className="flex justify-between py-2">
+                <span className="text-paragraph text-base font-medium">
+                  {domain.name}
+                </span>
+                <span className="text-primary_heading text-base font-semibold">
+                  {formatPercent(domain.percentage)}% Correct
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="text-sm text-paragraph">No breakdown available.</div>
+          )}
         </div>
 
         {/* Close Button */}

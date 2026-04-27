@@ -64,8 +64,7 @@ const CourseIntroduction = () => {
 
   useEffect(() => {
     const courseId =
-      localStorage.getItem("selectedCourseId") ??
-      "695777e1b2583161bd12b88e";
+      localStorage.getItem("selectedCourseId")
 
     const fetchCourseIntro = async () => {
       try {

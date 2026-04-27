@@ -1,5 +1,6 @@
 export type FileItem = {
   id: string;
+  resumeId?: string;
   examName: string;
   totalQuestions: string;
   examTime: string;

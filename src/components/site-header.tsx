@@ -9,6 +9,33 @@ export function SiteHeader() {
     avatar: "",
   });
 
+  const resolveAvatar = (image?: string | null) => {
+    if (!image) return "";
+    if (
+      image.startsWith("http://") ||
+      image.startsWith("https://") ||
+      image.startsWith("data:") ||
+      image.startsWith("blob:")
+    ) {
+      return image;
+    }
+
+    const base = import.meta.env.VITE_AWS_S3_PUBLIC_BASE_URL ?? "";
+    if (!base) {
+      return image;
+    }
+
+    const baseHasSlash = base.endsWith("/");
+    const imageHasSlash = image.startsWith("/");
+    if (baseHasSlash && imageHasSlash) {
+      return `${base}${image.slice(1)}`;
+    }
+    if (!baseHasSlash && !imageHasSlash) {
+      return `${base}/${image}`;
+    }
+    return `${base}${image}`;
+  };
+
   const readUserFromStorage = useCallback(() => {
     if (typeof window === "undefined") {
       return { name: "User", avatar: "" };
@@ -31,7 +58,7 @@ export function SiteHeader() {
           .filter(Boolean)
           .join(" ")
           .trim() || parsed.email || "User";
-      return { name, avatar: parsed.image ?? "" };
+      return { name, avatar: resolveAvatar(parsed.image ?? "") };
     } catch {
       return { name: "User", avatar: "" };
     }

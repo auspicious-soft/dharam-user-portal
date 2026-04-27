@@ -6,16 +6,24 @@ import { ExamsItem } from "./exams.data";
 import { ColumnDef, CellContext } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
-import ViewReportDialog from "./ViewReportDialog";
+import ViewReportDialog, { ReportData } from "./ViewReportDialog";
 
 type Props = {
   data: ExamsItem[];
   columns: ColumnDef<ExamsItem>[];
+  onViewReport?: (exam: ExamsItem) => void;
+  reportData?: ReportData | null;
+  reportLoading?: boolean;
 };
 
-const ExamsTable = ({ data, columns }: Props) => {
+const ExamsTable = ({
+  data,
+  columns,
+  onViewReport,
+  reportData,
+  reportLoading,
+}: Props) => {
   const [open, setOpen] = useState(false);
-  const [selectedExam, setSelectedExam] = useState<ExamsItem | null>(null);
 
   // Wrap columns so we can inject onView handler
   const enhancedColumns = useMemo(() => {
@@ -25,13 +33,13 @@ const ExamsTable = ({ data, columns }: Props) => {
           ...col,
           cell: (context: CellContext<ExamsItem, unknown>) =>
             context.row.original.status === "Completed" ? (
-              <Button
-                onClick={() => {
-                  setSelectedExam(context.row.original);
-                  setOpen(true);
-                }}
-                className="h-[34px] text-sm rounded-xl !px-4 !py-2"
-              >
+                <Button
+                  onClick={() => {
+                    onViewReport?.(context.row.original);
+                    setOpen(true);
+                  }}
+                  className="h-[34px] text-sm rounded-xl !px-4 !py-2"
+                >
                 View Report
               </Button>
             ) : null,
@@ -39,7 +47,7 @@ const ExamsTable = ({ data, columns }: Props) => {
       }
       return col;
     });
-  }, [columns]);
+  }, [columns, onViewReport]);
 
   return (
     <>
@@ -48,7 +56,8 @@ const ExamsTable = ({ data, columns }: Props) => {
       <ViewReportDialog
         open={open}
         onOpenChange={setOpen}
-        file={selectedExam}
+        report={reportData}
+        isLoading={reportLoading}
       />
     </>
   );

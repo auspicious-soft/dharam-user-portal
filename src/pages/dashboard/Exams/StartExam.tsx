@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
@@ -182,11 +182,13 @@ const StartExam = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [results, setResults] = useState<Record<number, any>>({});
   const [marked, setMarked] = useState<Set<number>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const autoSubmittedRef = useRef(false);
 
-  const initialSeconds = useMemo(() => {
-    const raw = String(mockExamData?.timeInMin ?? "");
-    if (!raw) return 0;
-    const parts = raw.split(":").map((part) => Number(part));
+  const parseDuration = (raw?: string | null) => {
+    const text = String(raw ?? "").trim();
+    if (!text) return 0;
+    const parts = text.split(":").map((part) => Number(part));
     if (parts.some((part) => Number.isNaN(part))) return 0;
     if (parts.length === 3) {
       const [h, m, s] = parts;
@@ -200,7 +202,13 @@ const StartExam = () => {
       return parts[0];
     }
     return 0;
-  }, [mockExamData?.timeInMin]);
+  };
+
+  const initialSeconds = useMemo(() => {
+    const totalSeconds = parseDuration(mockExamData?.timeInMin);
+    const takenSeconds = parseDuration(mockExamData?.timeTaken);
+    return Math.max(0, totalSeconds - takenSeconds);
+  }, [mockExamData?.timeInMin, mockExamData?.timeTaken]);
 
   const { display: timeDisplay, seconds: remainingSeconds } = useTimer(
     initialSeconds,
@@ -243,8 +251,10 @@ const StartExam = () => {
 
   const handleSubmitExam = async () => {
     if (!mockExamData?.examId) return;
+    if (isSubmitting) return;
 
     try {
+      setIsSubmitting(true);
       await api.get("/user/mock-exam-result", {
         params: { examId: mockExamData.examId, timeTaken },
       });
@@ -273,6 +283,14 @@ const StartExam = () => {
       console.error("Failed to pause mock exam", error);
     }
   };
+
+  useEffect(() => {
+    if (!hasQuiz || !mockExamData?.examId) return;
+    if (remainingSeconds > 0) return;
+    if (autoSubmittedRef.current) return;
+    autoSubmittedRef.current = true;
+    void handleSubmitExam();
+  }, [hasQuiz, mockExamData?.examId, remainingSeconds, handleSubmitExam]);
 
   return (
     <div className="h-full flex flex-col">

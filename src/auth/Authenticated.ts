@@ -6,6 +6,9 @@ export const isAuthenticated = (): boolean => {
 
 export const login = (): void => {
   localStorage.setItem("isLoggedIn", "true");
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("authUpdated"));
+  }
 };
 
 export const logout = (): void => {
@@ -14,4 +17,8 @@ export const logout = (): void => {
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
   localStorage.removeItem("verificationToken");
+  localStorage.removeItem("selectedCourseId");
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("authUpdated"));
+  }
 };

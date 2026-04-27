@@ -92,6 +92,7 @@ const DomainsTasks = () => {
         const response = await api.get(`/user/domain-tasks/${courseId}`);
         const data = (response.data as { data?: any[] })?.data ?? [];
 
+        const nextBookmarkedItems = new Set<string>();
         const mappedModules: Module[] = (Array.isArray(data) ? data : []).map(
           (module: any) => {
             const rawItems =
@@ -106,23 +107,31 @@ const DomainsTasks = () => {
                 (item: any) =>
                   !item.status || String(item.status).toUpperCase() === "ACTIVE"
               )
-              .map((item: any, index: number) => ({
-                id:
+              .map((item: any, index: number) => {
+                const id =
                   item._id ??
                   item.id ??
                   item.taskId ??
-                  `${module._id}-${index}`,
-                title:
-                  item.taskName ??
-                  item.taskLabel ??
-                  item.title ??
-                  item.task ??
-                  item.name ??
-                  "Task",
-                taskLabel: item.taskLabel ?? undefined,
-                taskName: item.taskName ?? undefined,
-                isPremium: item.isPremium ?? false,
-              }));
+                  `${module._id}-${index}`;
+
+                if (item.isBookmarked) {
+                  nextBookmarkedItems.add(String(id));
+                }
+
+                return {
+                  id,
+                  title:
+                    item.taskName ??
+                    item.taskLabel ??
+                    item.title ??
+                    item.task ??
+                    item.name ??
+                    "Task",
+                  taskLabel: item.taskLabel ?? undefined,
+                  taskName: item.taskName ?? undefined,
+                  isPremium: item.isPremium ?? false,
+                };
+              });
 
             const taskCount =
               typeof module.task === "number"
@@ -144,6 +153,7 @@ const DomainsTasks = () => {
         );
 
         setModules(mappedModules);
+        setBookmarkedItems(nextBookmarkedItems);
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to fetch domain tasks", error);
