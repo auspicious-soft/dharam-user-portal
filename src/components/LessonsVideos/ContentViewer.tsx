@@ -16,7 +16,11 @@ pdfjs.GlobalWorkerOptions.workerSrc = PdfWorker;
 interface ContentViewerProps {
   content: SelectedContent;
   onClose: () => void;
-  onQuestionAttempt?: (moduleId: string, questionId: string) => void;
+  onQuestionAttempt?: (
+    moduleId: string,
+    questionId: string,
+    isCorrect: boolean,
+  ) => void;
 }
 
 export const ContentViewer: React.FC<ContentViewerProps> = ({
@@ -238,8 +242,8 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
       <LessonsQuizRenderer
         quiz={content.quiz}
         onClose={onClose}
-        onQuestionAttempt={(questionId) =>
-          onQuestionAttempt?.(content.moduleId, questionId)
+        onQuestionAttempt={(questionId, isCorrect) =>
+          onQuestionAttempt?.(content.moduleId, questionId, isCorrect)
         }
       />
     );

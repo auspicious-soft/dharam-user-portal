@@ -7,7 +7,7 @@ import { QuizResultDialog } from "./QuizResultDialog";
 interface LessonsQuizRendererProps {
   quiz: QuizQuestion[];
   onClose: () => void;
-  onQuestionAttempt?: (questionId: string) => void;
+  onQuestionAttempt?: (questionId: string, isCorrect: boolean) => void;
 }
 
 const LessonsQuizRenderer = ({

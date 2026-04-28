@@ -15,7 +15,7 @@ import {
 interface QuizRendererProps {
   quiz: QuizQuestion[];
   onComplete?: (results: { correct: number; incorrect: number }) => void;
-  onQuestionAttempt?: (questionId: string) => void;
+  onQuestionAttempt?: (questionId: string, isCorrect: boolean) => void;
   attemptConfig?: {
     type: "QUESTION" | "TASK";
     taskId?: string;
@@ -93,7 +93,7 @@ export const QuizRenderer = ({
     const isCorrect = checkAnswer();
     setResults({ ...results, [currentQuestionIndex]: isCorrect });
 
-    onQuestionAttempt?.(question.id);
+    onQuestionAttempt?.(question.id, isCorrect);
     
     if (attemptConfig?.type === "TASK") {
       if (attemptConfig.taskId) {
@@ -108,7 +108,7 @@ export const QuizRenderer = ({
       void api.post("/user/mark-attempted", {
         type: "QUESTION",
         questionId: question.id,
-        isAttempted: true,
+        isAttempted: isCorrect,
       });
     }
 

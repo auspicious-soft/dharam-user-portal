@@ -408,7 +408,13 @@ const LearningManagementSystem: React.FC = () => {
     return module.progress ?? 0;
   };
 
-  const handleQuestionAttempt = (moduleId: string, questionId: string) => {
+  const handleQuestionAttempt = (
+    moduleId: string,
+    questionId: string,
+    isCorrect: boolean,
+  ) => {
+    if (!isCorrect) return;
+
     setAttemptedQuestionsByModule((prev) => {
       const existing = prev[moduleId] ?? new Set<string>();
       if (existing.has(questionId)) return prev;
