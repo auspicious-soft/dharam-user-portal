@@ -6,7 +6,15 @@ import { ArrowRight, FastArrowRight } from "iconoir-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/axios";
 
-export const ExamColumns = (): ColumnDef<FileItem>[] => {
+type ExamColumnsOptions = {
+  onBuyPremiumExam?: (exam: FileItem) => void;
+  purchasingExamId?: string | null;
+};
+
+export const ExamColumns = ({
+  onBuyPremiumExam,
+  purchasingExamId = null,
+}: ExamColumnsOptions = {}): ColumnDef<FileItem>[] => {
   const columns: ColumnDef<FileItem>[] = [
     {
       accessorKey: "examName",
@@ -134,6 +142,8 @@ export const ExamColumns = (): ColumnDef<FileItem>[] => {
       
         return isPremium ? (
           <button
+            onClick={() => onBuyPremiumExam?.(row.original)}
+            disabled={purchasingExamId === row.original.id}
             style={{
               background:
                 "linear-gradient(#f0f8ff, #f0f8ff) padding-box, linear-gradient(60deg, #ff6402, #fdb22b) border-box",
@@ -141,7 +151,7 @@ export const ExamColumns = (): ColumnDef<FileItem>[] => {
             }}
             className="px-4 py-0 rounded-[99px] text-[10px] font-medium bg-gradient-to-r from-[#ff6402] to-[#fdb22b] bg-clip-text text-[#ff6402]"
           >
-            Premium
+            {purchasingExamId === row.original.id ? "Processing..." : "Premium"}
           </button>  
         ) : (
           <Button

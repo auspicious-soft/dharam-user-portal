@@ -7,6 +7,8 @@ export interface ModuleItem {
   duration: string;
   type: "video" | "slide" | "quiz";
   moduleId: string;
+  isLocked?: boolean;
+  hasLink?: boolean;
 
   videoUrl?: string;
   pdfUrl?: string;
@@ -18,6 +20,8 @@ export interface Module {
   id: string;
   title: string;
   description: string;
+  status?: string;
+  price?: number | null;
   videos: number;
   slides: number;
   questions: number;

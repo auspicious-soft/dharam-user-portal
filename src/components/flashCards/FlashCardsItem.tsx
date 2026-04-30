@@ -3,19 +3,30 @@ import { useState } from "react";
 type FlashCardItemProps = {
   frontText: string;
   backText: string;
+  isLocked?: boolean;
 };
 
-const FlashCardsItem = ({ frontText, backText }: FlashCardItemProps) => {
+const FlashCardsItem = ({
+  frontText,
+  backText,
+  isLocked = false,
+}: FlashCardItemProps) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
   return (
     <div
-      onClick={() => setIsFlipped((prev) => !prev)}
-      className="relative min-h-44 cursor-pointer"
+      onClick={() => {
+        if (!isLocked) {
+          setIsFlipped((prev) => !prev);
+        }
+      }}
+      className={`relative min-h-44 ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
     >
       <div className="w-full h-full [perspective:1000px]">
         <div
-          className="relative w-full h-full transition-transform duration-500"
+          className={`relative w-full h-full transition-transform duration-500 ${
+            isLocked ? "opacity-60" : ""
+          }`}
           style={{
             transformStyle: "preserve-3d",
             transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
@@ -42,6 +53,13 @@ const FlashCardsItem = ({ frontText, backText }: FlashCardItemProps) => {
           </div>
         </div>
       </div>
+      {isLocked ? (
+        <div className="absolute inset-0 rounded-[20px] bg-white/25 flex items-center justify-center pointer-events-none">
+          <span className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-[#ff6402] to-[#fdb22b]">
+            Premium
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 };

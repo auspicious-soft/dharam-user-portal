@@ -8,13 +8,18 @@ import { ApplicationViewer } from "@/components/applicationSupport/ApplicationVi
 import { ApplicationModuleSection } from "@/components/applicationSupport/ApplicationModuleSection";
 import api from "@/lib/axios";
 import { getPublicUrlForKey } from "@/utils/s3Upload";
+import { toast } from "sonner";
 
 const ApplicationSupport = () => {
+  const [userHasPremium] = useState(false);
   const [modules, setModules] = useState<Module[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [purchasingModuleId, setPurchasingModuleId] = useState<string | null>(
+    null
+  );
 
   const normalizeVideoUrl = useMemo(
     () => (url?: string) => {
@@ -57,25 +62,38 @@ const ApplicationSupport = () => {
         const data = (response.data as { data?: any[] })?.data ?? [];
         const mapped: Module[] = (Array.isArray(data) ? data : [])
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          .map((module: any) => ({
-            id: module._id ?? module.id,
-            title: module.name ?? "Module",
-            items: (Array.isArray(module.data) ? module.data : []).map(
-              (item: any) => {
-                const rawType = String(item.fileType ?? "").toUpperCase();
-                const type = rawType === "VIDEO" ? "video" : "pdf";
-                const link = resolveFileUrl(String(item.fileLink ?? ""));
-                return {
-                  id: item._id ?? item.id,
-                  title: item.fileName ?? "Item",
-                  type,
-                  pdfUrl: type === "pdf" ? link : undefined,
-                  videoUrl:
-                    type === "video" ? normalizeVideoUrl(link) : undefined,
-                };
-              },
-            ),
-          }));
+          .map((module: any) => {
+            const moduleStatus = String(module.status ?? "ACTIVE").toUpperCase();
+            const isInactiveModule = moduleStatus === "INACTIVE";
+            return {
+              id: module._id ?? module.id,
+              title: module.name ?? "Module",
+              status: moduleStatus,
+              isPremium: isInactiveModule || Boolean(module.isPremium),
+              price:
+                typeof module.price === "number"
+                  ? module.price
+                  : module.price != null
+                    ? Number(module.price)
+                    : null,
+              items: (Array.isArray(module.data) ? module.data : []).map(
+                (item: any) => {
+                  const rawType = String(item.fileType ?? "").toUpperCase();
+                  const type = rawType === "VIDEO" ? "video" : "pdf";
+                  const link = resolveFileUrl(String(item.fileLink ?? ""));
+                  return {
+                    id: item._id ?? item.id,
+                    title: item.fileName ?? "Item",
+                    type,
+                    isLocked: isInactiveModule,
+                    pdfUrl: type === "pdf" ? link : undefined,
+                    videoUrl:
+                      type === "video" ? normalizeVideoUrl(link) : undefined,
+                  };
+                },
+              ),
+            } as Module;
+          });
         setModules(mapped);
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -90,6 +108,10 @@ const ApplicationSupport = () => {
   }, [normalizeVideoUrl, resolveFileUrl]);
 
   const handleItemClick = (item: ContentItem) => {
+    if (item.isLocked) {
+      return;
+    }
+
     const content: SelectedContent = {
       type: item.type === "pdf" ? "slide" : "video",
       title: item.title,
@@ -99,6 +121,67 @@ const ApplicationSupport = () => {
     setSelectedContent(content);
     setSelectedItemId(item.id);
   };
+
+  const resolveRedirectUrl = (responseData: unknown): string | null => {
+    const parsed = responseData as
+      | {
+          url?: string;
+          checkoutUrl?: string;
+          data?: { url?: string; checkoutUrl?: string };
+        }
+      | undefined;
+
+    return (
+      parsed?.data?.url ??
+      parsed?.data?.checkoutUrl ??
+      parsed?.url ??
+      parsed?.checkoutUrl ??
+      null
+    );
+  };
+
+  const handleBuyPremiumModule = async (module: Module) => {
+    if (!module?.id) {
+      toast.error("Invalid application support module.");
+      return;
+    }
+
+    const callbackUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/application-support`
+        : "/application-support";
+
+    setPurchasingModuleId(module.id);
+    try {
+      const response = await api.post("/user/create-purchase", {
+        type: "INDIVIDUAL",
+        amount: module.price ?? null,
+        purchasedProduct: module.id,
+        purchaseType: "APPLICATION_SUPPORT",
+        success_url: callbackUrl,
+        cancel_url: callbackUrl,
+      });
+
+      const redirectUrl = resolveRedirectUrl(response.data);
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+
+      const message =
+        (response.data as { message?: string })?.message ??
+        "Purchase request created successfully.";
+      toast.success(message);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Unable to create purchase.";
+      toast.error(message);
+    } finally {
+      setPurchasingModuleId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 ">
       {/* Left Section - Modules */}
@@ -118,6 +201,9 @@ const ApplicationSupport = () => {
               defaultOpen={index === 0}
               onItemClick={handleItemClick}
               selectedItemId={selectedItemId || undefined}
+              userHasPremium={userHasPremium}
+              onBuyPremiumModule={handleBuyPremiumModule}
+              isPremiumPurchasing={purchasingModuleId === module.id}
             />
           ))
         ) : (

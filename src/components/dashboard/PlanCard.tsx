@@ -57,16 +57,23 @@ const PlanCard = ({ plan, onSelectPlan }: PlanCardProps) => {
         </div>
 
         <div className="flex flex-col gap-3">
-          {plan.features.map((feature, i) => (
-            <div
-              key={i}
-              className={`flex items-center gap-2 text-sm leading-6
+          <p className="text-sm font-semibold">Plan Benefits</p>
+          {plan.benefits.length ? (
+            plan.benefits.map((benefit, i) => (
+              <div
+                key={i}
+                className={`flex items-center gap-2 text-sm leading-6
               ${plan.popular ? "text-white" : "text-paragraph"}`}
-            >
-              <Check size={20} />
-              <span>{feature}</span>
-            </div>
-          ))}
+              >
+                <Check size={20} />
+                <span>{benefit}</span>
+              </div>
+            ))
+          ) : (
+            <p className={`${plan.popular ? "text-white" : "text-paragraph"} text-sm`}>
+              No included benefits.
+            </p>
+          )}
         </div>
       </div>
       <Button

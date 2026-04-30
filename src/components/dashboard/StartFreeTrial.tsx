@@ -1,4 +1,3 @@
-import React from "react";
 import FreeTralBg from "@/assets/free-trail-bg.jpg";
 import FreeTrailImage from "@/assets/free-trail-img.jpg";
 import { Button } from "../ui/button";
@@ -16,7 +15,19 @@ const content = {
   buttonText: "Start a Free Trial",
 };
 
-const StartFreeTrial = () => {
+type StartFreeTrialProps = {
+  onStartFreeTrial?: () => void;
+  isSubmitting?: boolean;
+  showStartTrialButton?: boolean;
+  trialNotice?: string | null;
+};
+
+const StartFreeTrial = ({
+  onStartFreeTrial,
+  isSubmitting = false,
+  showStartTrialButton = true,
+  trialNotice = null,
+}: StartFreeTrialProps) => {
   return (
     <div
       style={{
@@ -41,9 +52,19 @@ const StartFreeTrial = () => {
           ))}
         </ul>
 
-        <Button className="max-h-[44px] !bg-white !text-primary_blue">
-          {content.buttonText}
-        </Button>
+        {showStartTrialButton ? (
+          <Button
+            className="max-h-[44px] !bg-white !text-primary_blue"
+            onClick={onStartFreeTrial}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Starting trial..." : content.buttonText}
+          </Button>
+        ) : (
+          <p className="text-sm font-semibold text-white">
+            {trialNotice ?? "You already have free trial for this course."}
+          </p>
+        )}
       </div>
 
       <img

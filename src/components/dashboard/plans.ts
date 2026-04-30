@@ -1,9 +1,9 @@
-export type PlanName = "Silver" | "Gold" | "Platinum";
-
 export interface Plan {
-  name: PlanName;
+  name: string;
   price: string;
+  priceId?: string | null;
   features: string[];
+  benefits: string[];
   popular: boolean;
 }
 export type DurationTab = "oneMonth" | "threeMonths";

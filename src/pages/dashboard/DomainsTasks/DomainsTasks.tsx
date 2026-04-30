@@ -5,13 +5,18 @@ import { Module } from "@/components/DomainsTasks/types";
 import { DomainsModuleSection } from "@/components/DomainsTasks/DomainsModuleSection";
 import { NavArrowLeft } from "iconoir-react";
 import DomainQuestionIcon from "@/assets/domain-question-icon.png";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/axios";
+import { toast } from "sonner";
 
 const DomainsTasks = () => {
+  const navigate = useNavigate();
   const [userHasPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [modules, setModules] = useState<Module[]>([]);
+  const [purchasingDomainId, setPurchasingDomainId] = useState<string | null>(
+    null
+  );
 
   const [bookmarkedItems, setBookmarkedItems] = React.useState<Set<string>>(
     new Set()
@@ -55,6 +60,70 @@ const DomainsTasks = () => {
   const [showBookmarks, setShowBookmarks] = React.useState(false);
 
   const hasBookmarks = bookmarkedItems.size > 0;
+  const hasInactiveDomains = modules.some(
+    (module) => String(module.status ?? "ACTIVE").toUpperCase() === "INACTIVE"
+  );
+
+  const resolveRedirectUrl = (responseData: unknown): string | null => {
+    const parsed = responseData as
+      | {
+          url?: string;
+          checkoutUrl?: string;
+          data?: { url?: string; checkoutUrl?: string };
+        }
+      | undefined;
+
+    return (
+      parsed?.data?.url ??
+      parsed?.data?.checkoutUrl ??
+      parsed?.url ??
+      parsed?.checkoutUrl ??
+      null
+    );
+  };
+
+  const handleBuyPremiumDomain = async (module: Module) => {
+    if (!module?.id) {
+      toast.error("Invalid domain selected.");
+      return;
+    }
+
+    const callbackUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/domains-tasks`
+        : "/domains-tasks";
+
+    setPurchasingDomainId(module.id);
+
+    try {
+      const response = await api.post("/user/create-purchase", {
+        type: "INDIVIDUAL",
+        amount: module.price ?? null,
+        purchasedProduct: module.id,
+        purchaseType: "DOMAIN_TASK",
+        success_url: callbackUrl,
+        cancel_url: callbackUrl,
+      });
+
+      const redirectUrl = resolveRedirectUrl(response.data);
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+
+      const message =
+        (response.data as { message?: string })?.message ??
+        "Purchase request created successfully.";
+      toast.success(message);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Unable to create purchase.";
+      toast.error(message);
+    } finally {
+      setPurchasingDomainId(null);
+    }
+  };
 
   const getBookmarkedItemsData = () => {
     const data: {
@@ -63,21 +132,25 @@ const DomainsTasks = () => {
       taskLabel?: string;
       taskName?: string;
       moduleTitle: string;
+      moduleStatus?: string;
+      isLocked?: boolean;
     }[] = [];
 
     modules.forEach((module) => {
       module.items.forEach((item) => {
         if (bookmarkedItems.has(item.id)) {
-          data.push({
-            id: item.id,
-            title: item.title,
-            taskLabel: item.taskLabel,
-            taskName: item.taskName,
-            moduleTitle: module.title,
-          });
-        }
+            data.push({
+              id: item.id,
+              title: item.title,
+              taskLabel: item.taskLabel,
+              taskName: item.taskName,
+              moduleTitle: module.title,
+              moduleStatus: module.status,
+              isLocked: Boolean(item.isLocked),
+            });
+          }
+        });
       });
-    });
 
     return data;
   };
@@ -95,6 +168,8 @@ const DomainsTasks = () => {
         const nextBookmarkedItems = new Set<string>();
         const mappedModules: Module[] = (Array.isArray(data) ? data : []).map(
           (module: any) => {
+            const moduleStatus = String(module.status ?? "ACTIVE").toUpperCase();
+            const isInactiveDomain = moduleStatus === "INACTIVE";
             const rawItems =
               (Array.isArray(module.tasks) && module.tasks) ||
               (Array.isArray(module.items) && module.items) ||
@@ -103,10 +178,6 @@ const DomainsTasks = () => {
               [];
 
             const items = rawItems
-              .filter(
-                (item: any) =>
-                  !item.status || String(item.status).toUpperCase() === "ACTIVE"
-              )
               .map((item: any, index: number) => {
                 const id =
                   item._id ??
@@ -130,6 +201,7 @@ const DomainsTasks = () => {
                   taskLabel: item.taskLabel ?? undefined,
                   taskName: item.taskName ?? undefined,
                   isPremium: item.isPremium ?? false,
+                  isLocked: isInactiveDomain,
                 };
               });
 
@@ -145,8 +217,15 @@ const DomainsTasks = () => {
             return {
               id: module._id ?? module.id ?? `${module.title}-${module.order ?? 0}`,
               title: module.domain ?? module.title ?? module.module ?? "Domain",
+              status: moduleStatus,
               task: taskCount,
-              isPremium: module.isPremium ?? false,
+              price:
+                typeof module.price === "number"
+                  ? module.price
+                  : module.price != null
+                    ? Number(module.price)
+                    : null,
+              isPremium: isInactiveDomain || Boolean(module.isPremium),
               items,
             } as Module;
           }
@@ -188,10 +267,11 @@ const DomainsTasks = () => {
             )}
           </Button>
 
-          {!userHasPremium && (
+          {!userHasPremium && hasInactiveDomains && (
             <Button
               variant="secondary"
               className=" bg-gradient-to-r from-[#ff6402] to-[#fdb22b] max-h-[44px] !px-5"
+              onClick={() => navigate("/dashboard")}
             >
               Get Full Access
             </Button>
@@ -213,6 +293,8 @@ const DomainsTasks = () => {
                 module={module}
                 defaultOpen={index === 0}
                 userHasPremium={userHasPremium}
+                onBuyPremiumDomain={handleBuyPremiumDomain}
+                isPremiumPurchasing={purchasingDomainId === module.id}
                 bookmarkedItems={bookmarkedItems}
                 onToggleBookmark={toggleBookmark}
               />
@@ -239,6 +321,10 @@ const DomainsTasks = () => {
 
             {hasBookmarks ? (
               getBookmarkedItemsData().map((item, index) => {
+                const isInactiveDomain =
+                  String(item.moduleStatus ?? "ACTIVE").toUpperCase() ===
+                  "INACTIVE";
+                const isTaskLocked = isInactiveDomain || Boolean(item.isLocked);
                 const moduleShortCode = item.moduleTitle
                   .split(" ")
                   .map((w) => w[0])
@@ -250,8 +336,15 @@ const DomainsTasks = () => {
                     className="flex items-center justify-between border-b border-[#dce5ed] py-2 last:border-b-0"
                   >
                     <Link
-                      to={`/domains-tasks/task/${item.id}`}
-                      className="flex items-center gap-3 w-full"
+                      to={isTaskLocked ? "#" : `/domains-tasks/task/${item.id}`}
+                      onClick={(e) => {
+                        if (isTaskLocked) {
+                          e.preventDefault();
+                        }
+                      }}
+                      className={`flex items-center gap-3 w-full ${
+                        isTaskLocked ? "pointer-events-none opacity-60" : ""
+                      }`}
                     >
                       <img
                         src={DomainQuestionIcon}

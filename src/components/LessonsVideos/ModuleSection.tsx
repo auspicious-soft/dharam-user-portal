@@ -3,7 +3,6 @@ import React from "react";
 import { ChevronDown, ChevronUp, Bookmark } from "lucide-react";
 import { Module, ContentItem } from "./types";
 import { contentIconMap } from "./contentIcons";
-import CircularProgress from "./CircularProgress";
 import ModuleIcon from "@/assets/module-icon.png";
 
 interface ModuleSectionProps {
@@ -12,6 +11,8 @@ interface ModuleSectionProps {
   onToggle: () => void;
   onSelectItem: (item: ContentItem) => void;
   onSelectModule: (module: Module) => void;
+  onBuyPremiumModule?: (module: Module) => void;
+  isPremiumPurchasing?: boolean;
   userHasPremium: boolean;
   selectedId: string | undefined;
   bookmarkedItems: Set<string>;
@@ -24,6 +25,8 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
   onToggle,
   onSelectItem,
   onSelectModule,
+  onBuyPremiumModule,
+  isPremiumPurchasing = false,
   userHasPremium,
   selectedId,
   bookmarkedItems,
@@ -52,6 +55,11 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
   const handleBookmarkClick = (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
     onToggleBookmark(itemId);
+  };
+
+  const handlePremiumClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onBuyPremiumModule?.(module);
   };
 
   return (
@@ -89,6 +97,8 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
             </div>
             {module.isPremium && (
               <button
+                onClick={handlePremiumClick}
+                disabled={isPremiumPurchasing}
                 style={{
                   background:
                     "linear-gradient(#f0f8ff, #f0f8ff) padding-box, linear-gradient(60deg, #ff6402, #fdb22b) border-box",
@@ -97,12 +107,12 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
                 className="px-4 py-0 min-h-[22px] rounded-[99px] text-[10px] font-medium
     bg-gradient-to-r from-[#ff6402] to-[#fdb22b] bg-clip-text text-[#ff6402]"
               >
-                Premium
+                {isPremiumPurchasing ? "Processing..." : "Premium"}
               </button>
             )}
-            {(!module.isPremium || userHasPremium) && (
+            {/* {(!module.isPremium || userHasPremium) && (
               <CircularProgress value={module.progress ?? 0} />
-            )}
+            )} */}
           </div>
         </div>
 
@@ -132,6 +142,14 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
               const isItemSelected = selectedId === item.id;
               const isBookmarked = bookmarkedItems.has(item.id);
               const canBookmark = item.type !== "quiz";
+              const hasItemLink =
+                item.type === "quiz"
+                  ? true
+                  : Boolean(item.videoUrl || item.pdfUrl || item.hasLink);
+              const isInactiveMissingLinkDull =
+                String(module.status ?? "").toUpperCase() === "INACTIVE" &&
+                !hasItemLink;
+              const isDull = isItemLocked || isInactiveMissingLinkDull;
 
               return (
                 <div
@@ -142,14 +160,26 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
                   } ${isItemSelected ? "" : ""}`}
                 >
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    <div
+                      className={`w-8 h-8 flex items-center justify-center flex-shrink-0 ${
+                        isDull ? "opacity-45" : ""
+                      }`}
+                    >
                       {contentIconMap[item.type]}
                     </div>
                     <div className="flex flex-col gap-1 flex-1">
-                      <h3 className=" text-paragraph text-sm font-semibold">
+                      <h3
+                        className={`text-sm font-semibold ${
+                          isDull ? "text-[#9aa8b5]" : "text-paragraph"
+                        }`}
+                      >
                         {item.title}
                       </h3>
-                      <p className="text-paragraph text-xs font-medium">
+                      <p
+                        className={`text-xs font-medium ${
+                          isDull ? "text-[#b1bdc9]" : "text-paragraph"
+                        }`}
+                      >
                         {item.duration}
                       </p>
                     </div>

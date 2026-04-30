@@ -14,8 +14,11 @@ import { NavArrowLeft } from "iconoir-react";
 import api from "@/lib/axios";
 import { getPublicUrlForKey } from "@/utils/s3Upload";
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const LearningManagementSystem: React.FC = () => {
+  const navigate = useNavigate();
   const [modules, setModules] = useState<Module[]>([]);
   const [openModuleId, setOpenModuleId] = useState<string | null>(null);
   const [selectedContent, setSelectedContent] = useState<SelectedContent | null>(null);
@@ -31,6 +34,9 @@ const LearningManagementSystem: React.FC = () => {
   const [attemptedQuestionsByModule, setAttemptedQuestionsByModule] = useState<
     Record<string, Set<string>>
   >({});
+  const [purchasingModuleId, setPurchasingModuleId] = useState<string | null>(
+    null
+  );
   const attemptedLessonsRef = useRef<Set<string>>(new Set());
 
   const resolveFileUrl = (url: string) => {
@@ -210,41 +216,47 @@ const LearningManagementSystem: React.FC = () => {
 
         const mappedModules: Module[] = (Array.isArray(data) ? data : [])
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          .map((module: any) => {
-            const lessons = (module.lessons ?? [])
-              .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
-              .map((lesson: any) => {
-                const rawType = String(lesson.fileType ?? "").toUpperCase();
-                const type = rawType === "VIDEO" ? "video" : "slide";
-                const resolvedUrl = resolveFileUrl(lesson.fileLink ?? "");
+            .map((module: any) => {
+              const moduleStatus = String(module.status ?? "ACTIVE").toUpperCase();
+              const isInactiveModule = moduleStatus === "INACTIVE";
+              const lessons = (module.lessons ?? [])
+                .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+                .map((lesson: any) => {
+                  const rawType = String(lesson.fileType ?? "").toUpperCase();
+                  const type = rawType === "VIDEO" ? "video" : "slide";
+                  const resolvedUrl = resolveFileUrl(lesson.fileLink ?? "");
+                  const hasLink = Boolean(resolvedUrl);
 
-                if (lesson.isBookmarked) {
-                  bookmarked.add(lesson._id);
-                }
+                  if (lesson.isBookmarked) {
+                    bookmarked.add(lesson._id);
+                  }
 
-                return {
-                  id: lesson._id,
-                  title: lesson.lessonName ?? lesson.fileName ?? "Lesson",
-                  duration: lesson.duration ?? "",
-                  type,
+                  return {
+                    id: lesson._id,
+                    title: lesson.lessonName ?? lesson.fileName ?? "Lesson",
+                    duration: lesson.duration ?? "",
+                    type,
+                    moduleId: module._id,
+                    hasLink,
+                    isLocked: isInactiveModule && !hasLink,
+                    videoUrl: type === "video" ? resolvedUrl : undefined,
+                    pdfUrl: type === "slide" ? resolvedUrl : undefined,
+                  } as ContentItem;
+                });
+
+              if ((module.questions ?? 0) > 0) {
+                lessons.push({
+                  id: `${module._id}-quiz`,
+                  title: "Questions",
+                  duration: `${module.questions} Questions`,
+                  type: "quiz",
                   moduleId: module._id,
-                  videoUrl: type === "video" ? resolvedUrl : undefined,
-                  pdfUrl: type === "slide" ? resolvedUrl : undefined,
-                } as ContentItem;
-              });
+                  isLocked: isInactiveModule,
+                  quiz: [],
+                });
+              }
 
-            if ((module.questions ?? 0) > 0) {
-              lessons.push({
-                id: `${module._id}-quiz`,
-                title: "Questions",
-                duration: `${module.questions} Questions`,
-                type: "quiz",
-                moduleId: module._id,
-                quiz: [],
-              });
-            }
-
-            const videosCount =
+              const videosCount =
               typeof module.videos === "number"
                 ? module.videos
                 : lessons.filter((item) => item.type === "video").length;
@@ -252,19 +264,25 @@ const LearningManagementSystem: React.FC = () => {
               typeof module.files === "number"
                 ? module.files
                 : lessons.filter((item) => item.type === "slide").length;
-
-            return {
-              id: module._id,
-              title: (module.module ?? "Module").trim(),
-              description: module.moduleIntroduction ?? "",
-              videos: videosCount,
-              slides: slidesCount,
-              questions: module.questions ?? 0,
-              isPremium: false,
-              items: lessons,
-              progress: module.progress ?? 0,
-            } as Module;
-          });
+              return {
+                id: module._id,
+                title: (module.module ?? "Module").trim(),
+                description: module.moduleIntroduction ?? "",
+                status: moduleStatus,
+                price:
+                  typeof module.price === "number"
+                    ? module.price
+                    : module.price != null
+                      ? Number(module.price)
+                      : null,
+                videos: videosCount,
+                slides: slidesCount,
+                questions: module.questions ?? 0,
+                isPremium: isInactiveModule,
+                items: lessons,
+                progress: module.progress ?? 0,
+              } as Module;
+            });
 
         setModules(mappedModules);
         setBookmarkedItems(bookmarked);
@@ -301,6 +319,17 @@ const LearningManagementSystem: React.FC = () => {
 
   // mark item as completed when opened
   const handleSelectItem = async (item: ContentItem) => {
+    if (item.isLocked) {
+      return;
+    }
+
+    const parentModule = modules.find((module) => module.id === item.moduleId);
+    const moduleIsInactive =
+      String(parentModule?.status ?? "").toUpperCase() === "INACTIVE";
+    if (moduleIsInactive && item.type === "quiz") {
+      return;
+    }
+
     if (item.type === "quiz") {
       const existing = moduleQuiz[item.moduleId];
       let quizData = existing;
@@ -402,6 +431,9 @@ const LearningManagementSystem: React.FC = () => {
   };
 
   const hasBookmarks = bookmarkedItems.size > 0;
+  const hasInactiveModules = modules.some(
+    (module) => String(module.status ?? "ACTIVE").toUpperCase() === "INACTIVE"
+  );
 
   // Calculate module progress (0-100)
   const getModuleProgress = (module: Module) => {
@@ -450,6 +482,67 @@ const LearningManagementSystem: React.FC = () => {
     });
   };
 
+  const resolveRedirectUrl = (responseData: unknown): string | null => {
+    const parsed = responseData as
+      | {
+          url?: string;
+          checkoutUrl?: string;
+          data?: { url?: string; checkoutUrl?: string };
+        }
+      | undefined;
+
+    return (
+      parsed?.data?.url ??
+      parsed?.data?.checkoutUrl ??
+      parsed?.url ??
+      parsed?.checkoutUrl ??
+      null
+    );
+  };
+
+  const handleBuyPremiumModule = async (module: Module) => {
+    if (!module?.id) {
+      toast.error("Invalid module selected.");
+      return;
+    }
+
+    const callbackUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/lessons-videos`
+        : "/lessons-videos";
+
+    setPurchasingModuleId(module.id);
+
+    try {
+      const response = await api.post("/user/create-purchase", {
+        type: "INDIVIDUAL",
+        amount: module.price ?? null,
+        purchasedProduct: module.id,
+        purchaseType: "LESSONS",
+        success_url: callbackUrl,
+        cancel_url: callbackUrl,
+      });
+
+      const redirectUrl = resolveRedirectUrl(response.data);
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+
+      const message =
+        (response.data as { message?: string })?.message ??
+        "Purchase request created successfully.";
+      toast.success(message);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Unable to create purchase.";
+      toast.error(message);
+    } finally {
+      setPurchasingModuleId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5 ">
       <div className="flex justify-between items-center flex-wrap gap-4">
@@ -476,12 +569,15 @@ const LearningManagementSystem: React.FC = () => {
             )}
           </Button>
 
-          <Button
-            variant="secondary"
-            className=" bg-gradient-to-r from-[#ff6402] to-[#fdb22b] max-h-[44px] !px-5"
-          >
-            Get Full Access
-          </Button>
+          {hasInactiveModules ? (
+            <Button
+              variant="secondary"
+              className=" bg-gradient-to-r from-[#ff6402] to-[#fdb22b] max-h-[44px] !px-5"
+              onClick={() => navigate("/dashboard")}
+            >
+              Get Full Access
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -500,6 +596,8 @@ const LearningManagementSystem: React.FC = () => {
                 onToggle={() => handleToggleModule(module.id)}
                 onSelectItem={handleSelectItem}
                 onSelectModule={handleSelectModule}
+                onBuyPremiumModule={handleBuyPremiumModule}
+                isPremiumPurchasing={purchasingModuleId === module.id}
                 userHasPremium={userHasPremium}
                 selectedId={
                   selectedContent && "id" in selectedContent

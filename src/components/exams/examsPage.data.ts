@@ -8,6 +8,7 @@ export type FileItem = {
   correctPercentage: string;
   status: string;
   isPremium?: boolean;
+  price?: number | null;
 };
 
 export const filesData: FileItem[] = [

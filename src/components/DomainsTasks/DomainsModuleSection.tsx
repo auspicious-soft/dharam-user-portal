@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { ChevronDown, ChevronUp, Bookmark } from "lucide-react";
 import { Module } from "./types";
 import DomainModuleIcon from "@/assets/domain-module-icon.png";
@@ -9,6 +9,8 @@ interface Props {
   module: Module;
   defaultOpen?: boolean;
   userHasPremium: boolean;
+  onBuyPremiumDomain?: (module: Module) => void;
+  isPremiumPurchasing?: boolean;
   bookmarkedItems: Set<string>;
   onToggleBookmark: (id: string) => void;
 }
@@ -17,18 +19,27 @@ export const DomainsModuleSection = ({
   module,
   defaultOpen = false,
   userHasPremium,
+  onBuyPremiumDomain,
+  isPremiumPurchasing = false,
   bookmarkedItems,
   onToggleBookmark,
 }: Props) => {
   const [open, setOpen] = useState(defaultOpen);
 
-  const isModuleLocked = module.isPremium && !userHasPremium;
+  const isInactiveModule =
+    String(module.status ?? "ACTIVE").toUpperCase() === "INACTIVE";
+  const isModuleLocked = isInactiveModule || (module.isPremium && !userHasPremium);
 
   const moduleShortCode = module.title
     .split(" ")
     .map((w) => w[0])
     .join("")
     .toUpperCase();
+
+  const handlePremiumClick = (e: MouseEvent) => {
+    e.stopPropagation();
+    onBuyPremiumDomain?.(module);
+  };
 
   return (
     <div className="space-y-1.5">
@@ -49,12 +60,14 @@ export const DomainsModuleSection = ({
         </div>
 
         <div className="flex items-center gap-3">
-          {module.isPremium && !userHasPremium && (
+          {isInactiveModule && (
             <button
+              onClick={handlePremiumClick}
+              disabled={isPremiumPurchasing}
               className="px-3 py-0 min-h-[22px] rounded-full text-[10px] font-medium
               bg-gradient-to-r from-[#ff6402] to-[#fdb22b] bg-clip-text text-transparent border border-orange-400"
             >
-              Premium
+              {isPremiumPurchasing ? "Processing..." : "Premium"}
             </button>
           )}
 

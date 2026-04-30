@@ -4,12 +4,15 @@ export interface DomainItem {
   taskLabel?: string;
   taskName?: string;
   isPremium?: boolean;
+  isLocked?: boolean;
 }
 
 export interface Module {
   id: string;
   title: string;
   task: number;
+  price?: number | null;
   isPremium?: boolean;
+  status?: string;
   items: DomainItem[];
 }

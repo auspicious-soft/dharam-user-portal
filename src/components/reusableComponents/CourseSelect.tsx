@@ -14,6 +14,8 @@ type Course = {
   _id: string;
   name: string;
   order?: number | null;
+  status?: string | null;
+  purchaseStatus?: string | null;
 };
 
 const CourseSelect = () => {
@@ -22,6 +24,34 @@ const CourseSelect = () => {
     () => localStorage.getItem(STORAGE_KEY) ?? ""
   );
   const [isLoading, setIsLoading] = useState(true);
+
+  const availableCourses = courses;
+
+  const hasExpiredFreeTrial = courses.some(
+    (course) =>
+      String(course.status ?? "").toUpperCase() === "EXPIRED" &&
+      String(course.purchaseStatus ?? "").toUpperCase() === "FREE_TRIAL"
+  );
+
+  const areAllStatusesNull =
+    courses.length > 0 && courses.every((course) => course.status == null);
+  const areAllPurchaseStatusesNull =
+    courses.length > 0 &&
+    courses.every((course) => course.purchaseStatus == null);
+
+  const emptyCoursesMessage = hasExpiredFreeTrial
+    ? "Your free trial has ended. Please purchase a plan."
+    : areAllStatusesNull || areAllPurchaseStatusesNull
+      ? "You need to purchase at least one course."
+      : "No active courses available.";
+
+  const placeholderText = isLoading
+    ? "Loading courses..."
+    : availableCourses.length
+      ? "Select course"
+      : hasExpiredFreeTrial
+        ? "Trial ended"
+        : "Purchase a course";
 
   useEffect(() => {
     let isMounted = true;
@@ -42,17 +72,23 @@ const CourseSelect = () => {
         setCourses(sorted);
         setIsLoading(false);
 
+        const selectableCourses = sorted;
+
         const storedId = localStorage.getItem(STORAGE_KEY) ?? "";
         const hasStored = storedId
-          ? sorted.some((course) => course._id === storedId)
+          ? selectableCourses.some((course) => course._id === storedId)
           : false;
-        const initialId = hasStored ? storedId : sorted[0]?._id ?? "";
+        const initialId = hasStored ? storedId : selectableCourses[0]?._id ?? "";
 
-        if (initialId && initialId !== storedId) {
-          localStorage.setItem(STORAGE_KEY, initialId);
+        if (initialId) {
+          if (initialId !== storedId) {
+            localStorage.setItem(STORAGE_KEY, initialId);
+          }
+          setSelectedId(initialId);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setSelectedId("");
         }
-
-        setSelectedId(initialId);
       } catch (error) {
         if (isMounted) {
           setIsLoading(false);
@@ -79,17 +115,21 @@ const CourseSelect = () => {
     <Select value={selectedId || undefined} onValueChange={handleChange}>
       <SelectTrigger className="bg-transparent border-dark-bg text-dark-bg text-[10px] md:text-xs max-w-[70%] md:max-w-72 w-full gap-6 px-3 md:px-6 py-[10px] md:py-[10px] text-left">
         <SelectValue
-          placeholder={isLoading ? "Loading courses..." : "Select course"}
+          placeholder={placeholderText}
           className="truncate"
         />
       </SelectTrigger>
       <SelectContent>
-        {courses.length === 0 ? (
+        {isLoading ? (
           <div className="px-4 py-2 text-sm text-muted-foreground">
-            No courses found
+            Loading courses...
+          </div>
+        ) : availableCourses.length === 0 ? (
+          <div className="px-4 py-2 text-sm text-muted-foreground">
+            {courses.length === 0 ? "No courses found" : emptyCoursesMessage}
           </div>
         ) : (
-          courses.map((course) => (
+          availableCourses.map((course) => (
             <SelectItem key={course._id} value={course._id}>
               {course.name}
             </SelectItem>
