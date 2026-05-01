@@ -7,11 +7,26 @@ import { QuestionsColumns } from "@/components/Questions/questions.columns";
 import QuestionsTable from "@/components/Questions/QuestionsTable";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/axios";
+import { toast } from "sonner";
+
+type PracticeExam = {
+  _id?: string | null;
+  id?: string | null;
+  order?: number | null;
+  name?: string | null;
+  questionCount?: number | null;
+  isPremium?: boolean | null;
+  price?: number | string | null;
+};
 
 const Questions = () => {
    const navigate = useNavigate();  
    const [data, setData] = useState<FileItem[]>([]);
    const [isLoading, setIsLoading] = useState(false);
+   const [attemptAvailable, setAttemptAvailable] = useState<number>(0);
+   const [practiceExamPrice, setPracticeExamPrice] = useState<number | null>(null);
+   const [purchasingExamId, setPurchasingExamId] = useState<string | null>(null);
+   const [isPurchasingTop, setIsPurchasingTop] = useState(false);
 
    useEffect(() => {
      const courseId = localStorage.getItem("selectedCourseId");
@@ -21,16 +36,45 @@ const Questions = () => {
        setIsLoading(true);
        try {
          const response = await api.get(`/user/practice-exam/${courseId}`);
-         const items = (response.data as { data?: any[] })?.data ?? [];
+         const payload = (response.data as {
+           data?: {
+             examData?: PracticeExam[];
+             attemptAvailable?: number;
+             price?: number | string | null;
+           };
+         })?.data;
+         const items = payload?.examData ?? [];
+         const availableAttempts = Number(payload?.attemptAvailable ?? 0);
+         const parsedPrice =
+           typeof payload?.price === "number"
+             ? payload.price
+             : payload?.price != null
+               ? Number(payload.price)
+               : null;
+         setAttemptAvailable(availableAttempts);
+         setPracticeExamPrice(
+           parsedPrice != null && Number.isFinite(parsedPrice)
+             ? parsedPrice
+             : null
+         );
 
          const mapped: FileItem[] = (Array.isArray(items) ? items : [])
            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-           .map((item: any) => ({
+           .map((item) => ({
              id: item._id ?? item.id,
              categoryName: item.name ?? "Practice Exam",
              totalQuestions: `${item.questionCount ?? 0} Questions`,
              examTime: "Untimed",
-             isPremium: item.isPremium ?? false,
+             isPremium:
+               availableAttempts === 0 ? true : (item.isPremium ?? false),
+             price:
+               parsedPrice != null && Number.isFinite(parsedPrice)
+                 ? parsedPrice
+                 : typeof item.price === "number"
+                   ? item.price
+                   : item.price != null
+                     ? Number(item.price)
+                     : null,
            }));
 
          setData(mapped);
@@ -44,17 +88,128 @@ const Questions = () => {
 
      void fetchPracticeExams();
    }, []);
+
+  const resolveRedirectUrl = (responseData: unknown): string | null => {
+    const parsed = responseData as
+      | {
+          url?: string;
+          checkoutUrl?: string;
+          data?: { url?: string; checkoutUrl?: string };
+        }
+      | undefined;
+
+    return (
+      parsed?.data?.url ??
+      parsed?.data?.checkoutUrl ??
+      parsed?.url ??
+      parsed?.checkoutUrl ??
+      null
+    );
+  };
+
+  const createPracticeExamPurchase = async (exam: FileItem) => {
+    if (!exam?.id) {
+      toast.error("Invalid practice exam selected.");
+      return;
+    }
+    if (practiceExamPrice == null || !Number.isFinite(practiceExamPrice)) {
+      toast.error("Practice exam price is unavailable.");
+      return;
+    }
+
+    const callbackUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/practice-questions`
+        : "/practice-questions";
+
+    try {
+      const response = await api.post("/user/create-purchase", {
+        type: "INDIVIDUAL",
+        amount: practiceExamPrice,
+        purchasedProduct: exam.id,
+        purchaseType: "PRACTICE_TEST",
+        success_url: callbackUrl,
+        cancel_url: callbackUrl,
+      });
+
+      const redirectUrl = resolveRedirectUrl(response.data);
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+
+      const message =
+        (response.data as { message?: string })?.message ??
+        "Purchase request created successfully.";
+      toast.success(message);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Unable to create purchase.";
+      toast.error(message);
+    }
+  };
+
+  const handleBuyPremiumExam = async (exam: FileItem) => {
+    setPurchasingExamId(exam.id);
+    try {
+      await createPracticeExamPurchase(exam);
+    } finally {
+      setPurchasingExamId(null);
+    }
+  };
+
+  const handleTopPremiumClick = async () => {
+    const firstPurchasableExam = data.find((item) => Boolean(item.id));
+    if (!firstPurchasableExam) {
+      toast.error("No practice exam available to purchase.");
+      return;
+    }
+
+    setIsPurchasingTop(true);
+    try {
+      await createPracticeExamPurchase(firstPurchasableExam);
+    } finally {
+      setIsPurchasingTop(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex justify-between flex-wrap gap-4 items-center">
-        <h2 className="text-Black_light text-lg md:text-2xl font-bold nd:leading-[46px]">Practice Questions</h2>
-        <Button
-         onClick={() => navigate("/practice-questions/view-reports")}
-          variant="secondary"
-          className="h-[44px] flex items-center gap-1 md:gap-2 "
-        >
-         View Reports
-        </Button>
+        <div className="flex items-center gap-3">
+          <h2 className="text-Black_light text-lg md:text-2xl font-bold nd:leading-[46px]">
+            Practice Questions
+          </h2>
+          <span className="rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-semibold text-primary_blue">
+            Attempts Available: {attemptAvailable}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => navigate("/practice-questions/view-reports")}
+            variant="secondary"
+            className="h-[44px] flex items-center gap-1 md:gap-2 "
+          >
+            View Reports
+          </Button>
+          {attemptAvailable === 0 ? (
+            <button
+              onClick={() => {
+                void handleTopPremiumClick();
+              }}
+              disabled={isPurchasingTop}
+              style={{
+                background:
+                  "linear-gradient(#f0f8ff, #f0f8ff) padding-box, linear-gradient(60deg, #ff6402, #fdb22b) border-box",
+                border: "1px solid transparent",
+              }}
+              className="px-4 py-0 rounded-[99px] text-[10px] font-medium bg-gradient-to-r from-[#ff6402] to-[#fdb22b] bg-clip-text text-[#ff6402]"
+            >
+              {isPurchasingTop ? "Processing..." : "Premium"}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {isLoading ? (
@@ -62,7 +217,12 @@ const Questions = () => {
       ) : (
         <QuestionsTable
           data={data}
-          columns={QuestionsColumns()}
+          columns={QuestionsColumns({
+            onBuyPremiumExam: (exam) => {
+              void handleBuyPremiumExam(exam);
+            },
+            purchasingExamId,
+          })}
         />
       )}
     </div>

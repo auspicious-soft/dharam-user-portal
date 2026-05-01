@@ -4,6 +4,7 @@ export type FileItem = {
   totalQuestions: string;
   examTime: string;
   isPremium?: boolean;
+  price?: number | null;
 };
 
 export const filesData: FileItem[] = [ 

@@ -1,6 +1,16 @@
+import { useMemo, useState } from "react";
 import { CheckCircle, GraduationCap, Timer } from "iconoir-react";
 import { BarChart2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import DateInput from "../reusableComponents/DateInput";
+
+type DashboardStats = {
+  inProgress?: number;
+  completed?: number;
+  timeSpent?: number;
+  mockTestAvgScore?: number;
+};
+
 type StatItem = {
   id: number;
   value: number | string;
@@ -8,34 +18,82 @@ type StatItem = {
   icon: React.ReactNode;
 };
 
-const statsData: StatItem[] = [
-  {
-    id: 1,
-    value: 7,
-    label: "In Progress",
-    icon: <GraduationCap width={14} height={14} />,
-  },
-  {
-    id: 2,
-    value: 4,
-    label: "Completed",
-    icon: <CheckCircle width={14} height={14} />,
-  },
-  {
-    id: 3,
-    value: "01:24 hr",
-    label: "Time Spent Learning",
-    icon: <Timer width={14} height={14} />,
-  },
-  {
-    id: 4,
-    value: 58,
-    label: "Mock Test Average Score ",
-    icon: <BarChart2 width={14} height={14} />,
-  },
-];
+type StatsCardProps = {
+  stats?: DashboardStats | null;
+  daysLeftForScheduledExam?: number | null;
+  examDate?: string | null;
+  onScheduleExam?: (date: string) => Promise<void>;
+  isSchedulingExam?: boolean;
+};
 
-const StatsCard = () => {
+const formatDateForDisplay = (dateValue?: string | null) => {
+  if (!dateValue) {
+    return "";
+  }
+
+  const parsedDate = new Date(dateValue);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "";
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const StatsCard = ({
+  stats,
+  daysLeftForScheduledExam,
+  examDate,
+  onScheduleExam,
+  isSchedulingExam = false,
+}: StatsCardProps) => {
+  const [selectedDate, setSelectedDate] = useState("");
+
+  const statsData: StatItem[] = useMemo(
+    () => [
+      {
+        id: 1,
+        value: stats?.inProgress ?? 0,
+        label: "In Progress",
+        icon: <GraduationCap width={14} height={14} />,
+      },
+      {
+        id: 2,
+        value: stats?.completed ?? 0,
+        label: "Completed",
+        icon: <CheckCircle width={14} height={14} />,
+      },
+      {
+        id: 3,
+        value: `${Number(stats?.timeSpent ?? 0)} hr`,
+        label: "Time Spent Learning",
+        icon: <Timer width={14} height={14} />,
+      },
+      {
+        id: 4,
+        value: Number(stats?.mockTestAvgScore ?? 0),
+        label: "Mock Test Average Score ",
+        icon: <BarChart2 width={14} height={14} />,
+      },
+    ],
+    [stats],
+  );
+
+  const hasExamDate = Boolean(examDate);
+  const formattedExamDate = formatDateForDisplay(examDate);
+
+  const handleScheduleExam = async () => {
+    if (!selectedDate || !onScheduleExam) {
+      return;
+    }
+
+    await onScheduleExam(selectedDate);
+    setSelectedDate("");
+  };
+
   return (
     <div className="flex flex-col gap-3.5 mt-[-14px]">
       <div className="flex flex-col gap-3.5 ">
@@ -63,14 +121,33 @@ const StatsCard = () => {
           ))}
           <div className="w-full col-span-2 md:col-auto md:w-auto min-w-52 px-[19px] py-2.5 rounded-lg outline outline-1 outline-offset-[-1px] outline-primary_blue inline-flex flex-col justify-start items-center gap-2.5 text-white-custom">
             <div className="text-[#10375c] text-2xl md:text-3xl font-bold ">
-              120
+              {hasExamDate ? (daysLeftForScheduledExam ?? 0) : "--"}
             </div>
             <div className="justify-start text-Primary-Font text-xs font-medium ">
               Days Until Exam
             </div>
-            <DateInput className="bg-primary_blue text-white py-2 px-4 border-0 text-xs rounded " />
+            {hasExamDate ? (
+              <div className="text-xs text-Primary-Font">
+                Exam Date: {formattedExamDate || "N/A"}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <DateInput
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                  className="bg-primary_blue text-white py-2 px-4 border-0 text-xs rounded"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleScheduleExam}
+                  disabled={!selectedDate || isSchedulingExam}
+                >
+                  {isSchedulingExam ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            )}
           </div>
-        </div> 
+        </div>
       </div>
     </div>
   );

@@ -7,19 +7,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import api from "@/lib/axios";
+import { normalizeUserCourses, type UserCourse } from "@/utils/userCourses";
 
 const STORAGE_KEY = "selectedCourseId";
 
-type Course = {
-  _id: string;
-  name: string;
-  order?: number | null;
-  status?: string | null;
-  purchaseStatus?: string | null;
-};
-
 const CourseSelect = () => {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<UserCourse[]>([]);
   const [selectedId, setSelectedId] = useState(
     () => localStorage.getItem(STORAGE_KEY) ?? ""
   );
@@ -42,16 +35,14 @@ const CourseSelect = () => {
   const emptyCoursesMessage = hasExpiredFreeTrial
     ? "Your free trial has ended. Please purchase a plan."
     : areAllStatusesNull || areAllPurchaseStatusesNull
-      ? "You need to purchase at least one course."
-      : "No active courses available.";
+      ? "No course access available yet."
+      : "No courses available.";
 
   const placeholderText = isLoading
     ? "Loading courses..."
     : availableCourses.length
       ? "Select course"
-      : hasExpiredFreeTrial
-        ? "Trial ended"
-        : "Purchase a course";
+      : "No courses";
 
   useEffect(() => {
     let isMounted = true;
@@ -59,11 +50,7 @@ const CourseSelect = () => {
     const fetchCourses = async () => {
       try {
         const response = await api.get("/user/course");
-        const data = (response.data as { data?: Course[] })?.data ?? [];
-        const list = Array.isArray(data) ? data : [];
-        const sorted = [...list].sort(
-          (a, b) => (a.order ?? 0) - (b.order ?? 0)
-        );
+        const sorted = normalizeUserCourses(response.data);
 
         if (!isMounted) {
           return;
@@ -83,6 +70,19 @@ const CourseSelect = () => {
         if (initialId) {
           if (initialId !== storedId) {
             localStorage.setItem(STORAGE_KEY, initialId);
+            try {
+              await api.get(`/user/home/${initialId}`);
+            } catch (error) {
+              console.error(
+                "Failed to prefetch home data for default selected course",
+                error
+              );
+            }
+            if (isMounted) {
+              window.dispatchEvent(new Event("courseChanged"));
+              window.location.reload();
+            }
+            return;
           }
           setSelectedId(initialId);
         } else {
@@ -93,21 +93,30 @@ const CourseSelect = () => {
         if (isMounted) {
           setIsLoading(false);
         }
-        // eslint-disable-next-line no-console
         console.error("Failed to load courses", error);
       }
     };
 
-    fetchCourses();
+    void fetchCourses();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const handleChange = (value: string) => {
+  const handleChange = async (value: string) => {
+    if (value === selectedId) {
+      return;
+    }
+
     setSelectedId(value);
     localStorage.setItem(STORAGE_KEY, value);
+    try {
+      await api.get(`/user/home/${value}`);
+    } catch (error) {
+      console.error("Failed to prefetch home data for selected course", error);
+    }
+    window.dispatchEvent(new Event("courseChanged"));
     window.location.reload();
   };
 
@@ -126,7 +135,7 @@ const CourseSelect = () => {
           </div>
         ) : availableCourses.length === 0 ? (
           <div className="px-4 py-2 text-sm text-muted-foreground">
-            {courses.length === 0 ? "No courses found" : emptyCoursesMessage}
+            {courses.length === 0 ? "No courses available" : emptyCoursesMessage}
           </div>
         ) : (
           availableCourses.map((course) => (

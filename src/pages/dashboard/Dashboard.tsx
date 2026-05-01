@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import StatsCard from "@/components/dashboard/StatsCard";
 import { useSubscription } from "@/SubscriptionContext";
@@ -9,6 +9,7 @@ import RecentActivities from "@/components/dashboard/RecentActivities";
 import PurchasePlanCard from "@/components/dashboard/PurchasePlanCard";
 import api from "@/lib/axios";
 import type { Plan } from "@/components/dashboard/plans";
+import { normalizeUserCourses } from "@/utils/userCourses";
 
 type PlansByDuration = {
   oneMonth: Plan[];
@@ -38,42 +39,50 @@ type ApiPlan = {
   practiceExams?: number;
 };
 
-type UserCourse = {
-  status?: string | null;
-  purchaseStatus?: string | null;
+type HomeApiData = {
+  stats?: {
+    inProgress?: number;
+    completed?: number;
+    timeSpent?: number;
+    mockTestAvgScore?: number;
+  };
+  daysLeftForScheduledExam?: number | null;
+  examDate?: string | boolean | null;
+  activities?: Array<{
+    message?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
+  lessonProgress?: Array<{
+    percentage?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    moduleId?: {
+      module?: string;
+    };
+  }>;
+  subscription?: string | boolean | null;
 };
 
-const modulesData = [
-  {
-    id: 1,
-    name: "Name of the Module",
-    lastAccessed: "Jan 14, 2026",
-    progress: 20,
-    imageUrl: "/user-img-new.png",
-  },
-  {
-    id: 2,
-    name: "Name of the Module",
-    lastAccessed: "Jan 10, 2026",
-    progress: 20,
-    imageUrl: "/user-img-new.png",
-  },
-];
+const formatDate = (value?: string | null) => {
+  if (!value) {
+    return "N/A";
+  }
 
-const activitiesData = [
-  {
-    id: 1,
-    name: "You completed mock exam",
-    lastAccessed: "Jan 14, 2026",
-    imageUrl: "/user-img-new.png",
-  },
-  {
-    id: 2,
-    name: "You practiced questions",
-    lastAccessed: "Jan 10, 2026",
-    imageUrl: "/user-img-new.png",
-  },
-];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const clampPercentage = (value: number) =>
+  Math.min(100, Math.max(0, Math.round(value)));
 
 const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
   const features: string[] = [];
@@ -87,7 +96,7 @@ const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
 
   if ((plan.mockExams ?? 0) > 0) {
     features.push(
-      `${plan.mockExams} Mock Exam${(plan.mockExams ?? 0) > 1 ? "s" : ""}`
+      `${plan.mockExams} Mock Exam${(plan.mockExams ?? 0) > 1 ? "s" : ""}`,
     );
   }
 
@@ -95,7 +104,7 @@ const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
     features.push(
       `${plan.practiceExams} Practice Exam${
         (plan.practiceExams ?? 0) > 1 ? "s" : ""
-      }`
+      }`,
     );
   }
 
@@ -121,9 +130,7 @@ const mapApiPlanToBenefits = (plan: ApiPlan): string[] => {
 const formatPlanPrice = (plan: ApiPlan) => {
   const currencyCode = (plan.currency ?? "usd").toUpperCase();
   const durationLabel =
-    plan.durationInMonths === 1
-      ? "Month"
-      : `${plan.durationInMonths} Months`;
+    plan.durationInMonths === 1 ? "Month" : `${plan.durationInMonths} Months`;
 
   try {
     const formattedPrice = new Intl.NumberFormat("en-US", {
@@ -159,18 +166,52 @@ const Dashboard = () => {
   const [reviewsDialogOpen, setReviewsDialogOpen] = useState(false);
   const [userName, setUserName] = useState("User");
   const [selectedMonths, setSelectedMonths] = useState<1 | 3>(1);
+  const [isHomeLoading, setIsHomeLoading] = useState(true);
   const [isPlansLoading, setIsPlansLoading] = useState(false);
+  const [isSchedulingExam, setIsSchedulingExam] = useState(false);
+  const [homeData, setHomeData] = useState<HomeApiData | null>(null);
+  const [homeSubscriptionStatus, setHomeSubscriptionStatus] = useState<
+    boolean | null
+  >(null);
   const [courseAccessNotice, setCourseAccessNotice] = useState<string | null>(
-    null
+    null,
   );
   const [plansByDuration, setPlansByDuration] = useState<PlansByDuration>({
     oneMonth: [],
     threeMonths: [],
   });
-  const [fetchedByDuration, setFetchedByDuration] = useState<FetchedByDuration>({
-    oneMonth: false,
-    threeMonths: false,
-  });
+  const [fetchedByDuration, setFetchedByDuration] = useState<FetchedByDuration>(
+    {
+      oneMonth: false,
+      threeMonths: false,
+    },
+  );
+  const mappedModules = useMemo(
+    () =>
+      (homeData?.lessonProgress ?? []).map((moduleProgress, index) => ({
+        id: index + 1,
+        name: moduleProgress.moduleId?.module?.trim() || "Module",
+        lastAccessed: formatDate(
+          moduleProgress.updatedAt ?? moduleProgress.createdAt,
+        ),
+        progress: clampPercentage(Number(moduleProgress.percentage ?? 0)),
+        imageUrl: "/user-img-new.png",
+      })),
+    [homeData],
+  );
+  const mappedActivities = useMemo(
+    () =>
+      (homeData?.activities ?? []).map((activity, index) => ({
+        id: index + 1,
+        name: activity.message?.trim() || "Activity",
+        lastAccessed: formatDate(activity.updatedAt ?? activity.createdAt),
+        imageUrl: "/user-img-new.png",
+      })),
+    [homeData],
+  );
+  const examDateValue =
+    typeof homeData?.examDate === "string" ? homeData.examDate : null;
+  const shouldShowSubscribedView = homeSubscriptionStatus ?? isSubscribed;
 
   const readUserNameFromStorage = useCallback(() => {
     if (typeof window === "undefined") {
@@ -190,10 +231,7 @@ const Dashboard = () => {
       };
 
       return (
-        [parsed.firstname, parsed.lastname]
-          .filter(Boolean)
-          .join(" ")
-          .trim() ||
+        [parsed.firstname, parsed.lastname].filter(Boolean).join(" ").trim() ||
         parsed.email ||
         "User"
       );
@@ -201,6 +239,53 @@ const Dashboard = () => {
       return "User";
     }
   }, []);
+
+  const fetchHomeData = useCallback(async () => {
+    const courseId = localStorage.getItem("selectedCourseId");
+    if (!courseId) {
+      console.warn("Skipping /user/home call: selectedCourseId not found.");
+      setIsHomeLoading(false);
+      return;
+    }
+
+    try {
+      const response = await api.get(`/user/home/${courseId}`);
+      const fetchedHomeData = (response.data as { data?: HomeApiData })?.data;
+      const subscriptionValue = fetchedHomeData?.subscription;
+      const hasSubscription = !(
+        subscriptionValue === false ||
+        subscriptionValue == null ||
+        String(subscriptionValue).trim() === "" ||
+        String(subscriptionValue).toUpperCase() === "FALSE"
+      );
+
+      setHomeData(fetchedHomeData ?? null);
+      setHomeSubscriptionStatus(hasSubscription);
+      console.log(`user/home response (courseId=${courseId}):`, response);
+      console.log("Dashboard subscription resolved as:", hasSubscription);
+    } catch (error) {
+      console.error("Failed to fetch user home data:", error);
+    } finally {
+      setIsHomeLoading(false);
+    }
+  }, []);
+
+  const handleScheduleExam = useCallback(
+    async (date: string) => {
+      setIsSchedulingExam(true);
+
+      try {
+        const response = await api.post("/user/schedule-exam", { date });
+        console.log("schedule-exam response:", response);
+        await fetchHomeData();
+      } catch (error) {
+        console.error("Failed to schedule exam:", error);
+      } finally {
+        setIsSchedulingExam(false);
+      }
+    },
+    [fetchHomeData],
+  );
 
   useEffect(() => {
     const updateUserName = () => setUserName(readUserNameFromStorage());
@@ -211,7 +296,10 @@ const Dashboard = () => {
 
     return () => {
       window.removeEventListener("storage", updateUserName);
-      window.removeEventListener("userUpdated", updateUserName as EventListener);
+      window.removeEventListener(
+        "userUpdated",
+        updateUserName as EventListener,
+      );
     };
   }, [readUserNameFromStorage]);
 
@@ -221,9 +309,7 @@ const Dashboard = () => {
     const fetchCourses = async () => {
       try {
         const response = await api.get("/user/course");
-        const courses = ((response.data as { data?: UserCourse[] })?.data ??
-          []) as UserCourse[];
-        const list = Array.isArray(courses) ? courses : [];
+        const list = normalizeUserCourses(response.data);
 
         const allStatusesNull =
           list.length > 0 && list.every((course) => course.status == null);
@@ -233,12 +319,12 @@ const Dashboard = () => {
         const hasExpiredFreeTrial = list.some(
           (course) =>
             String(course.status ?? "").toUpperCase() === "EXPIRED" &&
-            String(course.purchaseStatus ?? "").toUpperCase() === "FREE_TRIAL"
+            String(course.purchaseStatus ?? "").toUpperCase() === "FREE_TRIAL",
         );
         const hasAnyActivePurchasedAccess = list.some(
           (course) =>
             String(course.status ?? "").toUpperCase() === "ACTIVE" &&
-            course.purchaseStatus != null
+            course.purchaseStatus != null,
         );
 
         let message: string | null = null;
@@ -249,7 +335,8 @@ const Dashboard = () => {
           allStatusesNull ||
           allPurchaseStatusesNull
         ) {
-          message = "You have not purchased any course yet. Please purchase one.";
+          message =
+            "You have not purchased any course yet. Please purchase one.";
         }
 
         if (!isCancelled) {
@@ -268,7 +355,19 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    setIsHomeLoading(true);
+    void fetchHomeData();
+  }, [fetchHomeData]);
+
+  useEffect(() => {
     let isCancelled = false;
+
+    if (isHomeLoading || shouldShowSubscribedView) {
+      return () => {
+        isCancelled = true;
+      };
+    }
+
     const durationKey = selectedMonths === 1 ? "oneMonth" : "threeMonths";
 
     if (fetchedByDuration[durationKey]) {
@@ -281,7 +380,9 @@ const Dashboard = () => {
       setIsPlansLoading(true);
 
       try {
-        const response = await api.get(`/user/get-plans?months=${selectedMonths}`);
+        const response = await api.get(
+          `/user/get-plans?months=${selectedMonths}`,
+        );
         const apiPlans = ((response.data as { data?: ApiPlan[] })?.data ??
           []) as ApiPlan[];
         const mappedPlans = mapApiPlansToUiPlans(apiPlans);
@@ -312,7 +413,7 @@ const Dashboard = () => {
     return () => {
       isCancelled = true;
     };
-  }, [selectedMonths, fetchedByDuration]);
+  }, [selectedMonths, fetchedByDuration, isHomeLoading, shouldShowSubscribedView]);
 
   return (
     <>
@@ -336,11 +437,19 @@ const Dashboard = () => {
           </div>
         ) : null}
 
-        {isSubscribed ? (
+        {isHomeLoading ? (
+          <div className="p-4 text-sm text-paragraph">Loading dashboard...</div>
+        ) : shouldShowSubscribedView ? (
           <>
-            <StatsCard />
-            <RecentModules modules={modulesData} />
-            <RecentActivities activities={activitiesData} />
+            <StatsCard
+              stats={homeData?.stats}
+              daysLeftForScheduledExam={homeData?.daysLeftForScheduledExam}
+              examDate={examDateValue}
+              onScheduleExam={handleScheduleExam}
+              isSchedulingExam={isSchedulingExam}
+            />
+            <RecentModules modules={mappedModules} />
+            <RecentActivities activities={mappedActivities} />
           </>
         ) : (
           <PurchasePlanCard

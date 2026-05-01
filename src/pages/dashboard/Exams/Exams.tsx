@@ -33,6 +33,7 @@ const Exams = () => {
   const [data, setData] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [attemptAvailable, setAttemptAvailable] = useState<number>(0);
+  const [examPrice, setExamPrice] = useState<number | null>(null);
   const [purchasingExamId, setPurchasingExamId] = useState<string | null>(null);
   const [isPurchasingTop, setIsPurchasingTop] = useState(false);
 
@@ -51,13 +52,25 @@ const Exams = () => {
             examData?: MockExam[];
             pausedExams?: PausedExam[];
             attemptAvailable?: number;
+            price?: number | string | null;
           };
         })?.data;
 
         const examData = payload?.examData ?? [];
         const pausedExams = payload?.pausedExams ?? [];
         const availableAttempts = Number(payload?.attemptAvailable ?? 0);
+        const parsedExamPrice =
+          typeof payload?.price === "number"
+            ? payload.price
+            : payload?.price != null
+              ? Number(payload.price)
+              : null;
         setAttemptAvailable(availableAttempts);
+        setExamPrice(
+          parsedExamPrice != null && Number.isFinite(parsedExamPrice)
+            ? parsedExamPrice
+            : null
+        );
 
         const mappedPaused: FileItem[] = (Array.isArray(pausedExams)
           ? pausedExams
@@ -101,11 +114,13 @@ const Exams = () => {
             isPremium:
               availableAttempts === 0 ? true : (item.isPremium ?? false),
             price:
-              typeof item.price === "number"
-                ? item.price
-                : item.price != null
-                  ? Number(item.price)
-                  : null,
+              parsedExamPrice != null && Number.isFinite(parsedExamPrice)
+                ? parsedExamPrice
+                : typeof item.price === "number"
+                  ? item.price
+                  : item.price != null
+                    ? Number(item.price)
+                    : null,
           }));
 
         setData([...mappedPaused, ...mappedExams]);
@@ -153,7 +168,7 @@ const Exams = () => {
     try {
       const response = await api.post("/user/create-purchase", {
         type: "INDIVIDUAL",
-        amount: exam.price ?? null,
+        amount: examPrice ?? exam.price ?? null,
         purchasedProduct: exam.id,
         purchaseType: "MOCK_EXAM",
         success_url: callbackUrl,
@@ -204,9 +219,14 @@ const Exams = () => {
   return (
     <div className="flex flex-col gap-7">
       <div className="flex justify-between flex-wrap gap-4 items-center">
-        <h2 className="text-Black_light text-lg md:text-2xl font-bold">
-          Mock Exams
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-Black_light text-lg md:text-2xl font-bold">
+            Mock Exams
+          </h2>
+          <span className="rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-semibold text-primary_blue">
+            Attempts Available: {attemptAvailable}
+          </span>
+        </div>
         <div className="flex gap-2">
           <Button
             onClick={() => navigate("/exams/view-reports")}

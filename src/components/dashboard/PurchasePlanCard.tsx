@@ -8,6 +8,10 @@ import CourseSelect from "../reusableComponents/CourseSelect";
 import StartFreeTrial from "./StartFreeTrial";
 import api from "@/lib/axios";
 import { toast } from "sonner";
+import {
+  normalizeUserCourses,
+  type UserCourse,
+} from "@/utils/userCourses";
 
 type PlansByDuration = {
   oneMonth: Plan[];
@@ -18,13 +22,6 @@ type PurchasePlanCardProps = {
   onDurationChange?: (months: 1 | 3) => void;
   allPlans: PlansByDuration;
   isLoadingPlans?: boolean;
-};
-
-type UserCourse = {
-  _id: string;
-  purchaseStatus?: string | null;
-  status?: string | null;
-  daysLeft?: number | null;
 };
 
 const PurchasePlanCard = ({
@@ -202,9 +199,8 @@ const PurchasePlanCard = ({
     const fetchCourses = async () => {
       try {
         const response = await api.get("/user/course");
-        const data = (response.data as { data?: UserCourse[] })?.data ?? [];
         if (isMounted) {
-          setCourses(Array.isArray(data) ? data : []);
+          setCourses(normalizeUserCourses(response.data));
         }
       } catch (error) {
         console.error("Failed to load courses", error);

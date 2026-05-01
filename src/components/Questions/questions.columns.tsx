@@ -5,7 +5,15 @@ import { Button } from "../ui/button";
 import { ArrowRight } from "iconoir-react";
 import { useNavigate } from "react-router-dom";
 
-export const QuestionsColumns = (): ColumnDef<FileItem>[] => {
+type QuestionsColumnsOptions = {
+  onBuyPremiumExam?: (exam: FileItem) => void;
+  purchasingExamId?: string | null;
+};
+
+export const QuestionsColumns = ({
+  onBuyPremiumExam,
+  purchasingExamId = null,
+}: QuestionsColumnsOptions = {}): ColumnDef<FileItem>[] => {
   const columns: ColumnDef<FileItem>[] = [
     {
       accessorKey: "categoryName",
@@ -50,6 +58,8 @@ export const QuestionsColumns = (): ColumnDef<FileItem>[] => {
       
         return isPremium ? (
           <button
+            onClick={() => onBuyPremiumExam?.(row.original)}
+            disabled={purchasingExamId === row.original.id}
             style={{
               background:
                 "linear-gradient(#f0f8ff, #f0f8ff) padding-box, linear-gradient(60deg, #ff6402, #fdb22b) border-box",
@@ -57,7 +67,7 @@ export const QuestionsColumns = (): ColumnDef<FileItem>[] => {
             }}
             className="px-4 py-0 rounded-[99px] text-[10px] font-medium bg-gradient-to-r from-[#ff6402] to-[#fdb22b] bg-clip-text text-[#ff6402]"
           >
-            Premium
+            {purchasingExamId === row.original.id ? "Processing..." : "Premium"}
           </button>
         ) : (
           <Button
