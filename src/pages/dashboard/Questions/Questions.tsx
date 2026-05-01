@@ -16,7 +16,6 @@ type PracticeExam = {
   name?: string | null;
   questionCount?: number | null;
   isPremium?: boolean | null;
-  price?: number | string | null;
 };
 
 const Questions = () => {
@@ -70,11 +69,7 @@ const Questions = () => {
              price:
                parsedPrice != null && Number.isFinite(parsedPrice)
                  ? parsedPrice
-                 : typeof item.price === "number"
-                   ? item.price
-                   : item.price != null
-                     ? Number(item.price)
-                     : null,
+                 : null,
            }));
 
          setData(mapped);
