@@ -7,7 +7,7 @@ const AuthLayout = () => {
   return (
     <div className="auth-layout p-3 md:p-5  min-h-dvh flex flex-col gap-3 md:gap-5 justify-between">
       <div
-        className="flex-grow background-cover bg-center rounded-[12px] md:rounded-[20px] px-4 py-8  md:p-12"
+        className="flex-grow bg-cover bg-center rounded-[12px] md:rounded-[20px] px-4 py-8  md:p-12"
         style={{ backgroundImage: `url(${LoginBanner})` }}
       >
         <div className="flex flex-col gap-[90px]">

@@ -14,6 +14,8 @@ import api from "@/lib/axios";
 import { getFcmToken } from "@/lib/fcm";
 import { toast } from "sonner";
 
+const MIN_PASSWORD_LENGTH = 5;
+
 const CreateAccount = () => {
  const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
@@ -44,6 +46,11 @@ const CreateAccount = () => {
 
     if (!emailRegex.test(email)) {
       setError("Please enter a valid email address");
+      return;
+    }
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       return;
     }
 
@@ -120,13 +127,13 @@ const CreateAccount = () => {
         </h2>
         <p className="text-paragraph text-base font-normal max-w-80 w-full m-auto">
           By continuing, you agree to our{" "}
-          <Link to="#" className="text-primary_heading ">
+          <a href="https://www.vcareprojectmanagement.com/pages/terms-of-service" target="_blank" className="text-primary_heading ">
             Terms
-          </Link>{" "}
+          </a>{" "}
           &{" "}
-          <Link to="#" className="text-primary_heading">
+          <a href="https://www.vcareprojectmanagement.com/pages/privacy-policy" target="_blank" className="text-primary_heading">
             Privacy Policy.
-          </Link>
+          </a>
         </p>
       </div>
 

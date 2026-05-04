@@ -71,25 +71,33 @@ const EnterOtp = () => {
             }
           : undefined
       );
-      const accessToken =
-        (response.data as { data?: { accessToken?: string | null } })?.data
-          ?.accessToken ?? null;
+      const responseData = response.data as {
+        message?: string | null;
+        data?: {
+          accessToken?: string | null;
+          changePasswordToken?: string | null;
+        };
+      };
 
-      if (accessToken) {
+      const accessToken = responseData?.data?.accessToken ?? null;
+      const changePasswordToken = responseData?.data?.changePasswordToken ?? null;
+
+      if (mode === "signup" && accessToken) {
         localStorage.setItem("authToken", accessToken);
       }
 
-      const successMessage =
-        (response.data as { message?: string | null })?.message ??
-        "OTP verified";
+      if (mode === "forgot" && changePasswordToken) {
+        localStorage.setItem("changePasswordToken", changePasswordToken);
+      }
+
+      const successMessage = responseData?.message ?? "OTP verified";
       toast.success(successMessage);
 
-      login();
-
       if (mode === "signup") {
+        login();
         setIsDialogOpen(true);
       } else {
-        navigate("/create-new-password");
+        navigate("/create-new-password", { replace: true });
       }
     } catch (requestError: unknown) {
       const message =
@@ -98,6 +106,7 @@ const EnterOtp = () => {
       setError(message);
     } finally {
       setIsSubmitting(false);
+      setOtp("")
     }
   };
 
@@ -146,6 +155,7 @@ const EnterOtp = () => {
       setError(message);
     } finally {
       setIsResending(false);
+      setOtp("")
     }
   };
 
@@ -169,7 +179,7 @@ const EnterOtp = () => {
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="relative max-w-72 w-full m-auto">
           <Input
-            type="text"
+            type="number"
             placeholder="123456"
             maxLength={6}
             value={otp}

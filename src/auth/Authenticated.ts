@@ -17,6 +17,7 @@ export const logout = (): void => {
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
   localStorage.removeItem("verificationToken");
+  localStorage.removeItem("changePasswordToken");
   localStorage.removeItem("selectedCourseId");
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("authUpdated"));
