@@ -22,12 +22,14 @@ type PurchasePlanCardProps = {
   onDurationChange?: (months: 1 | 3) => void;
   allPlans: PlansByDuration;
   isLoadingPlans?: boolean;
+  freeTrialPlanId?: string | null;
 };
 
 const PurchasePlanCard = ({
   onDurationChange,
   allPlans,
   isLoadingPlans = false,
+  freeTrialPlanId = null,
 }: PurchasePlanCardProps) => {
   const [activeTab, setActiveTab] = useState<DurationTab>("oneMonth");
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -90,9 +92,8 @@ const PurchasePlanCard = ({
   };
 
   const handleStartTrial = async () => {
-    const purchasedProduct = getSelectedCourseId();
-    if (!purchasedProduct) {
-      toast.error("Please select a course first.");
+    if (!freeTrialPlanId) {
+      toast.error("Free trial plan is not available right now.");
       return;
     }
     if (hasUsedFreeTrialForSelectedCourse) {
@@ -105,14 +106,15 @@ const PurchasePlanCard = ({
     setIsStartingTrial(true);
     try {
       const response = await api.post("/user/create-purchase", {
-        priceId: null,
-        type: "FREE_TRIAL",
-        amount: null,
-        purchasedProduct,
+        // priceId: null,
+        // type: "FREE_TRIAL",
+        // amount: null,
+        planId: freeTrialPlanId,
         purchaseType: "COURSE",
         success_url: dashboardUrl,
         cancel_url: dashboardUrl,
       });
+      
 
       const redirectUrl = resolveRedirectUrl(response.data);
       if (redirectUrl) {
@@ -136,9 +138,8 @@ const PurchasePlanCard = ({
   };
 
   const handleBuyNow = async (planItem: Plan) => {
-    const purchasedProduct = getSelectedCourseId();
-    if (!purchasedProduct) {
-      toast.error("Please select a course first.");
+    if (!planItem.planId) {
+      toast.error("Selected plan does not have a valid plan id.");
       return;
     }
 
@@ -152,10 +153,10 @@ const PurchasePlanCard = ({
     setIsPurchasing(true);
     try {
       const response = await api.post("/user/create-purchase", {
-        priceId: planItem.priceId,
-        type: "SUBSCRIPTION",
-        amount: null,
-        purchasedProduct,
+        // priceId: planItem.priceId,
+        // type: "SUBSCRIPTION",
+        // amount: null,
+        planId: planItem.planId,
         purchaseType: "COURSE",
         success_url: dashboardUrl,
         cancel_url: dashboardUrl,

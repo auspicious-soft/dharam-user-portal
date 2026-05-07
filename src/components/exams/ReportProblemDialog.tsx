@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,13 +12,51 @@ import UserReportIcon from "@/assets/user-report-icon.png";
 import { DialogClose } from "@radix-ui/react-dialog";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
+import api from "@/lib/axios";
 
 interface ReportProblemProps {
   open: boolean;
   onClose: () => void;
+  examId?: string;
+  courseId?: string;
 }
 
-export const ReportProblemDialog = ({ open, onClose }: ReportProblemProps) => {
+export const ReportProblemDialog = ({
+  open,
+  onClose,
+  examId,
+  courseId,
+}: ReportProblemProps) => {
+  const [comments, setComments] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setComments("");
+    }
+  }, [open]);
+
+  const handleReportProblem = async () => {
+    if (!examId || !comments.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      const storedCourseId = localStorage.getItem("selectedCourseId") ?? "";
+      await api.post("/user/report-problem", {
+        courseId: storedCourseId || courseId || "",
+        type: "MOCK-EXAM",
+        relevantId: examId,
+        emailSent: false,
+        comments: comments.trim(),
+      });
+      onClose();
+    } catch (error) {
+      console.error("Failed to submit report problem", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[610px] rounded-2xl p-7">
@@ -39,7 +78,12 @@ export const ReportProblemDialog = ({ open, onClose }: ReportProblemProps) => {
         </DialogHeader>
         <div className="mb-4 flex flex-col gap-2">
           <Label className="text-paragraph">Add Comments</Label>
-          <Textarea placeholder="Enter Comments" className="min-h-[102px]" />
+          <Textarea
+            placeholder="Enter Comments"
+            className="min-h-[102px]"
+            value={comments}
+            onChange={(event) => setComments(event.target.value)}
+          />
         </div>
         {/* Footer */}
         <DialogFooter  className="gap-2">
@@ -48,7 +92,13 @@ export const ReportProblemDialog = ({ open, onClose }: ReportProblemProps) => {
               Cancel
             </Button>
           </DialogClose>
-          <Button className="flex-1 max-h-[44px]">Report</Button>
+          <Button
+            className="flex-1 max-h-[44px]"
+            onClick={handleReportProblem}
+            disabled={isSubmitting || !examId || !comments.trim()}
+          >
+            {isSubmitting ? "Reporting..." : "Report"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

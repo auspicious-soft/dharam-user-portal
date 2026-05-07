@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
@@ -7,6 +7,46 @@ import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
 import { ExamsQuizRenderer } from "@/components/QuizComponents/ExamsComponents/ExamsQuizRenderer";
 import { RightQuestionSidebar } from "../../../components/QuizComponents/ExamsComponents/RightQuestionSidebar";
 import api from "@/lib/axios";
+import ViewReportDialog, {
+  ReportData,
+  ReportQuestionItem,
+} from "@/components/Questions/ViewReports/ViewReportDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+type MockExamResultResponse = {
+  reportId?: string;
+  data?: {
+    _id?: string;
+    id?: string;
+    reportId?: string;
+    correct?: number;
+    incorrect?: number;
+    unanswered?: number;
+    remarks?: string;
+    overallPercentage?: number;
+    timeTaken?: string;
+    scoreBreakDown?: Record<
+      string,
+      {
+        correct?: number;
+        total?: number;
+        percentage?: number;
+      }
+    >;
+  };
+};
+
+type ExamReportQuestionsResponse = {
+  data?: ReportQuestionItem[];
+};
 
 const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
   return (Array.isArray(rawQuestions) ? rawQuestions : [])
@@ -183,6 +223,13 @@ const StartExam = () => {
   const [results, setResults] = useState<Record<number, any>>({});
   const [marked, setMarked] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [reportId, setReportId] = useState("");
+  const [viewQuestionsLoading, setViewQuestionsLoading] = useState(false);
+  const [showQuestionsScreen, setShowQuestionsScreen] = useState(false);
+  const [reportQuestions, setReportQuestions] = useState<ReportQuestionItem[]>([]);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const autoSubmittedRef = useRef(false);
 
   const parseDuration = (raw?: string | null) => {
@@ -240,6 +287,14 @@ const StartExam = () => {
     : 0;
   const hasQuiz = totalQuestions > 0;
   const examTitle = mockExamData?.examName ?? "Mock Exam";
+  const examCourseId = useMemo(() => {
+    const rawCourseId = mockExamData?.courseId;
+    if (typeof rawCourseId === "string") return rawCourseId;
+    if (rawCourseId && typeof rawCourseId === "object") {
+      return (rawCourseId._id as string | undefined) ?? "";
+    }
+    return "";
+  }, [mockExamData?.courseId]);
 
   const handleQuestionChange = (index: number) => {
     setCurrentQuestion(index + 1);
@@ -249,22 +304,56 @@ const StartExam = () => {
     setCurrentQuestion(index + 1);
   };
 
-  const handleSubmitExam = async () => {
+  const handleSubmitExam = useCallback(async (openReport = true) => {
     if (!mockExamData?.examId) return;
     if (isSubmitting) return;
 
     try {
       setIsSubmitting(true);
-      await api.get("/user/mock-exam-result", {
+      const response = await api.get("/user/mock-exam-result", {
         params: { examId: mockExamData.examId, timeTaken },
       });
+      if (!openReport) {
+        navigate("/exams");
+        return;
+      }
+
+      const payload = (response.data as MockExamResultResponse)?.data;
+      if (!payload) return;
+      const responseBody = response.data as MockExamResultResponse;
+      const nextReportId =
+        payload.reportId ??
+        payload._id ??
+        payload.id ??
+        responseBody.reportId ??
+        "";
+      setReportId(nextReportId);
+
+      const domains = Object.entries(payload.scoreBreakDown ?? {}).map(
+        ([name, values]) => ({
+          name,
+          percentage: Number(values?.percentage ?? 0),
+        }),
+      );
+
+      setReportData({
+        score: Number(payload.overallPercentage ?? 0),
+        timeSpent: payload.timeTaken ?? timeTaken,
+        correct: Number(payload.correct ?? 0),
+        incorrect: Number(payload.incorrect ?? 0),
+        unanswered: Number(payload.unanswered ?? 0),
+        remarks: payload.remarks ?? "",
+        domains,
+      });
+      setShowQuestionsScreen(false);
+      setReportQuestions([]);
+      setReportOpen(true);
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to submit mock exam result", error);
     } finally {
-      navigate("/exams");
+      setIsSubmitting(false);
     }
-  };
+  }, [isSubmitting, mockExamData?.examId, navigate, timeTaken]);
 
   const handleConfirmPause = async () => {
     if (!mockExamData?.examId) return;
@@ -279,10 +368,52 @@ const StartExam = () => {
       );
       navigate("/exams");
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to pause mock exam", error);
     }
   };
+
+  const handleLeaveAndSubmit = async () => {
+    setShowLeaveDialog(false);
+    await handleSubmitExam(false);
+  };
+
+  const handleViewQuestions = async () => {
+    if (!reportId) return;
+
+    try {
+      setViewQuestionsLoading(true);
+      const response = await api.get("/user/exam-report-questions", {
+        params: { reportId },
+      });
+      const payload = (response.data as ExamReportQuestionsResponse)?.data ?? [];
+      setReportQuestions(Array.isArray(payload) ? payload : []);
+      setShowQuestionsScreen(true);
+    } catch (error) {
+      console.error("Failed to fetch exam report questions", error);
+    } finally {
+      setViewQuestionsLoading(false);
+    }
+  };
+
+  const handleBackToReport = () => {
+    setShowQuestionsScreen(false);
+  };
+
+  useEffect(() => {
+    if (!hasQuiz) return;
+
+    const handlePopState = () => {
+      setShowLeaveDialog(true);
+      window.history.pushState({ examBackGuard: true }, "", window.location.href);
+    };
+
+    window.history.pushState({ examBackGuard: true }, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [hasQuiz]);
 
   useEffect(() => {
     if (!hasQuiz || !mockExamData?.examId) return;
@@ -342,6 +473,7 @@ const StartExam = () => {
               quiz={quiz}
               onQuestionChange={handleQuestionChange}
               examId={mockExamData?.examId}
+              courseId={examCourseId}
               availableTime={remainingSeconds}
               results={results}
               setResults={setResults}
@@ -413,6 +545,51 @@ const StartExam = () => {
           />
         )}
       </div>
+      <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <DialogContent className="max-w-md rounded-2xl p-7">
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="text-center text-2xl text-Black_light font-bold">
+              Leave Exam?
+            </DialogTitle>
+            <DialogDescription className="text-paragraph text-base font-medium text-center">
+              Are you sure you want to leave this exam? We will submit your exam now.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 max-h-[44px]"
+              onClick={() => setShowLeaveDialog(false)}
+            >
+              Stay Here
+            </Button>
+            <Button
+              className="flex-1 max-h-[44px]"
+              onClick={handleLeaveAndSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Yes, Leave"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ViewReportDialog
+        open={reportOpen}
+        onOpenChange={(open) => {
+          setReportOpen(open);
+          if (!open) {
+            navigate("/exams");
+          }
+        }}
+        report={reportData}
+        isLoading={isSubmitting}
+        showViewQuestions={Boolean(reportId)}
+        onViewQuestions={handleViewQuestions}
+        viewQuestionsLoading={viewQuestionsLoading}
+        showQuestionsScreen={showQuestionsScreen}
+        onBackToReport={handleBackToReport}
+        questions={reportQuestions}
+      />
     </div>
   );
 };

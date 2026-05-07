@@ -2,9 +2,17 @@ export type UserCourse = {
   _id: string;
   name: string;
   order: number;
-  status?: string | null;
-  purchaseStatus?: string | null;
-  daysLeft?: number | null;
+  status: string | null;
+  purchaseStatus: string | null;
+  daysLeft: number;
+  hasLessons: boolean;
+  hasDomainTask: boolean;
+  hasPracticeQuestion: boolean;
+  hasMockExam: boolean;
+  hasFlashCards: boolean;
+  hasApplicationSupport: boolean;
+  hasExamStrategy: boolean;
+  hasCertificates: boolean;
 };
 
 type RawCourse = {
@@ -16,6 +24,14 @@ type RawCourse = {
   status?: string | null;
   purchaseStatus?: string | null;
   daysLeft?: number | string | null;
+  hasLessons?: boolean | string | number | null;
+  hasDomainTask?: boolean | string | number | null;
+  hasPracticeQuestion?: boolean | string | number | null;
+  hasMockExam?: boolean | string | number | null;
+  hasFlashCards?: boolean | string | number | null;
+  hasApplicationSupport?: boolean | string | number | null;
+  hasExamStrategy?: boolean | string | number | null;
+  hasCertificates?: boolean | string | number | null;
   courseId?: RawCourse | null;
   course?: RawCourse | null;
 };
@@ -62,6 +78,25 @@ const pickNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const pickBoolean = (value: unknown, fallback = false) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") {
+      return true;
+    }
+    if (normalized === "false" || normalized === "0") {
+      return false;
+    }
+  }
+  return fallback;
+};
+
 export const normalizeUserCourses = (payload: unknown): UserCourse[] => {
   const rawCourses = readCourseArray(payload);
   const mapped = rawCourses
@@ -81,6 +116,22 @@ export const normalizeUserCourses = (payload: unknown): UserCourse[] => {
         status: item.status ?? nested?.status ?? null,
         purchaseStatus: item.purchaseStatus ?? nested?.purchaseStatus ?? null,
         daysLeft: pickNumber(item.daysLeft ?? nested?.daysLeft, 0),
+        hasLessons: pickBoolean(item.hasLessons ?? nested?.hasLessons),
+        hasDomainTask: pickBoolean(item.hasDomainTask ?? nested?.hasDomainTask),
+        hasPracticeQuestion: pickBoolean(
+          item.hasPracticeQuestion ?? nested?.hasPracticeQuestion,
+        ),
+        hasMockExam: pickBoolean(item.hasMockExam ?? nested?.hasMockExam),
+        hasFlashCards: pickBoolean(item.hasFlashCards ?? nested?.hasFlashCards),
+        hasApplicationSupport: pickBoolean(
+          item.hasApplicationSupport ?? nested?.hasApplicationSupport,
+        ),
+        hasExamStrategy: pickBoolean(
+          item.hasExamStrategy ?? nested?.hasExamStrategy,
+        ),
+        hasCertificates: pickBoolean(
+          item.hasCertificates ?? nested?.hasCertificates,
+        ),
       } satisfies UserCourse;
     })
     .filter((course): course is UserCourse => Boolean(course));

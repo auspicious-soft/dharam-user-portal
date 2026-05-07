@@ -22,6 +22,7 @@ type FetchedByDuration = {
 };
 
 type ApiPlan = {
+  _id?: string | null;
   planName: string;
   priceId?: string | null;
   stripePriceId?: string | null;
@@ -35,8 +36,8 @@ type ApiPlan = {
   digitalStudyMaterial?: boolean;
   expertVideoModule?: boolean;
   applicationSupport?: boolean;
-  mockExams?: number;
-  practiceExams?: number;
+  mockExams?: number | unknown[] | null;
+  practiceExams?: number | unknown[] | null;
 };
 
 type HomeApiData = {
@@ -84,8 +85,22 @@ const formatDate = (value?: string | null) => {
 const clampPercentage = (value: number) =>
   Math.min(100, Math.max(0, Math.round(value)));
 
+const getExamCount = (value: number | unknown[] | null | undefined) => {
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.trunc(value));
+  }
+
+  return 0;
+};
+
 const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
   const features: string[] = [];
+  const mockExamsCount = getExamCount(plan.mockExams);
+  const practiceExamsCount = getExamCount(plan.practiceExams);
 
   if (plan.questionOfTheDay) features.push("Question of the Day");
   if (plan.flashCards) features.push("Flash Cards");
@@ -94,16 +109,16 @@ const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
   if (plan.expertVideoModule) features.push("Expert Video Module");
   if (plan.applicationSupport) features.push("Application Support");
 
-  if ((plan.mockExams ?? 0) > 0) {
+  if (mockExamsCount > 0) {
     features.push(
-      `${plan.mockExams} Mock Exam${(plan.mockExams ?? 0) > 1 ? "s" : ""}`,
+      `${mockExamsCount} Mock Exam${mockExamsCount > 1 ? "s" : ""}`,
     );
   }
 
-  if ((plan.practiceExams ?? 0) > 0) {
+  if (practiceExamsCount > 0) {
     features.push(
-      `${plan.practiceExams} Practice Exam${
-        (plan.practiceExams ?? 0) > 1 ? "s" : ""
+      `${practiceExamsCount} Practice Exam${
+        practiceExamsCount > 1 ? "s" : ""
       }`,
     );
   }
@@ -113,6 +128,8 @@ const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
 
 const mapApiPlanToBenefits = (plan: ApiPlan): string[] => {
   const benefits: string[] = [];
+  const mockExamsCount = getExamCount(plan.mockExams);
+  const practiceExamsCount = getExamCount(plan.practiceExams);
 
   if (plan.questionOfTheDay) benefits.push("Question of the Day");
   if (plan.flashCards) benefits.push("Flash Cards");
@@ -121,8 +138,8 @@ const mapApiPlanToBenefits = (plan: ApiPlan): string[] => {
   if (plan.expertVideoModule) benefits.push("Expert Video Module");
   if (plan.applicationSupport) benefits.push("Application Support");
 
-  benefits.push(`Mock Exams: ${plan.mockExams ?? 0}`);
-  benefits.push(`Practice Exams: ${plan.practiceExams ?? 0}`);
+  benefits.push(`Mock Exams: ${mockExamsCount}`);
+  benefits.push(`Practice Exams: ${practiceExamsCount}`);
 
   return benefits;
 };
@@ -147,11 +164,20 @@ const formatPlanPrice = (plan: ApiPlan) => {
 };
 
 const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
-  const maxLevel = Math.max(...apiPlans.map((plan) => plan.level ?? 0), 0);
+  const paidPlans = apiPlans.filter((plan) => {
+    const normalizedName = (plan.planName ?? "").trim().toLowerCase();
+    const isFreeTrialByName =
+      normalizedName.includes("free trial") || normalizedName.includes("free trail");
+    const isFreeByDuration = Number(plan.durationInMonths ?? 0) <= 0;
+    return !isFreeTrialByName && !isFreeByDuration;
+  });
 
-  return [...apiPlans]
+  const maxLevel = Math.max(...paidPlans.map((plan) => plan.level ?? 0), 0);
+
+  return [...paidPlans]
     .sort((a, b) => (a.level ?? 0) - (b.level ?? 0))
     .map((plan, index) => ({
+      planId: plan._id ?? null,
       name: plan.planName?.trim() || `Plan ${index + 1}`,
       price: formatPlanPrice(plan),
       priceId: plan.priceId ?? plan.stripePriceId ?? null,
@@ -159,6 +185,19 @@ const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
       benefits: mapApiPlanToBenefits(plan),
       popular: (plan.level ?? 0) === maxLevel && maxLevel > 0,
     }));
+};
+
+const getFreeTrialPlanId = (apiPlans: ApiPlan[]): string | null => {
+  const freeTrialPlan = apiPlans.find((plan) => {
+    const normalizedName = (plan.planName ?? "").trim().toLowerCase();
+    const isFreeTrialByName =
+      normalizedName.includes("free trial") ||
+      normalizedName.includes("free trail");
+    const isFreeByDuration = Number(plan.durationInMonths ?? 0) <= 0;
+    return isFreeTrialByName || isFreeByDuration;
+  });
+
+  return freeTrialPlan?._id ?? null;
 };
 
 const Dashboard = () => {
@@ -180,6 +219,7 @@ const Dashboard = () => {
     oneMonth: [],
     threeMonths: [],
   });
+  const [freeTrialPlanId, setFreeTrialPlanId] = useState<string | null>(null);
   const [fetchedByDuration, setFetchedByDuration] = useState<FetchedByDuration>(
     {
       oneMonth: false,
@@ -378,27 +418,44 @@ const Dashboard = () => {
 
     const fetchPlans = async () => {
       setIsPlansLoading(true);
+      const courseId = localStorage.getItem("selectedCourseId");
+
+      if (!courseId) {
+        console.warn("Skipping /user/get-plans call: selectedCourseId not found.");
+        setIsPlansLoading(false);
+        return;
+      }
 
       try {
-        const response = await api.get(
-          `/user/get-plans?months=${selectedMonths}`,
-        );
+        const response = await api.get("/user/get-plans", {
+          params: {
+            months: selectedMonths,
+            courseId,
+          },
+        });
         const apiPlans = ((response.data as { data?: ApiPlan[] })?.data ??
           []) as ApiPlan[];
         const mappedPlans = mapApiPlansToUiPlans(apiPlans);
+        const extractedFreeTrialPlanId = getFreeTrialPlanId(apiPlans);
 
         if (!isCancelled) {
           setPlansByDuration((prev) => ({
             ...prev,
             [durationKey]: mappedPlans,
           }));
+          if (extractedFreeTrialPlanId) {
+            setFreeTrialPlanId(extractedFreeTrialPlanId);
+          }
           setFetchedByDuration((prev) => ({
             ...prev,
             [durationKey]: true,
           }));
         }
 
-        console.log(`get-plans response (months=${selectedMonths}):`, response);
+        console.log(
+          `get-plans response (months=${selectedMonths}, courseId=${courseId}):`,
+          response,
+        );
       } catch (error) {
         console.error("Failed to fetch plans:", error);
       } finally {
@@ -456,6 +513,7 @@ const Dashboard = () => {
             onDurationChange={setSelectedMonths}
             allPlans={plansByDuration}
             isLoadingPlans={isPlansLoading}
+            freeTrialPlanId={freeTrialPlanId}
           />
         )}
       </div>

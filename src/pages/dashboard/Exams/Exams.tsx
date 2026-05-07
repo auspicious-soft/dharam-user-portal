@@ -15,7 +15,8 @@ type MockExam = {
   isPremium?: boolean | null;
   totalAttempt?: number | null;
   order?: number | null;
-  price?: number | null;
+  price?: number | string | null;
+  status?: string | null;
 };
 
 type PausedExam = {
@@ -32,10 +33,8 @@ const Exams = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [attemptAvailable, setAttemptAvailable] = useState<number>(0);
   const [examPrice, setExamPrice] = useState<number | null>(null);
   const [purchasingExamId, setPurchasingExamId] = useState<string | null>(null);
-  const [isPurchasingTop, setIsPurchasingTop] = useState(false);
 
   useEffect(() => {
     const courseId = localStorage.getItem("selectedCourseId");
@@ -51,21 +50,18 @@ const Exams = () => {
           data?: {
             examData?: MockExam[];
             pausedExams?: PausedExam[];
-            attemptAvailable?: number;
             price?: number | string | null;
           };
         })?.data;
 
         const examData = payload?.examData ?? [];
         const pausedExams = payload?.pausedExams ?? [];
-        const availableAttempts = Number(payload?.attemptAvailable ?? 0);
         const parsedExamPrice =
           typeof payload?.price === "number"
             ? payload.price
             : payload?.price != null
               ? Number(payload.price)
               : null;
-        setAttemptAvailable(availableAttempts);
         setExamPrice(
           parsedExamPrice != null && Number.isFinite(parsedExamPrice)
             ? parsedExamPrice
@@ -103,29 +99,40 @@ const Exams = () => {
 
         const mappedExams: FileItem[] = (Array.isArray(examData) ? examData : [])
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          .map((item) => ({
-            id: item._id ?? "",
-            examName: item.name ?? "Mock Exam",
-            totalQuestions: `${item.numberOfQuestions ?? 0} Questions`,
-            examTime: item.timeInMin ?? "Untimed",
-            attempts: String(item.totalAttempt ?? 0),
-            correctPercentage: "-",
-            status: "",
-            isPremium:
-              availableAttempts === 0 ? true : (item.isPremium ?? false),
-            price:
-              parsedExamPrice != null && Number.isFinite(parsedExamPrice)
-                ? parsedExamPrice
-                : typeof item.price === "number"
-                  ? item.price
-                  : item.price != null
-                    ? Number(item.price)
+          .map((item) => {
+            const status = String(item.status ?? "").toUpperCase();
+            const itemPrice =
+              typeof item.price === "number"
+                ? item.price
+                : item.price != null
+                  ? Number(item.price)
+                  : null;
+
+            return {
+              id: item._id ?? "",
+              examName: item.name ?? "Mock Exam",
+              totalQuestions: `${item.numberOfQuestions ?? 0} Questions`,
+              examTime: item.timeInMin ?? "Untimed",
+              attempts: String(item.totalAttempt ?? 0),
+              correctPercentage: "-",
+              status: "",
+              isPremium:
+                status === "ACTIVE"
+                  ? false
+                  : status === "INACTIVE"
+                    ? true
+                    : (item.isPremium ?? false),
+              price:
+                parsedExamPrice != null && Number.isFinite(parsedExamPrice)
+                  ? parsedExamPrice
+                  : itemPrice != null && Number.isFinite(itemPrice)
+                    ? itemPrice
                     : null,
-          }));
+            };
+          });
 
         setData([...mappedPaused, ...mappedExams]);
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to fetch mock exam", error);
         setData([]);
       } finally {
@@ -202,19 +209,7 @@ const Exams = () => {
     }
   };
 
-  const handleTopPremiumClick = async () => {
-    const firstPurchasableExam = data.find((item) => item.status !== "Paused");
-    if (!firstPurchasableExam) {
-      toast.error("No mock exam available to purchase.");
-      return;
-    }
-    setIsPurchasingTop(true);
-    try {
-      await createMockExamPurchase(firstPurchasableExam);
-    } finally {
-      setIsPurchasingTop(false);
-    }
-  };
+
 
   return (
     <div className="flex flex-col gap-7">
@@ -223,9 +218,6 @@ const Exams = () => {
           <h2 className="text-Black_light text-lg md:text-2xl font-bold">
             Mock Exams
           </h2>
-          <span className="rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-semibold text-primary_blue">
-            Attempts Available: {attemptAvailable}
-          </span>
         </div>
         <div className="flex gap-2">
           <Button
@@ -235,22 +227,6 @@ const Exams = () => {
           >
             View Reports
           </Button>
-          {attemptAvailable === 0 ? (
-            <button
-              onClick={() => {
-                void handleTopPremiumClick();
-              }}
-              disabled={isPurchasingTop}
-              style={{
-                background:
-                  "linear-gradient(#f0f8ff, #f0f8ff) padding-box, linear-gradient(60deg, #ff6402, #fdb22b) border-box",
-                border: "1px solid transparent",
-              }}
-              className="px-4 py-0 rounded-[99px] text-[10px] font-medium bg-gradient-to-r from-[#ff6402] to-[#fdb22b] bg-clip-text text-[#ff6402]"
-            >
-              {isPurchasingTop ? "Processing..." : "Premium"}
-            </button>
-          ) : null}
         </div>
       </div>
 

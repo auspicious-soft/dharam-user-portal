@@ -1,4 +1,5 @@
 export interface Plan {
+  planId?: string | null;
   name: string;
   price: string;
   priceId?: string | null;

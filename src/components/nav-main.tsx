@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { type LucideIcon } from "lucide-react";
+import type { ComponentType } from "react";
 
 import {
   SidebarGroup,
@@ -13,7 +13,7 @@ import {
 type NavItem = {
   title: string;
   url: string;
-  icon?: LucideIcon;
+  icon?: ComponentType;
 };
 
 export function NavMain({ items }: { items: NavItem[] }) {

@@ -20,7 +20,6 @@ import {
 
 interface QuizRendererProps {
   quiz: QuizQuestion[];
-  onComplete?: (results: { correct: number; incorrect: number }) => void;
   onQuestionChange?: (index: number) => void;
   attemptConfig?: {
     examId: string;
@@ -30,7 +29,6 @@ interface QuizRendererProps {
 
 export const PracticeQuizRenderer = ({
   quiz,
-  onComplete,
   onQuestionChange,
   attemptConfig,
 }: QuizRendererProps) => {
@@ -188,15 +186,6 @@ export const PracticeQuizRenderer = ({
     setShowSolution(true);
   };
 
-  const handleComplete = () => {
-    if (!onComplete) return;
-
-    const correct = Object.values(results).filter((r) => r === true).length;
-
-    const incorrect = totalQuestions - correct;
-
-    onComplete({ correct, incorrect });
-  };
   const getQuestionTypeLabel = () => {
     switch (question.type) {
       case "mcq":
@@ -207,6 +196,19 @@ export const PracticeQuizRenderer = ({
         return "Fill in the Blanks";
       default:
         return "";
+    }
+  };
+
+  const getQuestionInstructions = () => {
+    switch (question.type) {
+      case "mcq":
+        return `Select up to ${getMaxSelection(question)} option(s), then submit your answer.`;
+      case "dragdrop":
+        return "Drag each item to the correct matching drop zone, then submit.";
+      case "fillblank":
+        return "Fill each blank with the correct option, then submit your answer.";
+      default:
+        return "Read the question carefully and submit your answer.";
     }
   };
 
@@ -224,7 +226,7 @@ export const PracticeQuizRenderer = ({
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Question instructions</p>
+            <p>{getQuestionInstructions()}</p>
           </TooltipContent>
         </Tooltip>
         </div>
@@ -300,11 +302,15 @@ export const PracticeQuizRenderer = ({
 
         {/* RIGHT */}
          <div className="flex justify-between flex-wrap gap-4 items-center">
-          <Button variant="outline" 
-           onClick={handleSkip}
-           className="rounded-[10px] h-10 !py-1 !px-4">
-            Skip
-          </Button>
+          {currentQuestionIndex < totalQuestions - 1 && (
+            <Button
+              variant="outline"
+              onClick={handleSkip}
+              className="rounded-[10px] h-10 !py-1 !px-4"
+            >
+              Skip
+            </Button>
+          )}
 
           {!showResult ? (
             <Button
@@ -321,11 +327,7 @@ export const PracticeQuizRenderer = ({
               <ArrowRight />
               Next
             </Button>
-          ) : (
-            <Button onClick={handleComplete} variant="link">
-              Complete Task
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
 

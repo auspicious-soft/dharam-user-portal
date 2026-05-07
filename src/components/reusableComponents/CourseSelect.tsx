@@ -8,13 +8,16 @@ import {
 } from "@/components/ui/select";
 import api from "@/lib/axios";
 import { normalizeUserCourses, type UserCourse } from "@/utils/userCourses";
-
-const STORAGE_KEY = "selectedCourseId";
+import {
+  persistSelectedCourseAccess,
+  persistSelectedCoursePurchaseAccess,
+  SELECTED_COURSE_ID_KEY,
+} from "@/utils/courseAccess";
 
 const CourseSelect = () => {
   const [courses, setCourses] = useState<UserCourse[]>([]);
   const [selectedId, setSelectedId] = useState(
-    () => localStorage.getItem(STORAGE_KEY) ?? ""
+    () => localStorage.getItem(SELECTED_COURSE_ID_KEY) ?? ""
   );
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,15 +64,23 @@ const CourseSelect = () => {
 
         const selectableCourses = sorted;
 
-        const storedId = localStorage.getItem(STORAGE_KEY) ?? "";
+        const storedId = localStorage.getItem(SELECTED_COURSE_ID_KEY) ?? "";
         const hasStored = storedId
           ? selectableCourses.some((course) => course._id === storedId)
           : false;
         const initialId = hasStored ? storedId : selectableCourses[0]?._id ?? "";
+        const selectedCourse = selectableCourses.find(
+          (course) => course._id === initialId
+        );
 
         if (initialId) {
+          persistSelectedCourseAccess(selectedCourse);
+          if (selectedCourse) {
+            persistSelectedCoursePurchaseAccess(selectedCourse);
+          }
+
           if (initialId !== storedId) {
-            localStorage.setItem(STORAGE_KEY, initialId);
+            localStorage.setItem(SELECTED_COURSE_ID_KEY, initialId);
             try {
               await api.get(`/user/home/${initialId}`);
             } catch (error) {
@@ -85,9 +96,13 @@ const CourseSelect = () => {
             return;
           }
           setSelectedId(initialId);
+          window.dispatchEvent(new Event("courseChanged"));
         } else {
-          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(SELECTED_COURSE_ID_KEY);
+          persistSelectedCourseAccess(null);
+          persistSelectedCoursePurchaseAccess(null);
           setSelectedId("");
+          window.dispatchEvent(new Event("courseChanged"));
         }
       } catch (error) {
         if (isMounted) {
@@ -110,7 +125,12 @@ const CourseSelect = () => {
     }
 
     setSelectedId(value);
-    localStorage.setItem(STORAGE_KEY, value);
+    localStorage.setItem(SELECTED_COURSE_ID_KEY, value);
+    const selectedCourse = courses.find((course) => course._id === value);
+    persistSelectedCourseAccess(selectedCourse);
+    if (selectedCourse) {
+      persistSelectedCoursePurchaseAccess(selectedCourse);
+    }
     try {
       await api.get(`/user/home/${value}`);
     } catch (error) {

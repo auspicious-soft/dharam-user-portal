@@ -16,16 +16,16 @@ type PracticeExam = {
   name?: string | null;
   questionCount?: number | null;
   isPremium?: boolean | null;
+  price?: number | string | null;
+  status?: string | null;
 };
 
 const Questions = () => {
    const navigate = useNavigate();  
    const [data, setData] = useState<FileItem[]>([]);
    const [isLoading, setIsLoading] = useState(false);
-   const [attemptAvailable, setAttemptAvailable] = useState<number>(0);
    const [practiceExamPrice, setPracticeExamPrice] = useState<number | null>(null);
    const [purchasingExamId, setPurchasingExamId] = useState<string | null>(null);
-   const [isPurchasingTop, setIsPurchasingTop] = useState(false);
 
    useEffect(() => {
      const courseId = localStorage.getItem("selectedCourseId");
@@ -36,21 +36,38 @@ const Questions = () => {
        try {
          const response = await api.get(`/user/practice-exam/${courseId}`);
          const payload = (response.data as {
-           data?: {
-             examData?: PracticeExam[];
-             attemptAvailable?: number;
-             price?: number | string | null;
-           };
+           data?:
+             | PracticeExam[]
+             | {
+                 examData?: PracticeExam[];
+                 attemptAvailable?: number;
+                 price?: number | string | null;
+               };
          })?.data;
-         const items = payload?.examData ?? [];
-         const availableAttempts = Number(payload?.attemptAvailable ?? 0);
+
+         const hasExamArrayShape = Array.isArray(payload);
+         const items = hasExamArrayShape ? payload : (payload?.examData ?? []);
+
+         const rawAttempts = hasExamArrayShape ? null : payload?.attemptAvailable;
+         const availableAttempts =
+           typeof rawAttempts === "number" && Number.isFinite(rawAttempts)
+             ? rawAttempts
+             : 0;
+         const hasAttemptLimitValue = rawAttempts != null;
+
          const parsedPrice =
-           typeof payload?.price === "number"
+           typeof payload === "object" &&
+           payload != null &&
+           !Array.isArray(payload) &&
+           typeof payload.price === "number"
              ? payload.price
-             : payload?.price != null
+             : typeof payload === "object" &&
+                 payload != null &&
+                 !Array.isArray(payload) &&
+                 payload.price != null
                ? Number(payload.price)
                : null;
-         setAttemptAvailable(availableAttempts);
+
          setPracticeExamPrice(
            parsedPrice != null && Number.isFinite(parsedPrice)
              ? parsedPrice
@@ -59,24 +76,39 @@ const Questions = () => {
 
          const mapped: FileItem[] = (Array.isArray(items) ? items : [])
            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-           .map((item) => ({
-             id: item._id ?? item.id,
-             categoryName: item.name ?? "Practice Exam",
-             totalQuestions: `${item.questionCount ?? 0} Questions`,
-             examTime: "Untimed",
-             isPremium:
-               availableAttempts === 0 ? true : (item.isPremium ?? false),
-             price:
-               parsedPrice != null && Number.isFinite(parsedPrice)
-                 ? parsedPrice
-                 : null,
-           }));
+           .map((item) => {
+             const examLevelPrice =
+               typeof item.price === "number"
+                 ? item.price
+                 : item.price != null
+                   ? Number(item.price)
+                   : null;
+             const resolvedPrice =
+               examLevelPrice != null && Number.isFinite(examLevelPrice)
+                 ? examLevelPrice
+                 : parsedPrice != null && Number.isFinite(parsedPrice)
+                   ? parsedPrice
+                   : null;
+
+             return {
+               id: item._id ?? item.id,
+               categoryName: item.name ?? "Practice Exam",
+               totalQuestions: `${item.questionCount ?? 0} Questions`,
+               examTime: "Untimed",
+               isPremium:
+                 String(item.status ?? "").toUpperCase() === "ACTIVE"
+                   ? false
+                   : hasAttemptLimitValue
+                     ? availableAttempts === 0
+                     : (item.isPremium ?? Boolean((resolvedPrice ?? 0) > 0)),
+               price: resolvedPrice,
+             };
+           });
 
          setData(mapped);
-       } catch (error) {
-         // eslint-disable-next-line no-console
+      } catch (error) {
          console.error("Failed to fetch practice exams", error);
-       } finally {
+      } finally {
          setIsLoading(false);
        }
      };
@@ -107,7 +139,8 @@ const Questions = () => {
       toast.error("Invalid practice exam selected.");
       return;
     }
-    if (practiceExamPrice == null || !Number.isFinite(practiceExamPrice)) {
+    const priceToPay = exam.price ?? practiceExamPrice;
+    if (priceToPay == null || !Number.isFinite(priceToPay)) {
       toast.error("Practice exam price is unavailable.");
       return;
     }
@@ -119,8 +152,9 @@ const Questions = () => {
 
     try {
       const response = await api.post("/user/create-purchase", {
-        type: "INDIVIDUAL",
-        amount: practiceExamPrice,
+        // type: "INDIVIDUAL",
+        // amount: priceToPay,
+        planId:null,
         purchasedProduct: exam.id,
         purchaseType: "PRACTICE_TEST",
         success_url: callbackUrl,
@@ -154,20 +188,20 @@ const Questions = () => {
     }
   };
 
-  const handleTopPremiumClick = async () => {
-    const firstPurchasableExam = data.find((item) => Boolean(item.id));
-    if (!firstPurchasableExam) {
-      toast.error("No practice exam available to purchase.");
-      return;
-    }
+  // const handleTopPremiumClick = async () => {
+  //   const firstPurchasableExam = data.find((item) => Boolean(item.id));
+  //   if (!firstPurchasableExam) {
+  //     toast.error("No practice exam available to purchase.");
+  //     return;
+  //   }
 
-    setIsPurchasingTop(true);
-    try {
-      await createPracticeExamPurchase(firstPurchasableExam);
-    } finally {
-      setIsPurchasingTop(false);
-    }
-  };
+  //   setIsPurchasingTop(true);
+  //   try {
+  //     await createPracticeExamPurchase(firstPurchasableExam);
+  //   } finally {
+  //     setIsPurchasingTop(false);
+  //   }
+  // };
 
   return (
     <div className="flex flex-col gap-5">
@@ -176,9 +210,6 @@ const Questions = () => {
           <h2 className="text-Black_light text-lg md:text-2xl font-bold nd:leading-[46px]">
             Practice Questions
           </h2>
-          <span className="rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-semibold text-primary_blue">
-            Attempts Available: {attemptAvailable}
-          </span>
         </div>
         <div className="flex gap-2">
           <Button
@@ -188,22 +219,6 @@ const Questions = () => {
           >
             View Reports
           </Button>
-          {attemptAvailable === 0 ? (
-            <button
-              onClick={() => {
-                void handleTopPremiumClick();
-              }}
-              disabled={isPurchasingTop}
-              style={{
-                background:
-                  "linear-gradient(#f0f8ff, #f0f8ff) padding-box, linear-gradient(60deg, #ff6402, #fdb22b) border-box",
-                border: "1px solid transparent",
-              }}
-              className="px-4 py-0 rounded-[99px] text-[10px] font-medium bg-gradient-to-r from-[#ff6402] to-[#fdb22b] bg-clip-text text-[#ff6402]"
-            >
-              {isPurchasingTop ? "Processing..." : "Premium"}
-            </button>
-          ) : null}
         </div>
       </div>
 

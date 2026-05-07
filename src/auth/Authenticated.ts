@@ -19,6 +19,9 @@ export const logout = (): void => {
   localStorage.removeItem("verificationToken");
   localStorage.removeItem("changePasswordToken");
   localStorage.removeItem("selectedCourseId");
+  localStorage.removeItem("selectedCourseAccess");
+  localStorage.removeItem("selectedCoursePurchaseStatus");
+  localStorage.removeItem("selectedCourseHasAccess");
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("authUpdated"));
   }

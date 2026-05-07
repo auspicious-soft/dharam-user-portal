@@ -23,6 +23,7 @@ interface QuizRendererProps {
   onComplete?: (results: { correct: number; incorrect: number }) => void;
   onQuestionChange?: (index: number) => void;
   examId?: string;
+  courseId?: string;
   availableTime?: number;
 
   results: Record<number, boolean>;
@@ -37,6 +38,7 @@ export const ExamsQuizRenderer = ({
   onComplete,
   onQuestionChange,
   examId,
+  courseId,
   availableTime,
   results,
   setResults,
@@ -79,7 +81,6 @@ export const ExamsQuizRenderer = ({
         availableTime: typeof availableTime === "number" ? availableTime : 0,
       })
       .catch((error) => {
-        // eslint-disable-next-line no-console
         console.error("Failed to submit question response", error);
       });
   };
@@ -240,7 +241,6 @@ export const ExamsQuizRenderer = ({
 
     if (!onComplete) return;
 
-    const currentAnswered = Object.keys(results).length;
     const currentCorrect = Object.values(results).filter((r) => r).length;
     const willCountCurrent =
       isCorrect !== null && results[currentQuestionIndex] === undefined;
@@ -383,16 +383,22 @@ export const ExamsQuizRenderer = ({
             </Button>
           )}
 
-        <Button variant="outline" onClick={markCurrent}
-          className="rounded-[10px] h-10 !py-1 !px-4"
+        {currentQuestionIndex !== totalQuestions - 1 && (
+          <Button
+            variant="outline"
+            onClick={markCurrent}
+            className="rounded-[10px] h-10 !py-1 !px-4"
           >
             <Check />
-          Mark & Next
-        </Button>
+            Mark & Next
+          </Button>
+        )}
       </div>
       <ReportProblemDialog 
        open={reportProblemDialog}
         onClose={() => setReportProblemExitDialog(false)}
+        examId={examId}
+        courseId={courseId}
       />
     </div>
   );
