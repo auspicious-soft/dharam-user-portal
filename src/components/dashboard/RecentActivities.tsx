@@ -1,8 +1,10 @@
 import React from "react";
 import { Button } from "../ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface Activitie {
   id: number;
+  type: string;
   name: string;
   lastAccessed: string;
   imageUrl?: string;
@@ -13,6 +15,8 @@ interface RecentActivitiesProps {
 }
 
 const RecentActivities: React.FC<RecentActivitiesProps> = ({ activities }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-4 md:p-[30px] bg-light-blue rounded-[10px] flex flex-col gap-5">
       <h2 className="justify-start text-Black_light text-lg font-bold">
@@ -43,11 +47,17 @@ const RecentActivities: React.FC<RecentActivitiesProps> = ({ activities }) => {
                 </div>
               </div>
             </div>
-            <div className="lg:min-w-60 lg:text-right">
-              <Button variant="secondary" className="max-h-[44px] min-w-[126px]">
-                View Report
-              </Button>
-            </div>
+            {activitie.type === "MOCK_EXAM" ? (
+              <div className="lg:min-w-60 lg:text-right">
+                <Button
+                  variant="secondary"
+                  className="max-h-[44px] min-w-[126px]"
+                  onClick={() => navigate("/exams/view-reports")}
+                >
+                  View Report
+                </Button>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

@@ -50,6 +50,7 @@ type HomeApiData = {
   daysLeftForScheduledExam?: number | null;
   examDate?: string | boolean | null;
   activities?: Array<{
+    type?: string;
     message?: string;
     createdAt?: string;
     updatedAt?: string;
@@ -273,6 +274,7 @@ const Dashboard = () => {
     () =>
       (homeData?.activities ?? []).map((activity, index) => ({
         id: index + 1,
+        type: activity.type?.trim() || "",
         name: activity.message?.trim() || "Activity",
         lastAccessed: formatDate(activity.updatedAt ?? activity.createdAt),
         imageUrl: resolveImageUrl(activity.userDetails?.image),

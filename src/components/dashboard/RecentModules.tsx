@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "../ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface Module {
   id: number;
@@ -14,6 +15,8 @@ interface RecentModulesProps {
 }
 
 const RecentModules: React.FC<RecentModulesProps> = ({ modules }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-4 md:p-[30px] bg-light-blue rounded-[10px] flex flex-col gap-5">
       <h2 className="justify-start text-Black_light text-lg font-bold">
@@ -56,7 +59,11 @@ const RecentModules: React.FC<RecentModulesProps> = ({ modules }) => {
               </div>
             </div>
             <div className="lg:min-w-60 lg:text-right">
-              <Button variant="secondary" className="max-h-[44px]">
+              <Button
+                variant="secondary"
+                className="max-h-[44px]"
+                onClick={() => navigate("/lessons-videos")}
+              >
                 Launch Course
               </Button>
             </div>
