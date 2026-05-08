@@ -10,6 +10,7 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import api from "@/lib/axios";
 import {
   BellNotification,
   BrightStar,
@@ -32,6 +33,7 @@ import {
 } from "@/utils/courseAccess";
 
 type SidebarItem = {
+  key: string;
   title: string;
   url: string;
   icon: React.ComponentType;
@@ -39,80 +41,98 @@ type SidebarItem = {
   accessKey?: keyof CourseAccess;
 };
 
+type NavigationItem = {
+  key?: string | null;
+  name?: string | null;
+};
+
 const navMain: SidebarItem[] = [
   {
+    key: "dashboard",
     title: "Dashboard",
     url: "/dashboard",
     icon: ViewGrid,
     alwaysVisible: true,
   },
   {
+    key: "courseIntroduction",
     title: "Course Introduction",
     url: "/course-introduction",
     icon: OpenBook,
     alwaysVisible: true,
   },
   {
+    key: "lessonsVideos",
     title: "Lessons & Videos",
     url: "/lessons-videos",
     icon: MediaVideo,
     accessKey: "hasLessons",
   },
   {
+    key: "domainsTasks",
     title: "Domains and Tasks",
     url: "/domains-tasks",
     icon: TaskList,
     accessKey: "hasDomainTask",
   },
   {
+    key: "practiceQuestions",
     title: "Practice Questions",
     url: "/practice-questions",
     icon: QuestionMark,
     accessKey: "hasPracticeQuestion",
   },
   {
+    key: "mockExams",
     title: "Mock Exams",
     url: "/exams",
     icon: JournalPage,
     accessKey: "hasMockExam",
   },
   {
+    key: "flashCards",
     title: "Flash Cards",
     url: "/flash-cards",
     icon: MultiplePagesEmpty,
     accessKey: "hasFlashCards",
   },
   {
+    key: "applicationSupport",
     title: "Application Support",
     url: "/application-support",
     icon: HeadsetHelp,
     accessKey: "hasApplicationSupport",
   },
   {
+    key: "examStrategy",
     title: "Exam Strategy",
     url: "/exam-strategy",
     icon: Strategy,
     accessKey: "hasExamStrategy",
   },
   {
+    key: "myCertificatesPdus",
     title: "My Certificates/PDUs",
     url: "/certificates-pdus",
     icon: EmptyPage,
     accessKey: "hasCertificates",
   },
   {
+    key: "announcements",
     title: "Announcements",
     url: "/announcements",
     icon: Megaphone,
     alwaysVisible: true,
   },
   {
+    key: "notifications",
     title: "Notifications",
     url: "/notifications",
     icon: BellNotification,
     alwaysVisible: true,
   },
   {
+    key: "questionOfTheDay",
     title: "Question of the day",
     url: "/question-of-the-day",
     icon: BrightStar,
@@ -132,6 +152,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [courseAccess, setCourseAccess] = React.useState<CourseAccess>(
     emptyCourseAccess,
   );
+  const [navigationLabels, setNavigationLabels] = React.useState<
+    Record<string, string>
+  >({});
 
   React.useEffect(() => {
     const updateCourseAccess = () => {
@@ -151,9 +174,54 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }, []);
 
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const fetchNavigations = async () => {
+      try {
+        const response = await api.get("/user/navigations");
+        if (isMounted) {
+          console.log("user/navigations response:", response.data);
+          const items =
+            ((response.data as { data?: NavigationItem[] })?.data ?? []) as
+              | NavigationItem[]
+              | undefined;
+
+          const labels = (items ?? []).reduce<Record<string, string>>(
+            (acc, item) => {
+              const key = String(item.key ?? "").trim();
+              const name = String(item.name ?? "").trim();
+
+              if (key && name) {
+                acc[key] = name;
+              }
+
+              return acc;
+            },
+            {},
+          );
+
+          setNavigationLabels(labels);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user navigations:", error);
+      }
+    };
+
+    void fetchNavigations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const visibleNavItems = React.useMemo(
-    () => resolveVisibleItems(courseAccess),
-    [courseAccess],
+    () =>
+      resolveVisibleItems(courseAccess).map((item) => ({
+        ...item,
+        title: navigationLabels[item.key] || item.title,
+      })),
+    [courseAccess, navigationLabels],
   );
 
   return (

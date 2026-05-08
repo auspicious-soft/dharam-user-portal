@@ -53,11 +53,17 @@ type HomeApiData = {
     message?: string;
     createdAt?: string;
     updatedAt?: string;
+    userDetails?: {
+      image?: string | null;
+    };
   }>;
   lessonProgress?: Array<{
     percentage?: number;
     createdAt?: string;
     updatedAt?: string;
+    userId?: {
+      image?: string | null;
+    };
     moduleId?: {
       module?: string;
     };
@@ -84,6 +90,30 @@ const formatDate = (value?: string | null) => {
 
 const clampPercentage = (value: number) =>
   Math.min(100, Math.max(0, Math.round(value)));
+
+const resolveImageUrl = (image?: string | null) => {
+  if (!image) {
+    return "";
+  }
+
+  if (
+    image.startsWith("http://") ||
+    image.startsWith("https://") ||
+    image.startsWith("data:") ||
+    image.startsWith("blob:")
+  ) {
+    return image;
+  }
+
+  const base = import.meta.env.VITE_AWS_S3_PUBLIC_BASE_URL ?? "";
+  if (!base) {
+    return image;
+  }
+
+  const normalizedBase = base.replace(/\/$/, "");
+  const normalizedImage = image.replace(/^\//, "");
+  return `${normalizedBase}/${normalizedImage}`;
+};
 
 const getExamCount = (value: number | unknown[] | null | undefined) => {
   if (Array.isArray(value)) {
@@ -235,7 +265,7 @@ const Dashboard = () => {
           moduleProgress.updatedAt ?? moduleProgress.createdAt,
         ),
         progress: clampPercentage(Number(moduleProgress.percentage ?? 0)),
-        imageUrl: "/user-img-new.png",
+        imageUrl: resolveImageUrl(moduleProgress.userId?.image),
       })),
     [homeData],
   );
@@ -245,7 +275,7 @@ const Dashboard = () => {
         id: index + 1,
         name: activity.message?.trim() || "Activity",
         lastAccessed: formatDate(activity.updatedAt ?? activity.createdAt),
-        imageUrl: "/user-img-new.png",
+        imageUrl: resolveImageUrl(activity.userDetails?.image),
       })),
     [homeData],
   );
@@ -312,10 +342,24 @@ const Dashboard = () => {
 
   const handleScheduleExam = useCallback(
     async (date: string) => {
+      const courseId = localStorage.getItem("selectedCourseId");
+      if (!courseId) {
+        console.warn(
+          "Skipping /user/schedule-exam call: selectedCourseId not found.",
+        );
+        return;
+      }
+
       setIsSchedulingExam(true);
 
       try {
-        const response = await api.post("/user/schedule-exam", { date });
+        const response = await api.post(
+          "/user/schedule-exam",
+          { date },
+          {
+            params: { courseId },
+          },
+        );
         console.log("schedule-exam response:", response);
         await fetchHomeData();
       } catch (error) {
