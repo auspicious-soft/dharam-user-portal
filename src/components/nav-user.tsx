@@ -1,6 +1,8 @@
 import {  Link, useNavigate } from "react-router-dom";
 import { logout } from "../auth/Authenticated";
 import { useState } from "react";
+import api from "@/lib/axios";
+import { getFcmToken } from "@/lib/fcm";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -30,10 +32,26 @@ export function NavUser({
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setOpen(false);
-    logout();
-    navigate("/login", { replace: true });
+
+    let fcmToken: string | null = null;
+    try {
+      fcmToken = await getFcmToken();
+    } catch (tokenError) {
+      console.warn("FCM token not available", tokenError);
+    }
+
+    try {
+      await api.post("/user/logout", {
+        fcmToken: fcmToken ?? "",
+      });
+    } catch (logoutError) {
+      console.error("Logout API call failed", logoutError);
+    } finally {
+      logout();
+      navigate("/login", { replace: true });
+    }
   };
 
   return (
@@ -77,7 +95,12 @@ export function NavUser({
 
             <DropdownMenuSeparator /> 
 
-            <DropdownMenuItem onSelect={handleLogout} className="w-full p-2">
+            <DropdownMenuItem
+              onSelect={() => {
+                void handleLogout();
+              }}
+              className="w-full p-2"
+            >
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

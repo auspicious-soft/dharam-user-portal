@@ -47,6 +47,7 @@ const Login = () => {
         email: email.trim(),
         password,
         fcmToken: fcmToken ?? "",
+        deviceType: "WEB",
       });
 
       const responseData = response.data as {

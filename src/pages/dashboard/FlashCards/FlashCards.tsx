@@ -18,6 +18,29 @@ type FlashCategory = {
   price?: number | null;
 };
 
+type FlashCard = {
+  id: string;
+  frontText: string;
+  backText: string;
+  price?: number | null;
+};
+
+type FlashCategoryApiItem = {
+  _id?: string;
+  id?: string;
+  categoryName?: string;
+  status?: string | null;
+  price?: number | string | null;
+};
+
+type FlashCardApiItem = {
+  _id?: string;
+  id?: string;
+  frontText?: unknown;
+  backText?: unknown;
+  price?: number | string | null;
+};
+
 const htmlToText = (value: unknown): string => {
   const raw = String(value ?? "");
   if (!raw) return "";
@@ -34,11 +57,11 @@ const FlashCards = () => {
   const [categories, setCategories] = useState<FlashCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [cards, setCards] = useState<
-    Array<{ id: string; frontText: string; backText: string }>
-  >([]);
+  const [cards, setCards] = useState<FlashCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPurchasingCategory, setIsPurchasingCategory] = useState(false);
+  const [purchasingFlashCardId, setPurchasingFlashCardId] = useState<
+    string | null
+  >(null);
 
   const selectedCategory = categories.find(
     (category) => category.id === selectedCategoryId
@@ -50,8 +73,6 @@ const FlashCards = () => {
     categories.every(
       (category) => String(category.status ?? "").toUpperCase() === "INACTIVE"
     );
-  const shouldShowPremiumButton =
-    areAllCategoriesInactive || isSelectedCategoryInactive;
 
   useEffect(() => {
     const courseId =
@@ -62,24 +83,31 @@ const FlashCards = () => {
         const response = await api.get("/user/flashcard-categories", {
           params: { courseId },
         });
-        const data = (response.data as { data?: any[] })?.data ?? [];
-        const mapped = (Array.isArray(data) ? data : []).map((item: any) => ({
-          id: item._id ?? item.id,
-          name: item.categoryName ?? "Category",
-          status: item.status ?? null,
-          price:
-            typeof item.price === "number"
-              ? item.price
-              : item.price != null
-                ? Number(item.price)
-                : null,
-        }));
+        const data =
+          (response.data as { data?: FlashCategoryApiItem[] })?.data ?? [];
+        const mapped = (Array.isArray(data) ? data : []).flatMap((item) => {
+          const id = item._id ?? item.id;
+          if (!id) return [];
+
+          return [
+            {
+              id,
+              name: item.categoryName ?? "Category",
+              status: item.status ?? null,
+              price:
+                typeof item.price === "number"
+                  ? item.price
+                  : item.price != null
+                    ? Number(item.price)
+                    : null,
+            },
+          ];
+        });
         setCategories(mapped);
-        if (!selectedCategoryId && mapped.length > 0) {
-          setSelectedCategoryId(mapped[0].id);
-        }
+        setSelectedCategoryId((currentCategoryId) =>
+          currentCategoryId || mapped[0]?.id || ""
+        );
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to fetch flashcard categories", error);
         setCategories([]);
       }
@@ -99,17 +127,30 @@ const FlashCards = () => {
         const response = await api.get("/user/flashcards", {
           params: { categoryId: selectedCategoryId, search },
         });
-        const data = (response.data as { data?: any[] })?.data ?? [];
-        const mapped = (Array.isArray(data) ? data : []).map((item: any) => ({
-          id: item._id ?? item.id,
-          frontText: htmlToText(item.frontText),
-          backText: htmlToText(item.backText),
-        }));
+        const data =
+          (response.data as { data?: FlashCardApiItem[] })?.data ?? [];
+        const mapped = (Array.isArray(data) ? data : []).flatMap((item) => {
+          const id = item._id ?? item.id;
+          if (!id) return [];
+
+          return [
+            {
+              id,
+              frontText: htmlToText(item.frontText),
+              backText: htmlToText(item.backText),
+              price:
+                typeof item.price === "number"
+                  ? item.price
+                  : item.price != null
+                    ? Number(item.price)
+                    : null,
+            },
+          ];
+        });
         if (isActive) {
           setCards(mapped);
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to fetch flashcards", error);
         if (isActive) {
           setCards([]);
@@ -145,13 +186,8 @@ const FlashCards = () => {
     );
   };
 
-  const handleBuyFlashCategory = async () => {
-    if (!selectedCategory) {
-      toast.error("Please select a flashcard category first.");
-      return;
-    }
-
-    setIsPurchasingCategory(true);
+  const handleBuyFlashCard = async (flashCard: FlashCard) => {
+    setPurchasingFlashCardId(flashCard.id);
     try {
       const callbackUrl =
         typeof window !== "undefined"
@@ -160,8 +196,8 @@ const FlashCards = () => {
 
       const response = await api.post("/user/create-purchase", {
         type: "INDIVIDUAL",
-        amount: selectedCategory.price ?? null,
-        purchasedProduct: selectedCategory.id,
+        amount: flashCard.price ?? selectedCategory?.price ?? null,
+        purchasedProduct: flashCard.id,
         purchaseType: "FLASH_CARDS",
         success_url: callbackUrl,
         cancel_url: callbackUrl,
@@ -183,7 +219,7 @@ const FlashCards = () => {
           ?.data?.message ?? "Unable to create purchase.";
       toast.error(message);
     } finally {
-      setIsPurchasingCategory(false);
+      setPurchasingFlashCardId(null);
     }
   };
 
@@ -209,17 +245,6 @@ const FlashCards = () => {
           </SelectContent>
         </Select>
         <div className="flex gap-1 md:gap-3 items-center">
-          {shouldShowPremiumButton ? (
-            <button
-              className="px-4 py-2 min-h-[40px] rounded-full text-xs font-semibold bg-gradient-to-r from-[#ff6402] to-[#fdb22b] text-white disabled:opacity-70"
-              onClick={() => {
-                void handleBuyFlashCategory();
-              }}
-              disabled={isPurchasingCategory}
-            >
-              {isPurchasingCategory ? "Processing..." : "Premium"}
-            </button>
-          ) : null}
           <TableSearch
             value={search}
             onChange={setSearch}
@@ -237,7 +262,11 @@ const FlashCards = () => {
               key={card.id}
               frontText={card.frontText}
               backText={card.backText}
-              isLocked={isSelectedCategoryInactive}
+              isLocked={areAllCategoriesInactive || isSelectedCategoryInactive}
+              isPurchasing={purchasingFlashCardId === card.id}
+              onPurchase={() => {
+                void handleBuyFlashCard(card);
+              }}
             />
           ))}
         </div>
