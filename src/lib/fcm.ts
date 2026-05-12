@@ -1,9 +1,10 @@
-import { getToken, isSupported } from "firebase/messaging";
+import { getToken, isSupported, onMessage } from "firebase/messaging";
 import api from "@/lib/axios";
 import { firebaseApp } from "@/lib/firebase";
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY ?? "";
 const FCM_ENDPOINT = import.meta.env.VITE_FCM_TOKEN_ENDPOINT ?? "";
+let foregroundUnsubscribe: (() => void) | null = null;
 
 async function getMessagingSafe() {
   if (!(await isSupported())) {
@@ -16,7 +17,6 @@ async function getMessagingSafe() {
 
 export async function getFcmToken(): Promise<string | null> {
   if (!VAPID_KEY) {
-    // eslint-disable-next-line no-console
     console.warn("Missing VITE_FIREBASE_VAPID_KEY; skipping FCM token.");
     return null;
   }
@@ -61,7 +61,6 @@ export async function sendFcmToken(
     }
 
     if (!FCM_ENDPOINT) {
-      // eslint-disable-next-line no-console
       console.warn(
         "Missing VITE_FCM_TOKEN_ENDPOINT; FCM token not sent to server."
       );
@@ -70,7 +69,43 @@ export async function sendFcmToken(
 
     await api.post(FCM_ENDPOINT, { token, context });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("Failed to send FCM token", error);
   }
+}
+
+export async function setupForegroundNotifications(): Promise<() => void> {
+  if (foregroundUnsubscribe) {
+    return foregroundUnsubscribe;
+  }
+
+  const messaging = await getMessagingSafe();
+  if (!messaging) {
+    return () => {};
+  }
+
+  foregroundUnsubscribe = onMessage(messaging, async (payload) => {
+    const notification = payload.notification;
+    const title = notification?.title ?? "Notification";
+    const options: NotificationOptions = {
+      body: notification?.body,
+      icon: notification?.icon,
+    };
+
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.getRegistration(
+      "/firebase-messaging-sw.js"
+    );
+
+    if (registration) {
+      await registration.showNotification(title, options);
+      return;
+    }
+
+    new Notification(title, options);
+  });
+
+  return foregroundUnsubscribe;
 }
