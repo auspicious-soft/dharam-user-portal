@@ -20,6 +20,7 @@ type FlashCategory = {
 
 type FlashCard = {
   id: string;
+  categoryId: string;
   frontText: string;
   backText: string;
   price?: number | null;
@@ -36,6 +37,7 @@ type FlashCategoryApiItem = {
 type FlashCardApiItem = {
   _id?: string;
   id?: string;
+  categoryId?: string;
   frontText?: unknown;
   backText?: unknown;
   price?: number | string | null;
@@ -131,11 +133,13 @@ const FlashCards = () => {
           (response.data as { data?: FlashCardApiItem[] })?.data ?? [];
         const mapped = (Array.isArray(data) ? data : []).flatMap((item) => {
           const id = item._id ?? item.id;
-          if (!id) return [];
+          const categoryId = item.categoryId ?? selectedCategoryId;
+          if (!id || !categoryId) return [];
 
           return [
             {
               id,
+              categoryId,
               frontText: htmlToText(item.frontText),
               backText: htmlToText(item.backText),
               price:
@@ -197,7 +201,7 @@ const FlashCards = () => {
       const response = await api.post("/user/create-purchase", {
         type: "INDIVIDUAL",
         amount: flashCard.price ?? selectedCategory?.price ?? null,
-        purchasedProduct: flashCard.id,
+        purchasedProduct: flashCard.categoryId,
         purchaseType: "FLASH_CARDS",
         success_url: callbackUrl,
         cancel_url: callbackUrl,
