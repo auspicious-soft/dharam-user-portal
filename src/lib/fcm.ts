@@ -17,59 +17,87 @@ async function getMessagingSafe() {
 
 export async function getFcmToken(): Promise<string | null> {
   if (!VAPID_KEY) {
-    console.warn("Missing VITE_FIREBASE_VAPID_KEY; skipping FCM token.");
+    console.error("❌ Missing VITE_FIREBASE_VAPID_KEY; skipping FCM token.");
     return null;
   }
 
   if (!("Notification" in window)) {
+    console.error("❌ Notifications not supported in this browser");
     return null;
   }
 
   if (!("serviceWorker" in navigator)) {
+    console.error("❌ Service Workers not supported in this browser");
     return null;
   }
 
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
+  try {
+    console.log("🔐 Requesting notification permission...");
+    const permission = await Notification.requestPermission();
+    console.log("Permission result:", permission);
+
+    if (permission !== "granted") {
+      console.error(
+        "❌ Notification permission denied. Current state:",
+        Notification.permission,
+      );
+      return null;
+    }
+
+    const messaging = await getMessagingSafe();
+    if (!messaging) {
+      console.error("❌ Firebase Messaging not supported in this browser");
+      return null;
+    }
+
+    console.log("📝 Registering service worker...");
+    const registration = await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js",
+    );
+    console.log("✅ Service worker registered:", registration);
+
+    console.log("🎫 Requesting FCM token...");
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+
+    if (token) {
+      console.log("✅ FCM Token obtained:", token.substring(0, 50) + "...");
+      return token;
+    } else {
+      console.error("❌ Failed to get FCM token - no token returned");
+      return null;
+    }
+  } catch (error) {
+    console.error("❌ Error getting FCM token:", error);
     return null;
   }
-
-  const messaging = await getMessagingSafe();
-  if (!messaging) {
-    return null;
-  }
-
-  const registration = await navigator.serviceWorker.register(
-    "/firebase-messaging-sw.js"
-  );
-
-  const token = await getToken(messaging, {
-    vapidKey: VAPID_KEY,
-    serviceWorkerRegistration: registration,
-  });
-
-  return token ?? null;
 }
 
 export async function sendFcmToken(
-  context: "login" | "register"
+  context: "login" | "register",
 ): Promise<void> {
   try {
+    console.log("📤 Getting FCM token for context:", context);
     const token = await getFcmToken();
     if (!token) {
+      console.warn("⚠️ No FCM token available to send");
       return;
     }
 
     if (!FCM_ENDPOINT) {
-      console.warn(
-        "Missing VITE_FCM_TOKEN_ENDPOINT; FCM token not sent to server."
+      console.error(
+        "❌ Missing VITE_FCM_TOKEN_ENDPOINT; FCM token not sent to server.",
       );
       return;
     }
 
-    await api.post(FCM_ENDPOINT, { token, context });
+    console.log("📡 Sending FCM token to backend...");
+    const response = await api.post(FCM_ENDPOINT, { token, context });
+    console.log("✅ FCM token sent successfully. Response:", response.data);
   } catch (error) {
-    console.error("Failed to send FCM token", error);
+    console.error("❌ Failed to send FCM token", error);
   }
 }
 
@@ -84,27 +112,44 @@ export async function setupForegroundNotifications(): Promise<() => void> {
   }
 
   foregroundUnsubscribe = onMessage(messaging, async (payload) => {
+    console.log("📬 Foreground notification received:", payload);
+
     const notification = payload.notification;
-    const title = notification?.title ?? "Notification";
+    const data = payload.data;
+
+    // Support both notification and data-only messages
+    const title = notification?.title || data?.title || "New Message";
+    const body =
+      notification?.body || data?.body || "You have a new notification";
+    const icon = notification?.icon || data?.icon || "/favicon.ico";
+
     const options: NotificationOptions = {
-      body: notification?.body,
-      icon: notification?.icon,
+      body,
+      icon,
+      badge: data?.badge,
+      tag: data?.tag || "notification",
+      requireInteraction: data?.requireInteraction === "true",
     };
 
     if (!("Notification" in window) || Notification.permission !== "granted") {
+      console.warn("⚠️ Notification permission not granted");
       return;
     }
 
-    const registration = await navigator.serviceWorker.getRegistration(
-      "/firebase-messaging-sw.js"
-    );
+    try {
+      const registration = await navigator.serviceWorker.getRegistration(
+        "/firebase-messaging-sw.js",
+      );
 
-    if (registration) {
-      await registration.showNotification(title, options);
-      return;
+      if (registration) {
+        await registration.showNotification(title, options);
+        return;
+      }
+
+      new Notification(title, options);
+    } catch (error) {
+      console.error("❌ Failed to show notification:", error);
     }
-
-    new Notification(title, options);
   });
 
   return foregroundUnsubscribe;
