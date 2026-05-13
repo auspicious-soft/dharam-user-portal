@@ -238,7 +238,7 @@ const CertificatesPDUs: React.FC = () => {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+        {/* <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="max-w-72 py-[11px]">
             <SelectValue placeholder="Select A Category" />
           </SelectTrigger>
@@ -251,7 +251,7 @@ const CertificatesPDUs: React.FC = () => {
               </SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </Select> */}
         <div className="flex items-center gap-1 md:gap-3">
           <TableSearch
             value={searchInput}
