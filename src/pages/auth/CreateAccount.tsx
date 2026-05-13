@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "../../components/ui/input";
 import {
@@ -13,6 +13,10 @@ import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 import { getFcmToken } from "@/lib/fcm";
 import { toast } from "sonner";
+import {
+  COUNTRY_CODE_FALLBACK_OPTIONS,
+  fetchCountryCodeOptions,
+} from "@/utils/countryCodeOptions";
 
 const MIN_PASSWORD_LENGTH = 5;
 
@@ -23,6 +27,10 @@ const CreateAccount = () => {
   const [email, setEmail] = useState("");
 
   const [countryCode, setCountryCode] = useState("+91");
+  const [countryCodeOptions, setCountryCodeOptions] = useState(
+    COUNTRY_CODE_FALLBACK_OPTIONS
+  );
+  const [isCountryCodesLoading, setIsCountryCodesLoading] = useState(false);
   const [phone, setPhone] = useState("");
 
   const [password, setPassword] = useState("");
@@ -32,6 +40,31 @@ const CreateAccount = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmShowPassword, setConfirmShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadCountryCodes = async () => {
+      setIsCountryCodesLoading(true);
+      try {
+        const options = await fetchCountryCodeOptions(controller.signal);
+        setCountryCodeOptions(options);
+        setCountryCode((currentCode) => {
+          if (options.some((option) => option.value === currentCode)) {
+            return currentCode;
+          }
+          return options.find((option) => option.value === "+91")?.value ?? options[0].value;
+        });
+      } catch {
+        setCountryCodeOptions(COUNTRY_CODE_FALLBACK_OPTIONS);
+      } finally {
+        setIsCountryCodesLoading(false);
+      }
+    };
+
+    void loadCountryCodes();
+    return () => controller.abort();
+  }, []);
 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -201,11 +234,14 @@ const CreateAccount = () => {
             id="country_code"
             value={countryCode}
             onChange={(e) => setCountryCode(e.target.value)}
+            disabled={isCountryCodesLoading}
             className="outline-none pl-3 pr-0 rounded-tl-[99px] rounded-bl-[99px] text-paragraph text-sm font-light"
           >
-            <option value="+1">+1</option>
-            <option value="+44">+44</option>
-            <option value="+61">+61</option>
+            {countryCodeOptions.map((option) => (
+              <option key={`${option.isoCode}-${option.value}`} value={option.value}>
+                {option.value}
+              </option>
+            ))}
           </select>
 
           <Input

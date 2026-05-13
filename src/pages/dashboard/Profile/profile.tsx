@@ -9,6 +9,10 @@ import {
   uploadFileToS3,
 } from "@/utils/s3Upload";
 import { toast } from "sonner";
+import {
+  COUNTRY_CODE_FALLBACK_OPTIONS,
+  fetchCountryCodeOptions,
+} from "@/utils/countryCodeOptions";
 export default function Profile() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
@@ -16,6 +20,10 @@ export default function Profile() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [countryCode, setCountryCode] = useState("+91");
+  const [countryCodeOptions, setCountryCodeOptions] = useState(
+    COUNTRY_CODE_FALLBACK_OPTIONS
+  );
+  const [isCountryCodesLoading, setIsCountryCodesLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [imageKey, setImageKey] = useState<string | null>(null);
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -76,12 +84,34 @@ export default function Profile() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+    const loadCountryCodes = async () => {
+      setIsCountryCodesLoading(true);
+      try {
+        const options = await fetchCountryCodeOptions(controller.signal);
+        setCountryCodeOptions(options);
+        setCountryCode((currentCode) => {
+          if (options.some((option) => option.value === currentCode)) {
+            return currentCode;
+          }
+          return options.find((option) => option.value === "+91")?.value ?? options[0].value;
+        });
+      } catch {
+        setCountryCodeOptions(COUNTRY_CODE_FALLBACK_OPTIONS);
+      } finally {
+        setIsCountryCodesLoading(false);
+      }
+    };
+
+    void loadCountryCodes();
+
     const storedCourseId = localStorage.getItem("selectedCourseId");
     setCourseId(storedCourseId);
 
     if (storedCourseId) {
       fetchProfileStats(storedCourseId);
     }
+    return () => controller.abort();
   }, []);
 
   const handleSaveDetails = async () => {
@@ -224,12 +254,14 @@ export default function Profile() {
                 id="country_code"
                 className="outline-none pl-3 pr-0 rounded-tl-[99px] rounded-bl-[99px] text-paragraph text-sm font-light"
                 value={countryCode}
+                disabled={isCountryCodesLoading}
                 onChange={(e) => setCountryCode(e.target.value)}
               >
-                <option value="+1">+1</option>
-                <option value="+44">+44</option>
-                <option value="+61">+61</option>
-                <option value="+91">+91</option>
+                {countryCodeOptions.map((option) => (
+                  <option key={`${option.isoCode}-${option.value}`} value={option.value}>
+                    {option.value}
+                  </option>
+                ))}
               </select>
 
               <Input
