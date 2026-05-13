@@ -73,12 +73,24 @@ const CertificatesPDUs: React.FC = () => {
   const [certificates, setCertificates] = useState<CertificateItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [pageLimit, setPageLimit] = useState(DEFAULT_LIMIT);
+
+  useEffect(() => {
+    const normalizedQuery = searchInput.trim();
+    const debounceTimer = window.setTimeout(() => {
+      setDebouncedSearch((prevQuery) =>
+        prevQuery === normalizedQuery ? prevQuery : normalizedQuery,
+      );
+      setCurrentPage((prevPage) => (prevPage === 1 ? prevPage : 1));
+    }, 500);
+
+    return () => window.clearTimeout(debounceTimer);
+  }, [searchInput]);
 
   const buildAssetUrl = (path?: string | null) => {
     const value = String(path ?? "").trim();
@@ -117,7 +129,8 @@ const CertificatesPDUs: React.FC = () => {
         setIsLoading(true);
         const response = await api.get("/user/certificates", {
           params: {
-            search: searchQuery,
+            search: debouncedSearch,
+            query: debouncedSearch,
             courseId,
             page: currentPage,
             limit: pageLimit,
@@ -147,19 +160,7 @@ const CertificatesPDUs: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [currentPage, pageLimit, searchQuery]);
-
-  const categoryOptions = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(
-        certificates
-          .map((item) => String(item.moduleType ?? "").trim())
-          .filter(Boolean),
-      ),
-    );
-
-    return ["all", ...uniqueCategories];
-  }, [certificates]);
+  }, [currentPage, pageLimit, debouncedSearch]);
 
   const filteredCertificates = useMemo(() => {
     if (selectedCategory === "all") {
@@ -257,8 +258,10 @@ const CertificatesPDUs: React.FC = () => {
             value={searchInput}
             onChange={setSearchInput}
             onSubmit={() => {
+              const normalizedQuery = searchInput.trim();
               setCurrentPage(1);
-              setSearchQuery(searchInput.trim());
+              setDebouncedSearch(normalizedQuery);
+              setSearchInput(normalizedQuery);
             }}
             placeholder="Search certificates"
           />
