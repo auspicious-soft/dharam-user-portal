@@ -33,7 +33,17 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
   onToggleBookmark,
 }) => {
   const canAccessModule = !module.isPremium || userHasPremium;
+  const isInactiveModule =
+    String(module.status ?? "ACTIVE").toUpperCase() === "INACTIVE";
   const isModuleSelected = selectedId === module.title;
+  const canAccessItem = (item: ContentItem) => {
+    if (canAccessModule) return true;
+    if (!isInactiveModule) return false;
+    if (item.type === "quiz") return false;
+    const hasItemLink = Boolean(item.videoUrl || item.pdfUrl || item.hasLink);
+    return hasItemLink;
+  };
+  const hasAnyAccessibleItems = module.items.some((item) => canAccessItem(item));
 
   const handleModuleClick = () => {
     // Always show module introduction when clicking on module title
@@ -41,8 +51,8 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
   };
 
   const handleItemClick = (item: ContentItem) => {
-    // Only allow clicking if user has access
-    if (canAccessModule) {
+    // For inactive premium modules, allow linked lessons to open.
+    if (canAccessItem(item)) {
       onSelectItem(item);
     }
   };
@@ -133,12 +143,12 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
       {isOpen && (
         <div
           className={`px-2 rounded-lg ml-2.5 ${
-            !canAccessModule ? "bg-Black_light/5 cursor-not-allowed" : "bg-light-blue"
+            !hasAnyAccessibleItems ? "bg-Black_light/5" : "bg-light-blue"
           }`}
         >
           {module.items.length > 0 ? (
             module.items.map((item) => {
-              const isItemLocked = !canAccessModule;
+              const isItemLocked = !canAccessItem(item);
               const isItemSelected = selectedId === item.id;
               const isBookmarked = bookmarkedItems.has(item.id);
               const canBookmark = item.type !== "quiz";
