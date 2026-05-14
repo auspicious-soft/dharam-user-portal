@@ -8,6 +8,30 @@ import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
 import { ExitExamDialog } from "@/components/Questions/ExitExamDialog";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/lib/axios";
+import ViewReportDialog, {
+  ReportData,
+  ReportQuestionItem,
+} from "@/components/Questions/ViewReports/ViewReportDialog";
+
+type PracticeExamBoard = {
+  correct?: number | null;
+  incorrect?: number | null;
+  unanswered?: number | null;
+  overallPercentage?: number | null;
+  timeTaken?: string | null;
+  scoreBreakDown?: Record<
+    string,
+    {
+      correct?: number | null;
+      total?: number | null;
+      percentage?: number | null;
+    }
+  > | null;
+};
+
+type ExamReportQuestionsResponse = {
+  data?: unknown;
+};
 
 //  Timer hook 
 function useTimer(isPaused: boolean) {
@@ -37,7 +61,13 @@ const QuestionsView = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [attemptNumber, setAttemptNumber] = useState<number | null>(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
-  const timeDisplay = useTimer(showExitDialog);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [viewQuestionsLoading, setViewQuestionsLoading] = useState(false);
+  const [showQuestionsScreen, setShowQuestionsScreen] = useState(false);
+  const [reportQuestions, setReportQuestions] = useState<ReportQuestionItem[]>([]);
+  const timeDisplay = useTimer(showExitDialog || reportOpen);
   const { id: examId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -194,7 +224,6 @@ const QuestionsView = () => {
         setCurrentQuestion(1);
         setQuizKey((prev) => prev + 1);
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to fetch practice exam questions", error);
         setQuiz([]);
       } finally {
@@ -205,6 +234,91 @@ const QuestionsView = () => {
     void fetchExamQuestions();
   }, [examId, location.state]);
 
+  const normalizeReportQuestions = (raw: unknown): ReportQuestionItem[] => {
+    if (!Array.isArray(raw)) return [];
+
+    return raw.map((item, index) => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      const question = (row.questionId ?? {}) as Record<string, unknown>;
+      const dnd = (question.dnd ?? {}) as Record<string, unknown>;
+
+      return {
+        _id: String(row._id ?? index),
+        examId: row.examId ? String(row.examId) : undefined,
+        isCorrect:
+          row.isCorrect === null
+            ? null
+            : typeof row.isCorrect === "boolean"
+              ? row.isCorrect
+              : undefined,
+        isAttempted:
+          typeof row.isAttempted === "boolean" ? row.isAttempted : undefined,
+        questionId: {
+          _id: String(question._id ?? ""),
+          question: question.question ? String(question.question) : "",
+          type: question.type ? String(question.type) : "",
+          explaination: question.explaination
+            ? String(question.explaination)
+            : "",
+          maxSelection:
+            typeof question.maxSelection === "number"
+              ? question.maxSelection
+              : undefined,
+          mcq: Array.isArray(question.mcq)
+            ? question.mcq.map((option, optionIndex) => {
+                const mcqOption = (option ?? {}) as Record<string, unknown>;
+                return {
+                  _id: mcqOption._id
+                    ? String(mcqOption._id)
+                    : `${index}-${optionIndex}`,
+                  text: mcqOption.text ? String(mcqOption.text) : "",
+                  isCorrect:
+                    typeof mcqOption.isCorrect === "boolean"
+                      ? mcqOption.isCorrect
+                      : false,
+                };
+              })
+            : [],
+          fib: Array.isArray(question.fib)
+            ? question.fib.map((blank, blankIndex) => {
+                const fibItem = (blank ?? {}) as Record<string, unknown>;
+                return {
+                  _id: fibItem._id
+                    ? String(fibItem._id)
+                    : `${index}-fib-${blankIndex}`,
+                  answer: fibItem.answer ? String(fibItem.answer) : "",
+                  correctOrder:
+                    typeof fibItem.correctOrder === "number"
+                      ? fibItem.correctOrder
+                      : undefined,
+                };
+              })
+            : [],
+          dnd: {
+            pairs: Array.isArray(dnd.pairs)
+              ? dnd.pairs.map((pair, pairIndex) => {
+                  const dndPair = (pair ?? {}) as Record<string, unknown>;
+                  return {
+                    leftId: dndPair.leftId ? String(dndPair.leftId) : `${pairIndex}`,
+                    leftText: dndPair.leftText ? String(dndPair.leftText) : "",
+                    rightId: dndPair.rightId ? String(dndPair.rightId) : "",
+                  };
+                })
+              : [],
+            options: Array.isArray(dnd.options)
+              ? dnd.options.map((option, optionIndex) => {
+                  const dndOption = (option ?? {}) as Record<string, unknown>;
+                  return {
+                    id: dndOption.id ? String(dndOption.id) : `${optionIndex}`,
+                    text: dndOption.text ? String(dndOption.text) : "",
+                  };
+                })
+              : [],
+          },
+        },
+      };
+    });
+  };
 
   const totalQuestions = quiz.length;
   const progressPercent = totalQuestions
@@ -220,20 +334,81 @@ const QuestionsView = () => {
     setQuizKey((prev) => prev + 1); // remount the renderer fresh
   };
 
-  const handleEndPracticing = async () => {
-    if (examId && attemptNumber !== null) {
-      try {
-        await api.get("/user/practice-exam-result-board", {
-          params: { examId, attemptNumber },
-        });
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Failed to fetch practice exam result board", error);
-      }
-    }
+  const openPracticeReport = async () => {
+    if (!examId || attemptNumber === null) return false;
 
+    try {
+      setReportLoading(true);
+      setReportData(null);
+      setShowQuestionsScreen(false);
+      setReportQuestions([]);
+
+      const response = await api.get("/user/practice-exam-result-board", {
+        params: { examId, attemptNumber, timeTaken: timeDisplay },
+      });
+      const payload = (response.data as { data?: PracticeExamBoard })?.data;
+      if (!payload) {
+        return false;
+      }
+
+      const scoreBreakDown = payload.scoreBreakDown ?? {};
+      const domains = Object.entries(scoreBreakDown).map(([name, values]) => ({
+        name,
+        percentage: Number(values?.percentage ?? 0),
+      }));
+
+      const mappedReport: ReportData = {
+        score: Number(payload.overallPercentage ?? 0),
+        timeSpent: payload.timeTaken ?? "-",
+        correct: Number(payload.correct ?? 0),
+        incorrect: Number(payload.incorrect ?? 0),
+        unanswered: Number(payload.unanswered ?? 0),
+        domains,
+      };
+
+      setReportData(mappedReport);
+      setReportOpen(true);
+      return true;
+    } catch (error) {
+      console.error("Failed to fetch practice exam result board", error);
+      return false;
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleEndPracticing = async () => {
     setShowExitDialog(false);
-    navigate("/practice-questions");
+    const opened = await openPracticeReport();
+    if (!opened) {
+      navigate("/practice-questions");
+    }
+  };
+
+  const handleCompleteTask = async () => {
+    await openPracticeReport();
+  };
+
+  const handleViewQuestions = async () => {
+    if (!examId || attemptNumber === null) return;
+
+    try {
+      setViewQuestionsLoading(true);
+      const response = await api.get("/user/practice-exam-result-board-question", {
+        params: { examId, attemptNumber },
+      });
+      const payload = (response.data as ExamReportQuestionsResponse)?.data;
+      setReportQuestions(normalizeReportQuestions(payload));
+      setShowQuestionsScreen(true);
+    } catch (error) {
+      console.error("Failed to fetch practice report questions", error);
+    } finally {
+      setViewQuestionsLoading(false);
+    }
+  };
+
+  const handleBackToReport = () => {
+    setShowQuestionsScreen(false);
   };
 
   return (
@@ -307,6 +482,8 @@ const QuestionsView = () => {
           key={quizKey}
           quiz={quiz}
           onQuestionChange={handleQuestionChange}
+          onCompleteTask={handleCompleteTask}
+          isCompletingTask={reportLoading}
           attemptConfig={
             examId && attemptNumber !== null
               ? { examId, attemptNumber }
@@ -323,6 +500,23 @@ const QuestionsView = () => {
         open={showExitDialog}
         onClose={() => setShowExitDialog(false)}
         onEnd={handleEndPracticing}
+      />
+      <ViewReportDialog
+        open={reportOpen}
+        onOpenChange={(open) => {
+          setReportOpen(open);
+          if (!open) {
+            navigate("/practice-questions");
+          }
+        }}
+        report={reportData}
+        isLoading={reportLoading}
+        showViewQuestions={Boolean(examId) && attemptNumber !== null}
+        onViewQuestions={handleViewQuestions}
+        viewQuestionsLoading={viewQuestionsLoading}
+        showQuestionsScreen={showQuestionsScreen}
+        onBackToReport={handleBackToReport}
+        questions={reportQuestions}
       />
     </div>
   );

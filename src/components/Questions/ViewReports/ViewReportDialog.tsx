@@ -173,18 +173,26 @@ const ViewReportDialog = ({
     }
 
     if (reviewType === "FIB") {
-      const fibAnswers = [...(reviewedQuestion.fib ?? [])].sort(
-        (a, b) => Number(a.correctOrder ?? 0) - Number(b.correctOrder ?? 0),
-      );
+      const maxFibSelection =
+        typeof reviewedQuestion.maxSelection === "number" &&
+        reviewedQuestion.maxSelection > 0
+          ? reviewedQuestion.maxSelection
+          : Number.POSITIVE_INFINITY;
+      const visibleFibAnswers = (reviewedQuestion.fib ?? [])
+        .filter((item) => {
+          if (typeof item.correctOrder !== "number") return false;
+          return item.correctOrder > 0 && item.correctOrder <= maxFibSelection;
+        })
+        .sort((a, b) => a.correctOrder - b.correctOrder);
       return (
         <div className="space-y-2">
-          {fibAnswers.length ? (
-            fibAnswers.map((item, index) => (
+          {visibleFibAnswers.length ? (
+            visibleFibAnswers.map((item, index) => (
               <div
                 key={item._id ?? `${index}`}
                 className="rounded-lg border border-[#d9e8ff] bg-white px-3 py-2 text-sm"
               >
-                Blank {index + 1}: {item.answer ?? "-"}
+                Blank {item.correctOrder}: {item.answer ?? "-"}
               </div>
             ))
           ) : (

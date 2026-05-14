@@ -21,6 +21,8 @@ import {
 interface QuizRendererProps {
   quiz: QuizQuestion[];
   onQuestionChange?: (index: number) => void;
+  onCompleteTask?: () => void;
+  isCompletingTask?: boolean;
   attemptConfig?: {
     examId: string;
     attemptNumber: number;
@@ -30,6 +32,8 @@ interface QuizRendererProps {
 export const PracticeQuizRenderer = ({
   quiz,
   onQuestionChange,
+  onCompleteTask,
+  isCompletingTask = false,
   attemptConfig,
 }: QuizRendererProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -327,7 +331,15 @@ export const PracticeQuizRenderer = ({
               <ArrowRight />
               Next
             </Button>
-          ) : null}
+          ) : (
+            <Button
+              onClick={onCompleteTask}
+              disabled={isCompletingTask}
+              className="rounded-[10px] h-10 !py-1 !px-4"
+            >
+              {isCompletingTask ? "Loading..." : "Complete Task"}
+            </Button>
+          )}
         </div>
       </div>
 
