@@ -34,10 +34,14 @@ const LearningManagementSystem: React.FC = () => {
   const [attemptedQuestionsByModule, setAttemptedQuestionsByModule] = useState<
     Record<string, Set<string>>
   >({});
+  const [attemptedLessonsByModule, setAttemptedLessonsByModule] = useState<
+    Record<string, Set<string>>
+  >({});
   const [purchasingModuleId, setPurchasingModuleId] = useState<string | null>(
     null
   );
   const attemptedLessonsRef = useRef<Set<string>>(new Set());
+  const halfWatchedLessonsRef = useRef<Set<string>>(new Set());
 
   const resolveFileUrl = (url: string) => {
     if (!url) return "";
@@ -175,23 +179,6 @@ const LearningManagementSystem: React.FC = () => {
         const existing = prev[moduleId] ?? new Set<string>();
         const merged = new Set(existing);
         attemptedIds.forEach((id) => merged.add(id));
-
-        setModules((prevModules) =>
-          prevModules.map((module) => {
-            if (module.id !== moduleId) return module;
-            const totalQuestions = Math.max(
-              module.questions ?? 0,
-              mapped.length
-            );
-            if (!totalQuestions) return module;
-            const progress = Math.min(
-              100,
-              Math.round((merged.size / totalQuestions) * 100)
-            );
-            return { ...module, progress };
-          })
-        );
-
         return { ...prev, [moduleId]: merged };
       });
       setModuleQuiz((prev) => ({ ...prev, [moduleId]: availableQuestions }));
@@ -213,6 +200,7 @@ const LearningManagementSystem: React.FC = () => {
         const data = (response.data as { data?: any[] })?.data ?? [];
 
         const bookmarked = new Set<string>();
+        const initialAttemptedLessonsByModule: Record<string, Set<string>> = {};
 
         const mappedModules: Module[] = (Array.isArray(data) ? data : [])
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
@@ -229,6 +217,15 @@ const LearningManagementSystem: React.FC = () => {
 
                   if (lesson.isBookmarked) {
                     bookmarked.add(lesson._id);
+                  }
+                  if (lesson.isAttempted) {
+                    if (!initialAttemptedLessonsByModule[module._id]) {
+                      initialAttemptedLessonsByModule[module._id] =
+                        new Set<string>();
+                    }
+                    initialAttemptedLessonsByModule[module._id].add(lesson._id);
+                    attemptedLessonsRef.current.add(lesson._id);
+                    halfWatchedLessonsRef.current.add(lesson._id);
                   }
 
                   return {
@@ -286,6 +283,7 @@ const LearningManagementSystem: React.FC = () => {
 
         setModules(mappedModules);
         setBookmarkedItems(bookmarked);
+        setAttemptedLessonsByModule(initialAttemptedLessonsByModule);
 
         const firstModule = mappedModules[0];
         if (firstModule) {
@@ -357,13 +355,24 @@ const LearningManagementSystem: React.FC = () => {
       });
     } else {
       setSelectedContent(item);
-      void markLessonAttempted(item.id);
+      if (item.type !== "video") {
+        void markLessonAttempted(item.id, item.moduleId);
+      }
     }
   };
 
-  const markLessonAttempted = async (lessonId: string) => {
+  const markLessonAttempted = async (lessonId: string, moduleId: string) => {
     if (attemptedLessonsRef.current.has(lessonId)) return;
     attemptedLessonsRef.current.add(lessonId);
+    setAttemptedLessonsByModule((prev) => {
+      const existing = prev[moduleId] ?? new Set<string>();
+      if (existing.has(lessonId)) {
+        return prev;
+      }
+      const nextSet = new Set(existing);
+      nextSet.add(lessonId);
+      return { ...prev, [moduleId]: nextSet };
+    });
 
     try {
       await api.post("/user/mark-attempted", {
@@ -373,6 +382,15 @@ const LearningManagementSystem: React.FC = () => {
       });
     } catch (error) {
       attemptedLessonsRef.current.delete(lessonId);
+      setAttemptedLessonsByModule((prev) => {
+        const existing = prev[moduleId];
+        if (!existing || !existing.has(lessonId)) {
+          return prev;
+        }
+        const nextSet = new Set(existing);
+        nextSet.delete(lessonId);
+        return { ...prev, [moduleId]: nextSet };
+      });
       // eslint-disable-next-line no-console
       console.error("Failed to mark lesson attempted", error);
     }
@@ -437,7 +455,24 @@ const LearningManagementSystem: React.FC = () => {
 
   // Calculate module progress (0-100)
   const getModuleProgress = (module: Module) => {
-    return module.progress ?? 0;
+    const lessonCount = module.items.filter(
+      (item) => item.type === "video" || item.type === "slide"
+    ).length;
+    const questionCount = module.questions ?? 0;
+    const totalTrackable = lessonCount + questionCount;
+
+    if (totalTrackable <= 0) {
+      return module.progress ?? 0;
+    }
+
+    const attemptedLessonsCount = attemptedLessonsByModule[module.id]?.size ?? 0;
+    const attemptedQuestionsCount =
+      attemptedQuestionsByModule[module.id]?.size ?? 0;
+    const localComputed = Math.round(
+      ((attemptedLessonsCount + attemptedQuestionsCount) / totalTrackable) * 100
+    );
+
+    return Math.min(100, Math.max(module.progress ?? 0, localComputed));
   };
 
   const handleQuestionAttempt = (
@@ -453,23 +488,6 @@ const LearningManagementSystem: React.FC = () => {
 
       const nextSet = new Set(existing);
       nextSet.add(questionId);
-
-      setModules((prevModules) =>
-        prevModules.map((module) => {
-          if (module.id !== moduleId) return module;
-          const availableCount = moduleQuiz[moduleId]?.length ?? 0;
-          const totalQuestions = Math.max(
-            module.questions ?? 0,
-            availableCount + nextSet.size
-          );
-          if (!totalQuestions) return module;
-          const progress = Math.min(
-            100,
-            Math.round((nextSet.size / totalQuestions) * 100)
-          );
-          return { ...module, progress };
-        })
-      );
 
       setModuleQuiz((prevQuiz) => {
         const current = prevQuiz[moduleId];
@@ -541,6 +559,23 @@ const LearningManagementSystem: React.FC = () => {
     } finally {
       setPurchasingModuleId(null);
     }
+  };
+
+  const handleVideoProgress = (
+    lessonId: string,
+    moduleId: string,
+    progressPercent: number
+  ) => {
+    if (!lessonId || progressPercent < 50) {
+      return;
+    }
+
+    if (halfWatchedLessonsRef.current.has(lessonId)) {
+      return;
+    }
+
+    halfWatchedLessonsRef.current.add(lessonId);
+    void markLessonAttempted(lessonId, moduleId);
   };
 
   return (
@@ -677,6 +712,7 @@ const LearningManagementSystem: React.FC = () => {
             content={selectedContent}
             onClose={() => setSelectedContent(null)}
             onQuestionAttempt={handleQuestionAttempt}
+            onVideoProgress={handleVideoProgress}
           />
         )}
       </div>
