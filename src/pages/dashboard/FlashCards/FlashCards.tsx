@@ -10,6 +10,7 @@ import {
 import TableSearch from "@/components/reusableComponents/TableSearch";
 import api from "@/lib/axios";
 import { toast } from "sonner";
+import { getPublicUrlForKey } from "@/utils/s3Upload";
 
 type FlashCategory = {
   id: string;
@@ -23,6 +24,8 @@ type FlashCard = {
   categoryId: string;
   frontText: string;
   backText: string;
+  frontImage?: string;
+  backImage?: string;
   price?: number | null;
 };
 
@@ -40,6 +43,8 @@ type FlashCardApiItem = {
   categoryId?: string;
   frontText?: unknown;
   backText?: unknown;
+  frontImage?: unknown;
+  backImage?: unknown;
   price?: number | string | null;
 };
 
@@ -53,6 +58,12 @@ const htmlToText = (value: unknown): string => {
 
   const doc = new DOMParser().parseFromString(raw, "text/html");
   return (doc.body.textContent ?? "").replace(/\s+/g, " ").trim();
+};
+
+const resolveAssetUrl = (value: unknown): string | undefined => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return undefined;
+  return /^https?:\/\//i.test(raw) ? raw : getPublicUrlForKey(raw);
 };
 
 const FlashCards = () => {
@@ -142,6 +153,8 @@ const FlashCards = () => {
               categoryId,
               frontText: htmlToText(item.frontText),
               backText: htmlToText(item.backText),
+              frontImage: resolveAssetUrl(item.frontImage),
+              backImage: resolveAssetUrl(item.backImage),
               price:
                 typeof item.price === "number"
                   ? item.price
@@ -266,6 +279,8 @@ const FlashCards = () => {
               key={card.id}
               frontText={card.frontText}
               backText={card.backText}
+              frontImage={card.frontImage}
+              backImage={card.backImage}
               isLocked={areAllCategoriesInactive || isSelectedCategoryInactive}
               isPurchasing={purchasingFlashCardId === card.id}
               onPurchase={() => {
