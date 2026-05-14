@@ -7,11 +7,15 @@ export interface ContentItem {
   type: ContentType;
   pdfUrl?: string;
   videoUrl?: string;
+  isLocked?: boolean;
 }
 
 export interface Module {
   id: string;
   title: string;
+  status?: string;
+  isPremium?: boolean;
+  price?: number | null;
   items: ContentItem[];
 }
 

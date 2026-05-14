@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { BinMinusIn } from "iconoir-react";
 import SuccessfullyIcon from "@/assets/successfully-icon.png";
 import CourseSelect from "@/components/reusableComponents/CourseSelect";
+import AccessMultiSelect from "@/components/reusableComponents/AccessMultiSelect";
 import QuestionSuccessDialog from "@/components/dialogs/QuestionSuccessDialog";
 
 interface FileUpload {
@@ -33,6 +34,7 @@ const AddExamStrategy = () => {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedAccesses, setSelectedAccesses] = useState<string[]>([]);
 
   const [uploadSections, setUploadSections] = useState<UploadSection[]>([
     {
@@ -136,6 +138,13 @@ const AddExamStrategy = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 w-full">
           <Input type="text" placeholder="Name of Category" />
           <Input type="text" placeholder="Enter Price" />
+        </div>
+        <div className="w-full">
+          <AccessMultiSelect
+            selectedAccesses={selectedAccesses}
+            onChange={setSelectedAccesses}
+            placeholder="Select user access"
+          />
         </div>
         {uploadSections.map((section) => (
           <div key={section.id} className="flex flex-col gap-2">

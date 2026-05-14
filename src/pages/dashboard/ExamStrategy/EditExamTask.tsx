@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { BinMinusIn } from "iconoir-react";
 import SuccessfullyIcon from "@/assets/successfully-icon.png";
 import CourseSelect from "@/components/reusableComponents/CourseSelect";
+import AccessMultiSelect from "@/components/reusableComponents/AccessMultiSelect";
 import QuestionSuccessDialog from "@/components/dialogs/QuestionSuccessDialog";
 
 interface FileUpload {
@@ -29,10 +30,86 @@ interface UploadSection {
   files: FileUpload[];
 }
 
+const normalizeAccessValue = (value: string) =>
+  value.trim().toUpperCase().replace(/\s+/g, "_");
+
+const toAccessArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map(normalizeAccessValue);
+};
+
+const extractAccessFromRoleState = (state: unknown): string[] => {
+  if (!state) {
+    return [];
+  }
+
+  if (Array.isArray(state)) {
+    return toAccessArray(state);
+  }
+
+  if (typeof state !== "object") {
+    return [];
+  }
+
+  const parsed = state as Record<string, unknown>;
+  const arrayKeys = [
+    "accesses",
+    "access",
+    "selectedAccess",
+    "selectedAccesses",
+    "permissions",
+    "roleAccess",
+    "rolePermissions",
+  ];
+
+  for (const key of arrayKeys) {
+    const found = toAccessArray(parsed[key]);
+    if (found.length > 0) {
+      return found;
+    }
+  }
+
+  const booleanAccess = Object.entries(parsed)
+    .filter(([, v]) => typeof v === "boolean" && v)
+    .map(([k]) => normalizeAccessValue(k))
+    .filter((key) =>
+      [
+        "LESSONS",
+        "DOMAIN_TASK",
+        "PRACTICE_TEST",
+        "MOCK_EXAM",
+        "FLASH_CARDS",
+        "APPLICATION_SUPPORT",
+        "EXAM_STRATEGY",
+        "CERTIFICATES_PDUS",
+      ].includes(key)
+    );
+
+  return booleanAccess;
+};
+
 const EditExamTask = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const isEdit = Boolean(id);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const roleBasedAccesses = useMemo(
+    () => extractAccessFromRoleState(location.state),
+    [location.state]
+  );
+  const [selectedAccesses, setSelectedAccesses] =
+    useState<string[]>(roleBasedAccesses);
+
+  useEffect(() => {
+    if (roleBasedAccesses.length) {
+      setSelectedAccesses(roleBasedAccesses);
+    }
+  }, [roleBasedAccesses]);
 
   const [uploadSections, setUploadSections] = useState<UploadSection[]>([
     {
@@ -113,6 +190,13 @@ const EditExamTask = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 w-full">
           <Input type="text" placeholder="Name of Category" />
           <Input type="text" placeholder="Enter Price" />
+        </div>
+        <div className="w-full">
+          <AccessMultiSelect
+            selectedAccesses={selectedAccesses}
+            onChange={setSelectedAccesses}
+            placeholder="Select user access"
+          />
         </div>
         {uploadSections.map((section) => (
           <div key={section.id} className="flex flex-col gap-2">
