@@ -47,6 +47,11 @@ const LearningManagementSystem: React.FC = () => {
     if (!url) return "";
     return /^https?:\/\//i.test(url) ? url : getPublicUrlForKey(url);
   };
+  const resolveQuestionImageUrl = (value: unknown): string | undefined => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return undefined;
+    return /^https?:\/\//i.test(raw) ? raw : getPublicUrlForKey(raw);
+  };
 
   const mapQuestions = (questions: any[]): QuizQuestion[] => {
     return (Array.isArray(questions) ? questions : [])
@@ -77,6 +82,7 @@ const LearningManagementSystem: React.FC = () => {
             type: "mcq",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             options,
             correctAnswer,
             correctAnswers,
@@ -124,6 +130,7 @@ const LearningManagementSystem: React.FC = () => {
             type: "fillblank",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             questionTemplate,
             blanks,
             options: fibItems.map((blank: any) => blank.answer ?? ""),
@@ -150,6 +157,7 @@ const LearningManagementSystem: React.FC = () => {
             type: "dragdrop",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             draggableItems,
             dropZones,
             isAttempted: Boolean(question.isAttempted),

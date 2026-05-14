@@ -12,6 +12,7 @@ import ViewReportDialog, {
   ReportData,
   ReportQuestionItem,
 } from "@/components/Questions/ViewReports/ViewReportDialog";
+import { getPublicUrlForKey } from "@/utils/s3Upload";
 
 type PracticeExamBoard = {
   correct?: number | null;
@@ -74,6 +75,12 @@ const QuestionsView = () => {
  
 
   const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
+    const resolveQuestionImageUrl = (value: unknown): string | undefined => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return undefined;
+      return /^https?:\/\//i.test(raw) ? raw : getPublicUrlForKey(raw);
+    };
+
     return (Array.isArray(rawQuestions) ? rawQuestions : [])
       .map((question) => {
         const type = String(question.type ?? "").toUpperCase();
@@ -102,6 +109,7 @@ const QuestionsView = () => {
             type: "mcq",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             options,
             correctAnswer,
             correctAnswers,
@@ -165,6 +173,7 @@ const QuestionsView = () => {
             type: "fillblank",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             questionTemplate,
             blanks,
             options: fibItems.map((blank: any) => blank.answer ?? ""),
@@ -191,6 +200,7 @@ const QuestionsView = () => {
             type: "dragdrop",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             draggableItems,
             dropZones,
             isAttempted: Boolean(question.isAttempted),

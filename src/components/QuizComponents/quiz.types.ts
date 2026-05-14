@@ -3,6 +3,7 @@ export interface BaseQuestion {
   question: string;
   qExplanation: string;
   isAttempted?: boolean;
+  imageUrl?: string;
 }
 
 export interface MCQQuestion extends BaseQuestion {

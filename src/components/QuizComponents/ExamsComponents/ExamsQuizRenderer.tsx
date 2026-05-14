@@ -7,12 +7,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowLeft, ArrowRight, Check, InfoCircle } from "iconoir-react";
+import { ImageIcon } from "lucide-react";
 import api from "@/lib/axios";
 
 import { ExamsDragDropRenderer } from "./ExamsDragDropRenderer";
 import { ExamsFillBlankRenderer } from "./ExamsFillBlankRenderer";
 import { ExamsMCQRenderer } from "./ExamsMCQRenderer";
 import { ReportProblemDialog } from "@/components/exams/ReportProblemDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   getMaxSelection,
   isMCQSelectionCorrect,
@@ -60,6 +62,7 @@ export const ExamsQuizRenderer = ({
   const [fillBlankAnswers, setFillBlankAnswers] = useState<
     Record<number, Record<number, string>>
   >({});
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
@@ -67,6 +70,10 @@ export const ExamsQuizRenderer = ({
   useEffect(() => {
     onQuestionChange?.(currentQuestionIndex);
   }, [currentQuestionIndex, onQuestionChange]);
+
+  useEffect(() => {
+    setIsImageOpen(false);
+  }, [currentQuestionIndex]);
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
@@ -394,12 +401,39 @@ export const ExamsQuizRenderer = ({
           </Button>
         )}
       </div>
+      {question.imageUrl ? (
+        <div className="mb-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-[10px] h-9 !py-1 !px-3"
+            onClick={() => setIsImageOpen(true)}
+          >
+            <ImageIcon className="w-4 h-4 mr-2" />
+            View Image
+          </Button>
+        </div>
+      ) : null}
       <ReportProblemDialog 
        open={reportProblemDialog}
         onClose={() => setReportProblemExitDialog(false)}
         examId={examId}
         courseId={courseId}
       />
+      <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Question Image</DialogTitle>
+          </DialogHeader>
+          {question.imageUrl ? (
+            <img
+              src={question.imageUrl}
+              alt="Question"
+              className="w-full max-h-[75vh] object-contain rounded-lg"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

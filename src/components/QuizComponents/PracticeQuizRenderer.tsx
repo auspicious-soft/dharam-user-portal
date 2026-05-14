@@ -9,7 +9,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, ArrowRight, InfoCircle } from "iconoir-react";
+import { ImageIcon } from "lucide-react";
 import api from "@/lib/axios";
 import {
   formatCorrectAnswerLabel,
@@ -52,6 +54,7 @@ export const PracticeQuizRenderer = ({
     Record<number, Record<number, string>>
   >({});
   const [results, setResults] = useState<Record<number, boolean>>({});
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
@@ -59,6 +62,10 @@ export const PracticeQuizRenderer = ({
   useEffect(() => {
     onQuestionChange?.(currentQuestionIndex);
   }, [currentQuestionIndex, onQuestionChange]);
+
+  useEffect(() => {
+    setIsImageOpen(false);
+  }, [currentQuestionIndex]);
 
   // -------------------------
   // HELPERS
@@ -235,6 +242,19 @@ export const PracticeQuizRenderer = ({
         </Tooltip>
         </div>
       </div>
+      {question.imageUrl ? (
+        <div className="mb-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-[10px] h-9 !py-1 !px-3"
+            onClick={() => setIsImageOpen(true)}
+          >
+            <ImageIcon className="w-4 h-4 mr-2" />
+            View Image
+          </Button>
+        </div>
+      ) : null}
 
       {question.type === "mcq" && (
         <div className="mb-4">
@@ -426,6 +446,21 @@ export const PracticeQuizRenderer = ({
           </p>
         </div>
       )}
+
+      <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Question Image</DialogTitle>
+          </DialogHeader>
+          {question.imageUrl ? (
+            <img
+              src={question.imageUrl}
+              alt="Question"
+              className="w-full max-h-[75vh] object-contain rounded-lg"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

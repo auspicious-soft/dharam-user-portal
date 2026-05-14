@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { QuizQuestion } from "./quiz.types";
 import { MCQRenderer } from "./MCQRenderer";
 import { DragDropRenderer } from "./DragDropRenderer";
 import { FillBlankRenderer } from "./FillBlankRenderer";
+import { ImageIcon } from "lucide-react";
 import api from "@/lib/axios";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   formatCorrectAnswerLabel,
   getCorrectAnswerIds,
@@ -36,11 +38,16 @@ export const QuizRenderer = ({
   const [dragDropAnswers, setDragDropAnswers] = useState<Record<number, Record<string, string>>>({});
   const [fillBlankAnswers, setFillBlankAnswers] = useState<Record<number, Record<number, string>>>({});
   const [results, setResults] = useState<Record<number, boolean>>({}); // Track correct/incorrect
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
   const isLocked = Boolean(question?.isAttempted);
   const showResultState = showResult || isLocked;
+
+  useEffect(() => {
+    setIsImageOpen(false);
+  }, [currentQuestionIndex]);
 
   const isAnswered = () => {
     if (isLocked) return true;
@@ -197,6 +204,19 @@ export const QuizRenderer = ({
       <p className="justify-start text-paragraph text-base leading-6">
         {question.question}
       </p>
+      {question.imageUrl ? (
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-[10px] h-9 !py-1 !px-3"
+            onClick={() => setIsImageOpen(true)}
+          >
+            <ImageIcon className="w-4 h-4 mr-2" />
+            View Image
+          </Button>
+        </div>
+      ) : null}
 
       {question.type === "mcq" && (
         <div className="mb-4">
@@ -327,6 +347,21 @@ export const QuizRenderer = ({
           </p>
         </div>
       )}
+
+      <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Question Image</DialogTitle>
+          </DialogHeader>
+          {question.imageUrl ? (
+            <img
+              src={question.imageUrl}
+              alt="Question"
+              className="w-full max-h-[75vh] object-contain rounded-lg"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

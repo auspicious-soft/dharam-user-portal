@@ -4,6 +4,7 @@ import { Step } from "./domainQuiz.types";
 import api from "@/lib/axios";
 import { QuizRenderer } from "@/components/QuizComponents/QuizRenderer";
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
+import { getPublicUrlForKey } from "@/utils/s3Upload";
 
 interface StepRendererProps {
   step: Step;
@@ -60,6 +61,12 @@ const DomainTaskQuestions = ({ taskId }: { taskId: string }) => {
   const [allAttempted, setAllAttempted] = useState(false);
 
   const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
+    const resolveQuestionImageUrl = (value: unknown): string | undefined => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return undefined;
+      return /^https?:\/\//i.test(raw) ? raw : getPublicUrlForKey(raw);
+    };
+
     return (Array.isArray(rawQuestions) ? rawQuestions : [])
       .map((question) => {
         const type = String(question.type ?? "").toUpperCase();
@@ -88,6 +95,7 @@ const DomainTaskQuestions = ({ taskId }: { taskId: string }) => {
             type: "mcq",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             options,
             correctAnswer,
             correctAnswers,
@@ -135,6 +143,7 @@ const DomainTaskQuestions = ({ taskId }: { taskId: string }) => {
             type: "fillblank",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             questionTemplate,
             blanks,
             options: fibItems.map((blank: any) => blank.answer ?? ""),
@@ -161,6 +170,7 @@ const DomainTaskQuestions = ({ taskId }: { taskId: string }) => {
             type: "dragdrop",
             question: question.question ?? "",
             qExplanation: question.explaination ?? "",
+            imageUrl: resolveQuestionImageUrl(question.image),
             draggableItems,
             dropZones,
             isAttempted: Boolean(question.isAttempted),

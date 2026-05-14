@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { getPublicUrlForKey } from "@/utils/s3Upload";
 
 type MockExamResultResponse = {
   reportId?: string;
@@ -49,6 +50,12 @@ type ExamReportQuestionsResponse = {
 };
 
 const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
+  const resolveQuestionImageUrl = (value: unknown): string | undefined => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return undefined;
+    return /^https?:\/\//i.test(raw) ? raw : getPublicUrlForKey(raw);
+  };
+
   return (Array.isArray(rawQuestions) ? rawQuestions : [])
     .map((question) => {
       const type = String(question.type ?? "").toUpperCase();
@@ -77,6 +84,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           type: "mcq",
           question: question.question ?? "",
           qExplanation: question.explaination ?? "",
+          imageUrl: resolveQuestionImageUrl(question.image),
           options,
           correctAnswer,
           correctAnswers,
@@ -153,6 +161,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           type: "fillblank",
           question: question.question ?? "",
           qExplanation: question.explaination ?? "",
+          imageUrl: resolveQuestionImageUrl(question.image),
           questionTemplate,
           blanks,
           options: fibItems.map((blank: any) => blank.answer ?? ""),
@@ -178,6 +187,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           type: "dragdrop",
           question: question.question ?? "",
           qExplanation: question.explaination ?? "",
+          imageUrl: resolveQuestionImageUrl(question.image),
           draggableItems,
           dropZones,
         } as QuizQuestion;
