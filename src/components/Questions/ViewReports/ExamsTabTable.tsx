@@ -11,6 +11,12 @@ import ViewReportDialog, {
   ReportQuestionItem,
 } from "./ViewReportDialog";
 
+const isCompletedAttempt = (item: ExamsItem) => {
+  const current = String(item.currentStatus ?? "").toUpperCase();
+  const status = String(item.status ?? "").toUpperCase();
+  return current === "COMPLETED" || status === "COMPLETED" || status === "COMPLETE";
+};
+
 type Props = {
   data: ExamsItem[];
   columns: ColumnDef<ExamsItem>[];
@@ -47,7 +53,7 @@ const ExamsTable = ({
         return {
           ...col,
           cell: (context: CellContext<ExamsItem, unknown>) =>
-            context.row.original.status === "Completed" ? (
+            isCompletedAttempt(context.row.original) ? (
                 <Button
                   onClick={() => {
                     onViewReport?.(context.row.original);

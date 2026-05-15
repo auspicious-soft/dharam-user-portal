@@ -4,8 +4,9 @@ export type ExamsItem = {
   date: string;          // DD-MM-YYYY
   timeTaken: string;     // HH:MM:SS
   attemptNumber: number;
-  score: string;         // "40% (20/60)"
-  status: "Completed" | "Unfinished";
+  score: string;         // e.g. "40%"
+  status: string;        // e.g. "ACTIVE"
+  currentStatus?: string; // e.g. "COMPLETED"
 };
 export const examsData: ExamsItem[] = [
   {

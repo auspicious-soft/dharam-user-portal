@@ -300,7 +300,8 @@ const ViewReports = () => {
               timeTaken: item.timeTaken ?? "-",
               attemptNumber: item.attemptNumber ?? 0,
               score: item.scoreText ?? "-",
-              status: item.status ?? "Unfinished",
+              status: item.status ?? "-",
+              currentStatus: item.status ?? "-",
             })
           );
           setTableData(mappedPractice);
@@ -311,9 +312,6 @@ const ViewReports = () => {
         const mockResults = data as MockExamResult[];
 
         const mapped: ExamsItem[] = mockResults.map((item) => {
-          const status =
-            item.currentStatus === "COMPLETED" ? "Completed" : "Unfinished";
-
           const scoreBreakDown = item.scoreBreakDown ?? {};
           const domains = Object.entries(scoreBreakDown).map(
             ([name, values]) => ({
@@ -339,8 +337,9 @@ const ViewReports = () => {
             date: formatDate(item.createdAt ?? null),
             timeTaken: item.timeTaken ?? "-",
             attemptNumber: item.attemptNumber ?? 0,
-            score: item.score ?? "-",
-            status,
+            score: `${Number(item.overallPercentage ?? 0)}%`,
+            status: item.status ?? "-",
+            currentStatus: item.currentStatus ?? "-",
           };
         });
 
