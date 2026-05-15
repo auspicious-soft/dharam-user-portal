@@ -315,10 +315,7 @@ const DayQuestion = () => {
               </h2>
               <p className="text-paragraph ">
                 You’ve already completed the question of the day. Next question
-                will unlock in{" "}
-                {new Date(
-                  new Date().setDate(new Date().getDate() + 1),
-                ).toLocaleDateString()}
+                will unlock tomorrow.
               </p>
               <Button
                           className="h-[44px] flex items-center gap-1 md:gap-2 w-full mt-6"
@@ -347,11 +344,30 @@ const DayQuestion = () => {
   if (!question) {
     return (
       <div className="flex flex-col gap-5">
-        <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-Black_light  mb-2 capitalize">
-          Question of the day
-        </h2>
-        <div className="p-6 text-center text-gray-500">
-          No question available right now.
+        <div className=" inline-flex flex-col justify-start min-h-[77vh]">
+          <div className="self-stretch p-4 md:p-[30px] bg-[#f0f8ff] rounded-[20px] inline-flex flex-col justify-start gap-2.5 max-w-xl w-full m-auto">
+            <div className="p-4 bg-green-50 rounded-full">
+              <img
+                src={QuestionDayIcon}
+                className="max-w-[80px] md:max-w-[100px] m-auto"
+              />
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-Black_light mb-2">
+                Question Of The Day
+              </h2>
+              <p className="text-paragraph">
+                You&apos;ve already completed the question of the day. Next
+                question will unlock tomorrow.
+              </p>
+              <Button
+                className="h-[44px] flex items-center gap-1 md:gap-2 w-full mt-6"
+                onClick={() => navigate("/")}
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
