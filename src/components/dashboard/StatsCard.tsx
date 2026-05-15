@@ -126,11 +126,13 @@ const StatsCard = ({
                 ? isExamDay
                   ? "It's your exam day"
                   : (daysLeftForScheduledExam ?? 0)
-                : "--"}
+                : "No exam scheduled"}
             </div>
-            <div className="justify-start text-Primary-Font text-xs font-medium ">
-              Days Until Exam
-            </div>
+            {hasExamDate && !isExamDay ? (
+              <div className="justify-start text-Primary-Font text-xs font-medium ">
+                Days Until Exam
+              </div>
+            ) : null}
             {hasExamDate ? (
               <div className="text-xs text-Primary-Font">
                 Exam Date: {formattedExamDate || "N/A"}
