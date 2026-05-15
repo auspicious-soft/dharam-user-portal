@@ -94,6 +94,35 @@ const ApplicationSupport = () => {
               ),
             } as Module;
           });
+
+        const areAllModulesInactive =
+          mapped.length > 0 &&
+          mapped.every(
+            (module) =>
+              String(module.status ?? "ACTIVE").toUpperCase() === "INACTIVE",
+          );
+
+        if (areAllModulesInactive) {
+          let hasUnlockedPreviewItem = false;
+          const mappedWithPreview = mapped.map((module) => ({
+            ...module,
+            items: module.items.map((item) => {
+              const hasAccessibleLink = Boolean(item.videoUrl || item.pdfUrl);
+              if (!hasUnlockedPreviewItem && hasAccessibleLink) {
+                hasUnlockedPreviewItem = true;
+                return {
+                  ...item,
+                  isLocked: false,
+                  allowWhenModuleLocked: true,
+                };
+              }
+              return item;
+            }),
+          }));
+          setModules(mappedWithPreview);
+          return;
+        }
+
         setModules(mapped);
       } catch (error) {
         // eslint-disable-next-line no-console

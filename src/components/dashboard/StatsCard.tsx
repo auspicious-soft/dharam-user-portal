@@ -7,7 +7,7 @@ import DateInput from "../reusableComponents/DateInput";
 type DashboardStats = {
   inProgress?: number;
   completed?: number;
-  timeSpent?: number;
+  timeSpent?: number | string;
   mockTestAvgScore?: number;
 };
 
@@ -68,7 +68,7 @@ const StatsCard = ({
       },
       {
         id: 3,
-        value: `${Number(stats?.timeSpent ?? 0)} hr`,
+        value: stats?.timeSpent ?? "0h 0m",
         label: "Time Spent Learning",
         icon: <Timer width={14} height={14} />,
       },
@@ -84,6 +84,7 @@ const StatsCard = ({
 
   const hasExamDate = Boolean(examDate);
   const formattedExamDate = formatDateForDisplay(examDate);
+  const isExamDay = hasExamDate && Number(daysLeftForScheduledExam ?? 0) === 0;
 
   const handleScheduleExam = async () => {
     if (!selectedDate || !onScheduleExam) {
@@ -120,8 +121,12 @@ const StatsCard = ({
             </div>
           ))}
           <div className="w-full col-span-2 md:col-auto md:w-auto min-w-52 px-[19px] py-2.5 rounded-lg outline outline-1 outline-offset-[-1px] outline-primary_blue inline-flex flex-col justify-start items-center gap-2.5 text-white-custom">
-            <div className="text-[#10375c] text-2xl md:text-3xl font-bold ">
-              {hasExamDate ? (daysLeftForScheduledExam ?? 0) : "--"}
+            <div className="text-[#10375c] text-2xl md:text-3xl font-bold text-center">
+              {hasExamDate
+                ? isExamDay
+                  ? "It's your exam day"
+                  : (daysLeftForScheduledExam ?? 0)
+                : "--"}
             </div>
             <div className="justify-start text-Primary-Font text-xs font-medium ">
               Days Until Exam

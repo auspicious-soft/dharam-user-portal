@@ -8,6 +8,7 @@ export interface ContentItem {
   pdfUrl?: string;
   videoUrl?: string;
   isLocked?: boolean;
+  allowWhenModuleLocked?: boolean;
 }
 
 export interface Module {

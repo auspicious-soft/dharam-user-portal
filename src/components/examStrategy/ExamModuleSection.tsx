@@ -81,12 +81,16 @@ export const ExamModuleSection = ({
         >
           {module.items.map((item) => {
             const isSelected = selectedItemId === item.id;
-            const isLocked = isModuleLocked || Boolean(item.isLocked);
+            const isLocked =
+              (isModuleLocked || Boolean(item.isLocked)) &&
+              !item.allowWhenModuleLocked;
             return (
               <div
                 key={item.id}
                 className={`flex items-center justify-between border-b border-[#dce5ed] py-2 last:border-b-0 px-2 rounded transition-colors ${
                   isLocked ? "cursor-not-allowed" : "cursor-pointer"
+                } ${
+                  !isLocked && isModuleLocked ? "bg-light-blue" : ""
                 }`}
                 onClick={() => {
                   if (!isLocked) {

@@ -44,7 +44,7 @@ type HomeApiData = {
   stats?: {
     inProgress?: number;
     completed?: number;
-    timeSpent?: number;
+    timeSpent?: number | string;
     mockTestAvgScore?: number;
   };
   daysLeftForScheduledExam?: number | null;

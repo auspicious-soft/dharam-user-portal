@@ -9,6 +9,7 @@ import {
   uploadFileToS3,
 } from "@/utils/s3Upload";
 import { toast } from "sonner";
+import { Eye, EyeClosed } from "iconoir-react";
 import {
   COUNTRY_CODE_FALLBACK_OPTIONS,
   fetchCountryCodeOptions,
@@ -31,6 +32,9 @@ export default function Profile() {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const fetchProfileStats = async (id: string) => {
@@ -291,28 +295,72 @@ export default function Profile() {
             Change Password
           </h3>
           <div className="grid grid-cols-1 gap-4">
-            <Input
-              type="password"
-              id="old_password"
-              placeholder="Old Password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-            />
-            <Input
-              type="password"
-              id="new_password"
-              placeholder="New Password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-
-            <Input
-              type="password"
-              id="confirm_password"
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                type={showOldPassword ? "text" : "password"}
+                id="old_password"
+                className="pr-10"
+                placeholder="Old Password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={showOldPassword ? "Hide old password" : "Show old password"}
+                onClick={() => setShowOldPassword((current) => !current)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-input-888 hover:text-dark-bg"
+              >
+                {showOldPassword ? (
+                  <EyeClosed className="w-4 h-4" strokeWidth={0.9} />
+                ) : (
+                  <Eye className="w-4 h-4" strokeWidth={0.9} />
+                )}
+              </button>
+            </div>
+            <div className="relative">
+              <Input
+                type={showNewPassword ? "text" : "password"}
+                id="new_password"
+                className="pr-10"
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                onClick={() => setShowNewPassword((current) => !current)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-input-888 hover:text-dark-bg"
+              >
+                {showNewPassword ? (
+                  <EyeClosed className="w-4 h-4" strokeWidth={0.9} />
+                ) : (
+                  <Eye className="w-4 h-4" strokeWidth={0.9} />
+                )}
+              </button>
+            </div>
+            <div className="relative">
+              <Input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirm_password"
+                className="pr-10"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                onClick={() => setShowConfirmPassword((current) => !current)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-input-888 hover:text-dark-bg"
+              >
+                {showConfirmPassword ? (
+                  <EyeClosed className="w-4 h-4" strokeWidth={0.9} />
+                ) : (
+                  <Eye className="w-4 h-4" strokeWidth={0.9} />
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-end mt-4">

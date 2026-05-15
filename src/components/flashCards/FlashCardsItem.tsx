@@ -76,7 +76,7 @@ const FlashCardsItem = ({
     if (isLocked) {
       return (
         <h4 className="w-full max-h-full overflow-y-auto break-words whitespace-pre-wrap text-center text-sm font-medium leading-6 text-Desc-464646">
-          Premium content
+          
         </h4>
       );
     }
