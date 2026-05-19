@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 type FlashCardItemProps = {
   frontText: string;
@@ -20,14 +21,15 @@ const FlashCardsItem = ({
   onPurchase,
 }: FlashCardItemProps) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const hasFrontText = Boolean(frontText.trim());
   const hasBackText = Boolean(backText.trim());
   const hasFrontImage = Boolean(frontImage);
   const hasBackImage = Boolean(backImage);
-  const openImageInNewTab = (event: MouseEvent, image?: string) => {
+  const openImagePreview = (event: MouseEvent, image?: string) => {
     event.stopPropagation();
     if (!image || isLocked) return;
-    window.open(image, "_blank", "noopener,noreferrer");
+    setPreviewImage(image);
   };
   const handleFlip = (event: MouseEvent) => {
     event.stopPropagation();
@@ -43,16 +45,16 @@ const FlashCardsItem = ({
       <img
         src={image}
         alt="Flash card"
-        className={`w-full h-full ${className}`}
+        className={`w-full h-full ${className} object-contain`}
         loading="lazy"
       />
       <div className="absolute inset-0 bg-black/45 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
         <button
           type="button"
           className="px-3 py-1 rounded-full text-xs font-semibold bg-white text-Black_light hover:bg-slate-100"
-          onClick={(event) => openImageInNewTab(event, image)}
+          onClick={(event) => openImagePreview(event, image)}
         >
-          See
+          See Image
         </button>
         <button
           type="button"
@@ -110,69 +112,95 @@ const FlashCardsItem = ({
   };
 
   return (
-    <div
-      onClick={() => {
-        if (!isLocked) {
-          setIsFlipped((prev) => !prev);
-        }
-      }}
-      className={`relative min-h-56 ${isLocked ? "" : "cursor-pointer"}`}
-    >
-      <div className="w-full h-full [perspective:1000px]">
-        <div
-          className={`relative w-full h-full transition-transform duration-500 ${
-            isLocked ? "opacity-80" : ""
-          }`}
-          style={{
-            transformStyle: "preserve-3d",
-            transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-          }}
-        >
+    <>
+      <div
+        onClick={() => {
+          if (!isLocked) {
+            setIsFlipped((prev) => !prev);
+          }
+        }}
+        className={`relative min-h-56 ${isLocked ? "" : "cursor-pointer"}`}
+      >
+        <div className="w-full h-full [perspective:1000px]">
           <div
-            className="absolute inset-0 flex items-center justify-center p-4 bg-light-blue rounded-[20px] outline outline-1 outline-[#556378]/40 hover:shadow-md transition-shadow overflow-hidden"
-            style={{ backfaceVisibility: "hidden" }}
-          >
-            {renderFaceContent(
-              frontText,
-              frontImage,
-              hasBackText || hasBackImage
-                ? "Flip to see answer"
-                : "No front content available"
-            )}
-          </div>
-          <div
-            className="absolute inset-0 flex items-center justify-center p-4 bg-light-blue rounded-[20px] outline outline-1 outline-[#556378]/40 hover:shadow-md transition-shadow overflow-hidden"
+            className={`relative w-full h-full transition-transform duration-500 ${
+              isLocked ? "opacity-80" : ""
+            }`}
             style={{
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
+              transformStyle: "preserve-3d",
+              transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
             }}
           >
-            {renderFaceContent(
-              backText,
-              backImage,
-              hasFrontText || hasFrontImage
-                ? "Flip to see front"
-                : "No back content available"
-            )}
+            <div
+              className="absolute inset-0 flex items-center justify-center p-4 bg-light-blue rounded-[20px] outline outline-1 outline-[#556378]/40 hover:shadow-md transition-shadow overflow-hidden"
+              style={{ backfaceVisibility: "hidden" }}
+            >
+              {renderFaceContent(
+                frontText,
+                frontImage,
+                hasBackText || hasBackImage
+                  ? "Flip to see answer"
+                  : "No front content available"
+              )}
+            </div>
+            <div
+              className="absolute inset-0 flex items-center justify-center p-4 bg-light-blue rounded-[20px] outline outline-1 outline-[#556378]/40 hover:shadow-md transition-shadow overflow-hidden"
+              style={{
+                backfaceVisibility: "hidden",
+                transform: "rotateY(180deg)",
+              }}
+            >
+              {renderFaceContent(
+                backText,
+                backImage,
+                hasFrontText || hasFrontImage
+                  ? "Flip to see front"
+                  : "No back content available"
+              )}
+            </div>
           </div>
         </div>
+        {isLocked ? (
+          <div className="absolute inset-0 rounded-[20px] bg-white/25 flex items-center justify-center">
+            <button
+              type="button"
+              className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-[#ff6402] to-[#fdb22b] disabled:opacity-70"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPurchase?.();
+              }}
+              disabled={isPurchasing}
+            >
+              {isPurchasing ? "Processing..." : "Premium"}
+            </button>
+          </div>
+        ) : null}
       </div>
-      {isLocked ? (
-        <div className="absolute inset-0 rounded-[20px] bg-white/25 flex items-center justify-center">
-          <button
-            type="button"
-            className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-[#ff6402] to-[#fdb22b] disabled:opacity-70"
-            onClick={(event) => {
-              event.stopPropagation();
-              onPurchase?.();
-            }}
-            disabled={isPurchasing}
-          >
-            {isPurchasing ? "Processing..." : "Premium"}
-          </button>
-        </div>
-      ) : null}
-    </div>
+
+      <Dialog
+        open={Boolean(previewImage)}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setPreviewImage(null);
+          }
+        }}
+      >
+        <DialogContent className="w-[96vw] max-w-4xl p-4 md:p-6">
+          <DialogTitle className="pr-8 text-base md:text-lg">
+            Image Preview
+          </DialogTitle>
+          {previewImage ? (
+            <div className="max-h-[75vh] overflow-auto rounded-lg bg-[#EDF4FD] p-3 md:p-4 flex items-center justify-center">
+              <img
+                src={previewImage}
+                alt="Flash card preview"
+                className="max-h-[68vh] w-auto max-w-full object-contain rounded-lg"
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
