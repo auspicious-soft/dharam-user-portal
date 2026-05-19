@@ -135,16 +135,15 @@ const RatingsReviewsDialog: React.FC<RatingsReviewsDialogProps> = ({
       title: form.title.trim(),
       feedback: form.feedback.trim(),
       stars: form.stars,
+      source:"WEB"
     };
 
     if (
       !payload.courseId ||
-      !payload.company ||
-      !payload.title ||
       !payload.feedback ||
       !payload.stars
     ) {
-      toast.error("All fields are required.");
+      toast.error("Course, feedback and stars are required.");
       return;
     }
 
@@ -219,12 +218,12 @@ const RatingsReviewsDialog: React.FC<RatingsReviewsDialogProps> = ({
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Input
-              placeholder="Company"
+              placeholder="Company (optional)"
               value={form.company}
               onChange={(event) => updateField("company", event.target.value)}
             />
             <Input
-              placeholder="Title"
+              placeholder="Title (optional)"
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
             />

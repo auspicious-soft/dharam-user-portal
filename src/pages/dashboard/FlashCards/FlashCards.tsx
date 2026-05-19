@@ -71,7 +71,8 @@ const FlashCards = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [cards, setCards] = useState<FlashCard[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  const [isCardsLoading, setIsCardsLoading] = useState(false);
   const [purchasingFlashCardId, setPurchasingFlashCardId] = useState<
     string | null
   >(null);
@@ -92,6 +93,7 @@ const FlashCards = () => {
       localStorage.getItem("selectedCourseId")
 
     const fetchCategories = async () => {
+      setIsCategoriesLoading(true);
       try {
         const response = await api.get("/user/flashcard-categories", {
           params: { courseId },
@@ -123,6 +125,8 @@ const FlashCards = () => {
       } catch (error) {
         console.error("Failed to fetch flashcard categories", error);
         setCategories([]);
+      } finally {
+        setIsCategoriesLoading(false);
       }
     };
 
@@ -130,10 +134,14 @@ const FlashCards = () => {
   }, []);
 
   useEffect(() => {
-    if (!selectedCategoryId) return;
+    if (!selectedCategoryId) {
+      setIsCardsLoading(false);
+      setCards([]);
+      return;
+    }
 
     let isActive = true;
-    setIsLoading(true);
+    setIsCardsLoading(true);
 
     const timer = setTimeout(async () => {
       try {
@@ -174,7 +182,7 @@ const FlashCards = () => {
         }
       } finally {
         if (isActive) {
-          setIsLoading(false);
+          setIsCardsLoading(false);
         }
       }
     }, 300);
@@ -250,7 +258,10 @@ const FlashCards = () => {
 
       <div className="flex justify-between items-center flex-wrap gap-3 mt-3">
         <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-          <SelectTrigger className="max-w-72 py-[11px]">
+          <SelectTrigger
+            className="max-w-72 py-[11px]"
+            disabled={isCategoriesLoading || categories.length === 0}
+          >
             <SelectValue placeholder="Select A Category" />
           </SelectTrigger>
           <SelectContent> 
@@ -270,7 +281,13 @@ const FlashCards = () => {
         </div>  
       </div>
 
-      {isLoading ? (
+      {isCategoriesLoading ? (
+        <div className="p-4 text-sm text-paragraph">Loading categories...</div>
+      ) : categories.length === 0 ? (
+        <div className="p-4 text-sm text-paragraph">
+          No flashcard categories available.
+        </div>
+      ) : isCardsLoading ? (
         <div className="p-4 text-sm text-paragraph">Loading flashcards...</div>
       ) : cards.length ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -41,8 +41,8 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const [pdfWidth, setPdfWidth] = useState<number | null>(null);
   const pdfDevicePixelRatio =
-    typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2.5) : 1;
-  const pdfRenderMode: "canvas" | "svg" = "svg";
+    typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+  const pdfRenderMode: "canvas" | "svg" = "canvas";
   const isDirectVideoUrl = (url?: string) =>
     Boolean(url && /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url));
   const contentResetKey = content.type === "module" ? content.title : content.id;
@@ -239,7 +239,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
                   <Page
                     pageNumber={currentSlideIndex}
                     renderMode={pdfRenderMode}
-                    renderTextLayer={pdfRenderMode === "canvas"}
+                    renderTextLayer={true}
                     renderAnnotationLayer={true}
                     width={pdfWidth ?? undefined}
                     devicePixelRatio={pdfDevicePixelRatio}

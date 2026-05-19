@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle, GraduationCap, Timer } from "iconoir-react";
 import { BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,22 @@ const formatDateForDisplay = (dateValue?: string | null) => {
   });
 };
 
+const formatDateForInput = (dateValue?: string | null) => {
+  if (!dateValue) {
+    return "";
+  }
+
+  const parsedDate = new Date(dateValue);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "";
+  }
+
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const StatsCard = ({
   stats,
   daysLeftForScheduledExam,
@@ -84,7 +100,13 @@ const StatsCard = ({
 
   const hasExamDate = Boolean(examDate);
   const formattedExamDate = formatDateForDisplay(examDate);
+  const inputExamDate = formatDateForInput(examDate);
   const isExamDay = hasExamDate && Number(daysLeftForScheduledExam ?? 0) === 0;
+  const isDateUnchanged = hasExamDate && selectedDate === inputExamDate;
+
+  useEffect(() => {
+    setSelectedDate(inputExamDate);
+  }, [inputExamDate]);
 
   const handleScheduleExam = async () => {
     if (!selectedDate || !onScheduleExam) {
@@ -120,7 +142,7 @@ const StatsCard = ({
               </div>
             </div>
           ))}
-          <div className="w-full col-span-2 md:col-auto md:w-auto min-w-52 px-[19px] py-2.5 rounded-lg outline outline-1 outline-offset-[-1px] outline-primary_blue inline-flex flex-col justify-start items-center gap-2.5 text-white-custom">
+          <div className="w-full col-span-2 md:col-auto md:w-auto min-w-60 px-[19px] py-2.5 rounded-lg outline outline-1 outline-offset-[-1px] outline-primary_blue inline-flex flex-col justify-start items-center gap-2.5 text-white-custom">
             <div className="text-[#10375c] text-2xl md:text-3xl font-bold text-center">
               {hasExamDate
                 ? isExamDay
@@ -134,8 +156,24 @@ const StatsCard = ({
               </div>
             ) : null}
             {hasExamDate ? (
-              <div className="text-xs text-Primary-Font">
-                Exam Date: {formattedExamDate || "N/A"}
+              <div className="flex flex-col gap-2 items-center">
+                <div className="text-xs text-Primary-Font">
+                  Exam Date: {formattedExamDate || "N/A"}
+                </div>
+                <div className="flex items-center gap-2">
+                  <DateInput
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                    className="bg-primary_blue text-white py-2 px-4 border-0 text-xs rounded"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleScheduleExam}
+                    disabled={!selectedDate || isSchedulingExam || isDateUnchanged}
+                  >
+                    {isSchedulingExam ? "Updating..." : "Update"}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2">

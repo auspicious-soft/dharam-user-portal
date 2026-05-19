@@ -30,7 +30,12 @@ type Section = {
   items: BulletItem[] | AccordionItem[] | CardItem[] | LinkItem[];
 };
 
-const SectionRenderer = ({ section }: { section: Section }) => {
+type SectionRendererProps = {
+  section: Section;
+  onLinkClick?: (item: LinkItem) => void;
+};
+
+const SectionRenderer = ({ section, onLinkClick }: SectionRendererProps) => {
   return (
     <section className="flex flex-col gap-4">
       {/* Dynamic Section Title */}
@@ -72,18 +77,17 @@ const SectionRenderer = ({ section }: { section: Section }) => {
       {section.type === "links" && (
         <div className="flex flex-col gap-2">
           {(section.items as LinkItem[]).map((item, i) => (
-            <a
+            <button
               key={i}
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-[#F0F8FF                                                    ] rounded-lg px-3 py-2 flex items-center gap-3"
+              type="button"
+              onClick={() => onLinkClick?.(item)}
+              className="w-full bg-[#F0F8FF] rounded-lg px-3 py-2 flex items-center gap-3 text-left"
             >
                 <img src={abouticon} alt="File icon" className="h-10 w-10" />
               <span className="text-paragraph text-sm font-medium">
                 {item.label}
               </span>
-            </a>
+            </button>
           ))}
         </div>
       )}

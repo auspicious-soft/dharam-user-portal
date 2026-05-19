@@ -1,4 +1,4 @@
-import { AddressIcon, CallIcon, EmailIcon } from "@/utils/svgicons";
+import { CallIcon, EmailIcon } from "@/utils/svgicons";
 import React, { useEffect, useState } from "react";
 import {
   Select,
@@ -169,7 +169,7 @@ const ContactUs = () => {
             </p>
           </div>
           <div className="self-stretch inline-flex flex-col justify-start items-start gap-4">
-            <div className="self-stretch inline-flex justify-start items-start gap-4">
+            {/* <div className="self-stretch inline-flex justify-start items-start gap-4">
               <div className="w-9 h-9 relative bg-[#4c8dea] rounded-[99px] flex items-center justify-center mt-1">
                 <AddressIcon />
               </div>
@@ -178,7 +178,7 @@ const ContactUs = () => {
                   {supportLoading ? "Loading..." : supportInfo?.address ?? "-"}
                 </p>
               </div>
-            </div>
+            </div> */}
             <div className="self-stretch inline-flex justify-start items-start gap-4">
               <div className="w-9 h-9 relative bg-[#4c8dea] rounded-[99px] flex items-center justify-center mt-1">
                 <EmailIcon />
