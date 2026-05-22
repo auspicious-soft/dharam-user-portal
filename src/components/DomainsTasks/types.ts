@@ -3,6 +3,7 @@ export interface DomainItem {
   title: string;
   taskLabel?: string;
   taskName?: string;
+  status?: string;
   isPremium?: boolean;
   isLocked?: boolean;
 }

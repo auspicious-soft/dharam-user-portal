@@ -21,6 +21,7 @@ const DomainTaskViewer = () => {
     keywords?: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTaskLocked, setIsTaskLocked] = useState(false);
 
   useEffect(() => {
     const courseId = localStorage.getItem("selectedCourseId");
@@ -31,16 +32,34 @@ const DomainTaskViewer = () => {
       try {
         const response = await api.get(`/user/domain-tasks/${courseId}`);
         const data = (response.data as { data?: any[] })?.data ?? [];
+        const domains = Array.isArray(data) ? data : [];
+        const allDomainsInactive =
+          domains.length > 0 &&
+          domains.every(
+            (domain: any) =>
+              String(domain.status ?? "ACTIVE").toUpperCase() === "INACTIVE"
+          );
 
         let foundTask: any | null = null;
         let foundDomainTitle = "";
+        let foundDomainStatus = "ACTIVE";
+        let foundTaskStatus = "ACTIVE";
+        let foundDomainIndex = -1;
+        let foundTaskIndex = -1;
 
-        (Array.isArray(data) ? data : []).some((domain: any) => {
+        domains.some((domain: any, domainIndex: number) => {
           const tasks = Array.isArray(domain.tasks) ? domain.tasks : [];
-          const match = tasks.find((t: any) => t._id === taskId);
-          if (match) {
+          const taskIndex = tasks.findIndex(
+            (task: any) => String(task._id ?? task.id ?? "") === taskId
+          );
+          if (taskIndex !== -1) {
+            const match = tasks[taskIndex];
             foundTask = match;
             foundDomainTitle = domain.domain ?? domain.title ?? "Task";
+            foundDomainStatus = String(domain.status ?? "ACTIVE").toUpperCase();
+            foundTaskStatus = String(match.status ?? "ACTIVE").toUpperCase();
+            foundDomainIndex = domainIndex;
+            foundTaskIndex = taskIndex;
             return true;
           }
           return false;
@@ -48,8 +67,20 @@ const DomainTaskViewer = () => {
 
         if (!foundTask) {
           setTask(null);
+          setIsTaskLocked(false);
           return;
         }
+
+        const isFirstTaskOfFirstDomain =
+          foundDomainIndex === 0 && foundTaskIndex === 0;
+        const isPreviewTask =
+          allDomainsInactive &&
+          isFirstTaskOfFirstDomain &&
+          foundTaskStatus === "ACTIVE";
+        const locked =
+          foundTaskStatus === "INACTIVE" ||
+          (foundDomainStatus === "INACTIVE" && !isPreviewTask);
+        setIsTaskLocked(locked);
 
         setTask({
           id: foundTask._id,
@@ -62,6 +93,7 @@ const DomainTaskViewer = () => {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to fetch domain task", error);
+        setIsTaskLocked(false);
         setTask(null);
       } finally {
         setIsLoading(false);
@@ -102,6 +134,10 @@ const DomainTaskViewer = () => {
 
   if (!task) {
     return <div className="p-6 text-center text-gray-500">No Task Yet</div>;
+  }
+
+  if (isTaskLocked) {
+    return <div className="p-6 text-center text-gray-500">This task is locked.</div>;
   }
 
   return (

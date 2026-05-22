@@ -28,7 +28,7 @@ export const DomainsModuleSection = ({
 
   const isInactiveModule =
     String(module.status ?? "ACTIVE").toUpperCase() === "INACTIVE";
-  const isModuleLocked = isInactiveModule || (module.isPremium && !userHasPremium);
+  const hasAnyUnlockedItems = module.items.some((item) => !item.isLocked);
 
   const moduleShortCode = module.title
     .split(" ")
@@ -81,22 +81,32 @@ export const DomainsModuleSection = ({
       {open && (
         <div
           className={`rounded-lg px-3 py-2 ml-2.5 ${
-            isModuleLocked ? "bg-Black_light/5" : "bg-light-blue"
+            hasAnyUnlockedItems ? "bg-light-blue" : "bg-Black_light/5"
           }`}
         >
           {module.items.map((item, index) => {
+            const isItemLocked =
+              Boolean(item.isLocked) ||
+              (Boolean(module.isPremium) && !userHasPremium && !isInactiveModule);
             const isBookmarked = bookmarkedItems.has(item.id);
 
             return (
               <div
                 key={item.id}
                 className={`flex items-center justify-between py-2 border-b last:border-b-0
-                  ${isModuleLocked ? "cursor-not-allowed " : "cursor-pointer"}
+                  ${isItemLocked ? "cursor-not-allowed " : "cursor-pointer"}
                 `}
               >
                 <Link
-                  to={`/domains-tasks/task/${item.id}`}
-                  className={`flex items-center gap-3 w-full ${isModuleLocked ? "pointer-events-none " : "cursor-pointer"}`}
+                  to={isItemLocked ? "#" : `/domains-tasks/task/${item.id}`}
+                  onClick={(e) => {
+                    if (isItemLocked) {
+                      e.preventDefault();
+                    }
+                  }}
+                  className={`flex items-center gap-3 w-full ${
+                    isItemLocked ? "pointer-events-none opacity-60" : "cursor-pointer"
+                  }`}
                 >
                   <img
                     src={DomainQuestionIcon}
@@ -113,16 +123,16 @@ export const DomainsModuleSection = ({
                   </div>
                 </Link>
 
-                 <div
+                  <div
                     className={`flex items-center gap-2
                     ${
-                      isModuleLocked
+                      isItemLocked
                         ? "cursor-not-allowed pointer-events-none"
                         : "cursor-pointer"
-                    } ${isModuleLocked ? "" : ""}`}
+                    }`}
                   >
                 <button
-                  disabled={isModuleLocked}
+                  disabled={isItemLocked}
                   onClick={(e) => {
                     e.stopPropagation();
                     onToggleBookmark(item.id);
