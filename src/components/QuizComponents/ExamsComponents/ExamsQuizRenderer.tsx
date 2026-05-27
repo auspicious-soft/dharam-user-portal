@@ -386,7 +386,7 @@ export const ExamsQuizRenderer = ({
             <Button onClick={handleComplete} 
              className="rounded-[10px] h-10 !py-1 !px-4"
              >
-              Complete Task
+              Submit
             </Button>
           )}
 

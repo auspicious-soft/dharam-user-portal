@@ -8,6 +8,17 @@ const isCompletedAttempt = (item: ExamsItem) => {
   return current === "COMPLETED" || status === "COMPLETED" || status === "COMPLETE";
 };
 
+const toCapsCase = (value?: string) => {
+  const text = String(value ?? "").trim();
+  if (!text) return "-";
+
+  return text
+    .replace(/[_-]+/g, " ")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 export const ExamsColumns: ColumnDef<ExamsItem>[] = [
   {
     accessorKey: "examName",
@@ -35,7 +46,7 @@ export const ExamsColumns: ColumnDef<ExamsItem>[] = [
     header: "Status",
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.currentStatus || row.original.status || "-"}
+        {toCapsCase(row.original.currentStatus || row.original.status)}
       </span>
     ),
   },

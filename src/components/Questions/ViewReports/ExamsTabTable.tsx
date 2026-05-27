@@ -12,8 +12,8 @@ import ViewReportDialog, {
 } from "./ViewReportDialog";
 
 const isCompletedAttempt = (item: ExamsItem) => {
-  const current = String(item.currentStatus ?? "").toUpperCase();
-  const status = String(item.status ?? "").toUpperCase();
+  const current = String(item.currentStatus ?? "");
+  const status = String(item.status ?? "");
   return current === "COMPLETED" || status === "COMPLETED" || status === "COMPLETE";
 };
 

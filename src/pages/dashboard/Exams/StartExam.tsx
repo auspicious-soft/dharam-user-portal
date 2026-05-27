@@ -433,6 +433,27 @@ const StartExam = () => {
     void handleSubmitExam();
   }, [hasQuiz, mockExamData?.examId, remainingSeconds, handleSubmitExam]);
 
+  useEffect(() => {
+    const handleCopy = (event: ClipboardEvent) => {
+      event.preventDefault();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === "c") {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener("copy", handleCopy);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("copy", handleCopy);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   return (
     <div className="h-full flex flex-col">
       <div className="grid gird-col-1 md:grid-cols-[1fr_286px] h-full">

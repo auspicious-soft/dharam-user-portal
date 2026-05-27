@@ -139,6 +139,10 @@ const ViewReportDialog = ({
 
   const reviewedQuestion = currentQuestion?.questionId;
   const reviewType = String(reviewedQuestion?.type ?? "").toUpperCase();
+  const reviewedQuestionText =
+    reviewType === "FIB"
+      ? String(reviewedQuestion?.question ?? "-").replace(/BLANK/gi, "__")
+      : reviewedQuestion?.question ?? "-";
   const evaluationLabel = !currentQuestion?.isAttempted
     ? "Not Evaluated"
     : currentQuestion?.isCorrect
@@ -173,28 +177,42 @@ const ViewReportDialog = ({
     }
 
     if (reviewType === "FIB") {
+      const fibItems = reviewedQuestion.fib ?? [];
+      const blankCount = (
+        String(reviewedQuestion.question ?? "").match(/BLANK/gi) || []
+      ).length;
       const maxFibSelection =
         typeof reviewedQuestion.maxSelection === "number" &&
         reviewedQuestion.maxSelection > 0
           ? reviewedQuestion.maxSelection
-          : Number.POSITIVE_INFINITY;
-      const visibleFibAnswers = (reviewedQuestion.fib ?? [])
-        .filter((item) => {
-          if (typeof item.correctOrder !== "number") return false;
-          return item.correctOrder > 0 && item.correctOrder <= maxFibSelection;
-        })
-        .sort((a, b) => a.correctOrder - b.correctOrder);
+          : blankCount > 0
+            ? blankCount
+            : Number.POSITIVE_INFINITY;
+
       return (
         <div className="space-y-2">
-          {visibleFibAnswers.length ? (
-            visibleFibAnswers.map((item, index) => (
+          {fibItems.length ? (
+            fibItems.map((item, index) => {
+              const normalizedOrder =
+                typeof item.correctOrder === "number" ? item.correctOrder : null;
+              const isCorrect =
+                typeof normalizedOrder === "number" &&
+                normalizedOrder >= 1 &&
+                normalizedOrder <= maxFibSelection;
+
+              return (
               <div
                 key={item._id ?? `${index}`}
-                className="rounded-lg border border-[#d9e8ff] bg-white px-3 py-2 text-sm"
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  isCorrect
+                    ? "border-[#53A32D] bg-[#EAF8E3]"
+                    : "border-[#d9e8ff] bg-white"
+                }`}
               >
-                Blank {item.correctOrder}: {item.answer ?? "-"}
+                {item.answer ?? "-"}
               </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-sm text-paragraph">No answer options found.</div>
           )}
@@ -277,7 +295,7 @@ const ViewReportDialog = ({
 
               <div className="rounded-lg border border-[#d9e8ff] bg-[#f7fbff] p-4">
                 <p className="text-base font-medium text-Black_light">
-                  {reviewedQuestion?.question ?? "-"}
+                  {reviewedQuestionText}
                 </p>
                 <div className="mt-4">{renderQuestionContent()}</div>
                 {reviewedQuestion?.explaination ? (
