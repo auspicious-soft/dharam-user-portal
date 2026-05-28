@@ -7,10 +7,7 @@ import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
 import { ExamsQuizRenderer } from "@/components/QuizComponents/ExamsComponents/ExamsQuizRenderer";
 import { RightQuestionSidebar } from "../../../components/QuizComponents/ExamsComponents/RightQuestionSidebar";
 import api from "@/lib/axios";
-import ViewReportDialog, {
-  ReportData,
-  ReportQuestionItem,
-} from "@/components/Questions/ViewReports/ViewReportDialog";
+import ViewReportDialog, { ReportData } from "@/components/Questions/ViewReports/ViewReportDialog";
 import {
   Dialog,
   DialogContent,
@@ -43,10 +40,6 @@ type MockExamResultResponse = {
       }
     >;
   };
-};
-
-type ExamReportQuestionsResponse = {
-  data?: ReportQuestionItem[];
 };
 
 const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
@@ -236,9 +229,6 @@ const StartExam = () => {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportId, setReportId] = useState("");
-  const [viewQuestionsLoading, setViewQuestionsLoading] = useState(false);
-  const [showQuestionsScreen, setShowQuestionsScreen] = useState(false);
-  const [reportQuestions, setReportQuestions] = useState<ReportQuestionItem[]>([]);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const autoSubmittedRef = useRef(false);
 
@@ -355,8 +345,6 @@ const StartExam = () => {
         remarks: payload.remarks ?? "",
         domains,
       });
-      setShowQuestionsScreen(false);
-      setReportQuestions([]);
       setReportOpen(true);
     } catch (error) {
       console.error("Failed to submit mock exam result", error);
@@ -387,26 +375,15 @@ const StartExam = () => {
     await handleSubmitExam(false);
   };
 
-  const handleViewQuestions = async () => {
+  const handleViewQuestions = () => {
     if (!reportId) return;
 
-    try {
-      setViewQuestionsLoading(true);
-      const response = await api.get("/user/exam-report-questions", {
-        params: { reportId },
-      });
-      const payload = (response.data as ExamReportQuestionsResponse)?.data ?? [];
-      setReportQuestions(Array.isArray(payload) ? payload : []);
-      setShowQuestionsScreen(true);
-    } catch (error) {
-      console.error("Failed to fetch exam report questions", error);
-    } finally {
-      setViewQuestionsLoading(false);
-    }
-  };
+    const params = new URLSearchParams({
+      type: "mock",
+      reportId,
+    });
 
-  const handleBackToReport = () => {
-    setShowQuestionsScreen(false);
+    navigate(`/exams/view-reports/questions?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -510,7 +487,9 @@ const StartExam = () => {
               setResults={setResults}
               marked={marked}
               setMarked={setMarked}
-              onComplete={handleSubmitExam}
+              onComplete={() => {
+                void handleSubmitExam();
+              }}
             />
           ) : (
             <div className="p-5 bg-light-blue rounded-[20px] text-paragraph text-sm">
@@ -616,10 +595,6 @@ const StartExam = () => {
         isLoading={isSubmitting}
         showViewQuestions={Boolean(reportId)}
         onViewQuestions={handleViewQuestions}
-        viewQuestionsLoading={viewQuestionsLoading}
-        showQuestionsScreen={showQuestionsScreen}
-        onBackToReport={handleBackToReport}
-        questions={reportQuestions}
       />
     </div>
   );

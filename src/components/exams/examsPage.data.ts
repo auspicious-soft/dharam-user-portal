@@ -3,6 +3,7 @@ export type FileItem = {
   resumeId?: string;
   examName: string;
   totalQuestions: string;
+  questionCount?: number;
   examTime: string;
   attempts: string;
   correctPercentage: string;

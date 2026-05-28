@@ -2,9 +2,13 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { FileItem } from "./examsPage.data";
 import { Button } from "../ui/button";
-import { ArrowRight, FastArrowRight } from "iconoir-react";
+import { FastArrowRight } from "iconoir-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/axios";
+
+type MockExamQuestionsResponse = {
+  data?: unknown;
+};
 
 type ExamColumnsOptions = {
   onBuyPremiumExam?: (exam: FileItem) => void;
@@ -24,8 +28,11 @@ export const ExamColumns = ({
         const navigate = useNavigate();
         const isPremium = row.original.isPremium;
         const isPaused = row.original.status === "Paused";
+        const hasNoQuestions = row.original.questionCount === 0;
 
         const handleResume = async () => {
+          if (hasNoQuestions) return;
+
           try {
             const resumeId = row.original.resumeId ?? row.original.id;
             const response = await api.get(
@@ -34,12 +41,12 @@ export const ExamColumns = ({
                 params: { type: "PAUSED" },
               }
             );
-            const mockExamData = (response.data as { data?: any })?.data ?? null;
+            const mockExamData =
+              (response.data as MockExamQuestionsResponse)?.data ?? null;
             navigate(`/exams/start/${row.original.id}`, {
               state: { mockExam: mockExamData },
             });
           } catch (error) {
-            // eslint-disable-next-line no-console
             console.error("Failed to resume mock exam", error);
           }
         };
@@ -48,6 +55,9 @@ export const ExamColumns = ({
           <div className="flex items-center gap-2">
             <div
               onClick={() => {
+                if (hasNoQuestions) {
+                  return;
+                }
                 if (isPaused) {
                   void handleResume();
                   return;
@@ -59,13 +69,18 @@ export const ExamColumns = ({
                 }
               }}
               className={`text-left ${
-                isPremium
+                isPremium || hasNoQuestions
                   ? "cursor-not-allowed"
                   : " hover:underline cursor-pointer"
               }`}
             >
               {row.original.examName}
             </div>
+            {hasNoQuestions ? (
+              <span className="text-xs text-[#B42318]">
+                No questions available
+              </span>
+            ) : null}
             {isPremium && <></>}
           </div>
         );
@@ -108,8 +123,11 @@ export const ExamColumns = ({
         const navigate = useNavigate();
         const isPremium = row.original.isPremium;
         const isPaused = row.original.status === "Paused";
+        const hasNoQuestions = row.original.questionCount === 0;
 
         const handleResume = async () => {
+          if (hasNoQuestions) return;
+
           try {
             const resumeId = row.original.resumeId ?? row.original.id;
             const response = await api.get(
@@ -118,15 +136,23 @@ export const ExamColumns = ({
                 params: { type: "PAUSED" },
               }
             );
-            const mockExamData = (response.data as { data?: any })?.data ?? null;
+            const mockExamData =
+              (response.data as MockExamQuestionsResponse)?.data ?? null;
             navigate(`/exams/start/${row.original.id}`, {
               state: { mockExam: mockExamData },
             });
           } catch (error) {
-            // eslint-disable-next-line no-console
             console.error("Failed to resume mock exam", error);
           }
         };
+
+        if (hasNoQuestions) {
+          return (
+            <span className="text-xs font-medium text-[#B42318]">
+              No questions available
+            </span>
+          );
+        }
 
         if (isPaused) {
           return (

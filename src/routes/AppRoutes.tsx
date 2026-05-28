@@ -29,6 +29,7 @@ import DayQuestion from "@/pages/dashboard/QuestionOfTheDay/DayQuestion";
 import FlashCardDetail from "@/pages/dashboard/FlashCards/FlashCardDetail";
 import QuestionsView from "@/pages/dashboard/Questions/QuestionsView";
 import ViewReports from "@/pages/dashboard/Questions/ViewReports";
+import ReportQuestionsView from "@/pages/dashboard/Questions/ReportQuestionsView";
 import MockExams from "@/pages/dashboard/Exams/MockExams";
 import CreateAccount from "@/pages/auth/CreateAccount";
 import StartExam from "@/pages/dashboard/Exams/StartExam";
@@ -156,11 +157,19 @@ const AppRoutes = () => {
           path="/practice-questions/view-reports"
           element={<ViewReports />}
         />
+        <Route
+          path="/practice-questions/view-reports/questions"
+          element={<ReportQuestionsView />}
+        />
         {/*Exams Page*/}
         <Route path="/exams" element={<Exams />} />
         <Route path="/exams/mock-exams/:id" element={<MockExams />} />
 
         <Route path="/exams/view-reports" element={<ViewReports />} />
+        <Route
+          path="/exams/view-reports/questions"
+          element={<ReportQuestionsView />}
+        />
         {/*Flash Cards*/}
         <Route path="/flash-cards" element={<FlashCards />} />
         <Route

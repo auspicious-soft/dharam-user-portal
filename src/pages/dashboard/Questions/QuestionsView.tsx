@@ -8,10 +8,7 @@ import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
 import { ExitExamDialog } from "@/components/Questions/ExitExamDialog";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "@/lib/axios";
-import ViewReportDialog, {
-  ReportData,
-  ReportQuestionItem,
-} from "@/components/Questions/ViewReports/ViewReportDialog";
+import ViewReportDialog, { ReportData } from "@/components/Questions/ViewReports/ViewReportDialog";
 import { getPublicUrlForKey } from "@/utils/s3Upload";
 
 type PracticeExamBoard = {
@@ -28,10 +25,6 @@ type PracticeExamBoard = {
       percentage?: number | null;
     }
   > | null;
-};
-
-type ExamReportQuestionsResponse = {
-  data?: unknown;
 };
 
 //  Timer hook 
@@ -65,9 +58,6 @@ const QuestionsView = () => {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const [viewQuestionsLoading, setViewQuestionsLoading] = useState(false);
-  const [showQuestionsScreen, setShowQuestionsScreen] = useState(false);
-  const [reportQuestions, setReportQuestions] = useState<ReportQuestionItem[]>([]);
   const timeDisplay = useTimer(showExitDialog || reportOpen);
   const { id: examId } = useParams();
   const location = useLocation();
@@ -244,92 +234,6 @@ const QuestionsView = () => {
     void fetchExamQuestions();
   }, [examId, location.state]);
 
-  const normalizeReportQuestions = (raw: unknown): ReportQuestionItem[] => {
-    if (!Array.isArray(raw)) return [];
-
-    return raw.map((item, index) => {
-      const row = (item ?? {}) as Record<string, unknown>;
-      const question = (row.questionId ?? {}) as Record<string, unknown>;
-      const dnd = (question.dnd ?? {}) as Record<string, unknown>;
-
-      return {
-        _id: String(row._id ?? index),
-        examId: row.examId ? String(row.examId) : undefined,
-        isCorrect:
-          row.isCorrect === null
-            ? null
-            : typeof row.isCorrect === "boolean"
-              ? row.isCorrect
-              : undefined,
-        isAttempted:
-          typeof row.isAttempted === "boolean" ? row.isAttempted : undefined,
-        questionId: {
-          _id: String(question._id ?? ""),
-          question: question.question ? String(question.question) : "",
-          type: question.type ? String(question.type) : "",
-          explaination: question.explaination
-            ? String(question.explaination)
-            : "",
-          maxSelection:
-            typeof question.maxSelection === "number"
-              ? question.maxSelection
-              : undefined,
-          mcq: Array.isArray(question.mcq)
-            ? question.mcq.map((option, optionIndex) => {
-                const mcqOption = (option ?? {}) as Record<string, unknown>;
-                return {
-                  _id: mcqOption._id
-                    ? String(mcqOption._id)
-                    : `${index}-${optionIndex}`,
-                  text: mcqOption.text ? String(mcqOption.text) : "",
-                  isCorrect:
-                    typeof mcqOption.isCorrect === "boolean"
-                      ? mcqOption.isCorrect
-                      : false,
-                };
-              })
-            : [],
-          fib: Array.isArray(question.fib)
-            ? question.fib.map((blank, blankIndex) => {
-                const fibItem = (blank ?? {}) as Record<string, unknown>;
-                return {
-                  _id: fibItem._id
-                    ? String(fibItem._id)
-                    : `${index}-fib-${blankIndex}`,
-                  answer: fibItem.answer ? String(fibItem.answer) : "",
-                  correctOrder:
-                    typeof fibItem.correctOrder === "number"
-                      ? fibItem.correctOrder
-                      : undefined,
-                };
-              })
-            : [],
-          dnd: {
-            pairs: Array.isArray(dnd.pairs)
-              ? dnd.pairs.map((pair, pairIndex) => {
-                  const dndPair = (pair ?? {}) as Record<string, unknown>;
-                  return {
-                    leftId: dndPair.leftId ? String(dndPair.leftId) : `${pairIndex}`,
-                    leftText: dndPair.leftText ? String(dndPair.leftText) : "",
-                    rightId: dndPair.rightId ? String(dndPair.rightId) : "",
-                  };
-                })
-              : [],
-            options: Array.isArray(dnd.options)
-              ? dnd.options.map((option, optionIndex) => {
-                  const dndOption = (option ?? {}) as Record<string, unknown>;
-                  return {
-                    id: dndOption.id ? String(dndOption.id) : `${optionIndex}`,
-                    text: dndOption.text ? String(dndOption.text) : "",
-                  };
-                })
-              : [],
-          },
-        },
-      };
-    });
-  };
-
   const totalQuestions = quiz.length;
   const progressPercent = totalQuestions
     ? (currentQuestion / totalQuestions) * 100
@@ -350,8 +254,6 @@ const QuestionsView = () => {
     try {
       setReportLoading(true);
       setReportData(null);
-      setShowQuestionsScreen(false);
-      setReportQuestions([]);
 
       const response = await api.get("/user/practice-exam-result-board", {
         params: { examId, attemptNumber, timeTaken: timeDisplay },
@@ -399,26 +301,16 @@ const QuestionsView = () => {
     await openPracticeReport();
   };
 
-  const handleViewQuestions = async () => {
+  const handleViewQuestions = () => {
     if (!examId || attemptNumber === null) return;
 
-    try {
-      setViewQuestionsLoading(true);
-      const response = await api.get("/user/practice-exam-result-board-question", {
-        params: { examId, attemptNumber },
-      });
-      const payload = (response.data as ExamReportQuestionsResponse)?.data;
-      setReportQuestions(normalizeReportQuestions(payload));
-      setShowQuestionsScreen(true);
-    } catch (error) {
-      console.error("Failed to fetch practice report questions", error);
-    } finally {
-      setViewQuestionsLoading(false);
-    }
-  };
+    const params = new URLSearchParams({
+      type: "practice",
+      examId,
+      attemptNumber: String(attemptNumber),
+    });
 
-  const handleBackToReport = () => {
-    setShowQuestionsScreen(false);
+    navigate(`/practice-questions/view-reports/questions?${params.toString()}`);
   };
 
   return (
@@ -523,10 +415,6 @@ const QuestionsView = () => {
         isLoading={reportLoading}
         showViewQuestions={Boolean(examId) && attemptNumber !== null}
         onViewQuestions={handleViewQuestions}
-        viewQuestionsLoading={viewQuestionsLoading}
-        showQuestionsScreen={showQuestionsScreen}
-        onBackToReport={handleBackToReport}
-        questions={reportQuestions}
       />
     </div>
   );

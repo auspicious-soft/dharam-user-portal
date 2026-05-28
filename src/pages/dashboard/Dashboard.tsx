@@ -128,6 +128,14 @@ const getExamCount = (value: number | unknown[] | null | undefined) => {
   return 0;
 };
 
+const getUserTimezone = () => {
+  if (typeof Intl === "undefined") {
+    return "";
+  }
+
+  return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+};
+
 const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
   const features: string[] = [];
   const mockExamsCount = getExamCount(plan.mockExams);
@@ -355,9 +363,10 @@ const Dashboard = () => {
       setIsSchedulingExam(true);
 
       try {
+        const timezone = getUserTimezone();
         const response = await api.post(
           "/user/schedule-exam",
-          { date },
+          { date, timezone },
           {
             params: { courseId },
           },

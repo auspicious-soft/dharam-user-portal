@@ -6,10 +6,7 @@ import { ExamsItem } from "./exams.data";
 import { ColumnDef, CellContext } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
-import ViewReportDialog, {
-  ReportData,
-  ReportQuestionItem,
-} from "./ViewReportDialog";
+import ViewReportDialog, { ReportData } from "./ViewReportDialog";
 
 const isCompletedAttempt = (item: ExamsItem) => {
   const current = String(item.currentStatus ?? "");
@@ -25,10 +22,6 @@ type Props = {
   reportLoading?: boolean;
   showViewQuestions?: boolean;
   onViewQuestions?: () => void;
-  viewQuestionsLoading?: boolean;
-  showQuestionsScreen?: boolean;
-  onBackToReport?: () => void;
-  reportQuestions?: ReportQuestionItem[];
 };
 
 const ExamsTable = ({
@@ -39,10 +32,6 @@ const ExamsTable = ({
   reportLoading,
   showViewQuestions,
   onViewQuestions,
-  viewQuestionsLoading,
-  showQuestionsScreen,
-  onBackToReport,
-  reportQuestions,
 }: Props) => {
   const [open, setOpen] = useState(false);
 
@@ -81,10 +70,6 @@ const ExamsTable = ({
         isLoading={reportLoading}
         showViewQuestions={showViewQuestions}
         onViewQuestions={onViewQuestions}
-        viewQuestionsLoading={viewQuestionsLoading}
-        showQuestionsScreen={showQuestionsScreen}
-        onBackToReport={onBackToReport}
-        questions={reportQuestions}
       />
     </>
   );

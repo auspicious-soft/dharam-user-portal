@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useParams } from "react-router-dom";
 import RedDot from "@/assets/red-dot.png";
@@ -6,12 +7,21 @@ import GreenDot from "@/assets/green-dot.png";
 import { ArrowRight } from "lucide-react";
 import api from "@/lib/axios";
 
+type MockExamQuestionsResponse = {
+  data?: {
+    questions?: unknown[];
+  } | null;
+};
+
 const MockExams = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [isStarting, setIsStarting] = useState(false);
+  const [startMessage, setStartMessage] = useState("");
 
   const handleStartExam = async () => {
-    let mockExamData: any = null;
+    setStartMessage("");
+    setIsStarting(true);
 
     try {
       const response = await api.get(
@@ -20,13 +30,24 @@ const MockExams = () => {
           params: { type: "STARTED" },
         },
       );
-      mockExamData = (response.data as { data?: any })?.data ?? null;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to fetch mock exam questions", error);
-    }
+      const mockExamData =
+        (response.data as MockExamQuestionsResponse)?.data ?? null;
+      const questions = Array.isArray(mockExamData?.questions)
+        ? mockExamData.questions
+        : [];
 
-    navigate(`/exams/start/${id}`, { state: { mockExam: mockExamData } });
+      if (questions.length === 0) {
+        setStartMessage("No questions are available for this exam yet.");
+        return;
+      }
+
+      navigate(`/exams/start/${id}`, { state: { mockExam: mockExamData } });
+    } catch (error) {
+      console.error("Failed to fetch mock exam questions", error);
+      setStartMessage("Unable to load exam questions. Please try again.");
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -101,11 +122,17 @@ const MockExams = () => {
       <div className="flex items-center justify-center w-full mt-3">
         <Button
           onClick={handleStartExam}
+          disabled={isStarting}
           className="max-w-96 w-full rounded-[10px]"
         >
-          Start Exam <ArrowRight />
+          {isStarting ? "Loading Exam..." : "Start Exam"} <ArrowRight />
         </Button>
       </div>
+      {startMessage ? (
+        <p className="text-center text-sm font-medium text-[#B42318]">
+          {startMessage}
+        </p>
+      ) : null}
     </div>
   );
 };
