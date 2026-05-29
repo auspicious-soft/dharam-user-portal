@@ -8,11 +8,25 @@ import {
 } from "@/components/Questions/ViewReports/reportQuestions";
 import type { ReportQuestionItem } from "@/components/Questions/ViewReports/reportQuestions";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import api from "@/lib/axios";
 
 type ExamReportQuestionsResponse = {
   data?: unknown;
 };
+
+const QUESTION_STATUS_OPTIONS = [
+  { label: "All", value: "All" },
+  { label: "Correct", value: "Correct" },
+  { label: "Incorrect", value: "Incorrect" },
+  { label: "Unattempted", value: "Unattempted" },
+];
 
 const ReportQuestionsView = () => {
   const navigate = useNavigate();
@@ -20,6 +34,7 @@ const ReportQuestionsView = () => {
   const [questions, setQuestions] = useState<ReportQuestionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const reportType = searchParams.get("type") === "mock" ? "mock" : "practice";
   const reportId = searchParams.get("reportId") ?? "";
@@ -66,10 +81,14 @@ const ReportQuestionsView = () => {
         const response =
           reportType === "mock"
             ? await api.get("/user/exam-report-questions", {
-                params: { reportId },
+                params: { reportId, status: statusFilter },
               })
             : await api.get("/user/practice-exam-result-board-question", {
-                params: { examId, attemptNumber: Number(attemptNumber) },
+                params: {
+                  examId,
+                  attemptNumber: Number(attemptNumber),
+                  status: statusFilter,
+                },
               });
 
         if (!isMounted) return;
@@ -94,22 +113,37 @@ const ReportQuestionsView = () => {
     return () => {
       isMounted = false;
     };
-  }, [attemptNumber, examId, reportId, reportType]);
+  }, [attemptNumber, examId, reportId, reportType, statusFilter]);
 
   return (
     <div className="flex flex-col gap-7">
-      <div className="flex items-center gap-5">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleBack}
-          className="p-2 rounded-full border hover:bg-gray-100"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-Black_light text-xl lg:text-2xl font-bold">
-          Question Review
-        </h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-5">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleBack}
+            className="p-2 rounded-full border hover:bg-gray-100"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-Black_light text-xl lg:text-2xl font-bold">
+            Question Review
+          </h1>
+        </div>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-48 bg-white">
+            <SelectValue placeholder="Filter status" />
+          </SelectTrigger>
+          <SelectContent>
+            {QUESTION_STATUS_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (

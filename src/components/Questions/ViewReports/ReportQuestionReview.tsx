@@ -1,6 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
-
-import { Button } from "@/components/ui/button";
 import type { ReportQuestionItem } from "./reportQuestions";
 
 type Props = {
@@ -8,35 +5,10 @@ type Props = {
 };
 
 const ReportQuestionReview = ({ questions }: Props) => {
-  const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+  const renderQuestionContent = (currentQuestion: ReportQuestionItem) => {
+    const reviewedQuestion = currentQuestion.questionId;
+    const reviewType = String(reviewedQuestion?.type ?? "").toUpperCase();
 
-  useEffect(() => {
-    setCurrentReviewIndex(0);
-  }, [questions.length]);
-
-  const currentQuestion = useMemo(
-    () => questions[currentReviewIndex],
-    [questions, currentReviewIndex],
-  );
-
-  const reviewedQuestion = currentQuestion?.questionId;
-  const reviewType = String(reviewedQuestion?.type ?? "").toUpperCase();
-  const reviewedQuestionText =
-    reviewType === "FIB"
-      ? String(reviewedQuestion?.question ?? "-").replace(/BLANK/gi, "__")
-      : reviewedQuestion?.question ?? "-";
-  const evaluationLabel = !currentQuestion?.isAttempted
-    ? "Not Evaluated"
-    : currentQuestion?.isCorrect
-      ? "Correct"
-      : "Incorrect";
-  const evaluationClass = !currentQuestion?.isAttempted
-    ? "bg-[#F4F4F5] text-[#52525B]"
-    : currentQuestion?.isCorrect
-      ? "bg-[#EAF8E3] text-[#2C7A1F]"
-      : "bg-[#FDECEC] text-[#B42318]";
-
-  const renderQuestionContent = () => {
     if (!reviewedQuestion) return null;
 
     if (reviewType === "MCQ") {
@@ -134,7 +106,7 @@ const ReportQuestionReview = ({ questions }: Props) => {
     return <div className="text-sm text-paragraph">Unsupported question type.</div>;
   };
 
-  if (!questions.length || !currentQuestion) {
+  if (!questions.length) {
     return (
       <div className="rounded-lg border border-[#d9e8ff] bg-[#f7fbff] p-5 text-center text-sm text-paragraph">
         No questions available.
@@ -143,59 +115,68 @@ const ReportQuestionReview = ({ questions }: Props) => {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-3 text-sm flex-wrap">
-        <span className="text-primary_blue font-medium">
-          Question {currentReviewIndex + 1} of {questions.length}
-        </span>
-        <div className="flex items-center gap-2">
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-              currentQuestion.isAttempted
-                ? "bg-[#EAF8E3] text-[#2C7A1F]"
-                : "bg-[#FFF4E8] text-[#D97706]"
-            }`}
-          >
-            {currentQuestion.isAttempted ? "Attempted" : "Unattempted"}
-          </span>
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${evaluationClass}`}
-          >
-            {evaluationLabel}
-          </span>
-        </div>
-      </div>
+    <div className="max-h-[calc(100vh-240px)] min-h-64 overflow-y-auto pr-1">
+      <div className="flex flex-col gap-5">
+        {questions.map((currentQuestion, index) => {
+          const reviewedQuestion = currentQuestion.questionId;
+          const reviewType = String(reviewedQuestion?.type ?? "").toUpperCase();
+          const reviewedQuestionText =
+            reviewType === "FIB"
+              ? String(reviewedQuestion?.question ?? "-").replace(
+                  /BLANK/gi,
+                  "__",
+                )
+              : reviewedQuestion?.question ?? "-";
+          const evaluationLabel = !currentQuestion.isAttempted
+            ? "Not Evaluated"
+            : currentQuestion.isCorrect
+              ? "Correct"
+              : "Incorrect";
+          const evaluationClass = !currentQuestion.isAttempted
+            ? "bg-[#F4F4F5] text-[#52525B]"
+            : currentQuestion.isCorrect
+              ? "bg-[#EAF8E3] text-[#2C7A1F]"
+              : "bg-[#FDECEC] text-[#B42318]";
 
-      <div className="rounded-lg border border-[#d9e8ff] bg-[#f7fbff] p-4">
-        <p className="text-base font-medium text-Black_light">
-          {reviewedQuestionText}
-        </p>
-        <div className="mt-4">{renderQuestionContent()}</div>
-        {reviewedQuestion?.explaination ? (
-          <p className="mt-4 text-sm text-paragraph">
-            Explanation: {reviewedQuestion.explaination}
-          </p>
-        ) : null}
-      </div>
+          return (
+            <div
+              key={currentQuestion._id}
+              className="rounded-lg border border-[#d9e8ff] bg-[#f7fbff] p-4"
+            >
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+                <span className="font-medium text-primary_blue">
+                  Question {index + 1} of {questions.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      currentQuestion.isAttempted
+                        ? "bg-[#EAF8E3] text-[#2C7A1F]"
+                        : "bg-[#FFF4E8] text-[#D97706]"
+                    }`}
+                  >
+                    {currentQuestion.isAttempted ? "Attempted" : "Unattempted"}
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${evaluationClass}`}
+                  >
+                    {evaluationLabel}
+                  </span>
+                </div>
+              </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <Button
-          variant="outline"
-          onClick={() => setCurrentReviewIndex((prev) => Math.max(0, prev - 1))}
-          disabled={currentReviewIndex === 0}
-        >
-          Previous
-        </Button>
-        <Button
-          onClick={() =>
-            setCurrentReviewIndex((prev) =>
-              Math.min(questions.length - 1, prev + 1),
-            )
-          }
-          disabled={currentReviewIndex >= questions.length - 1}
-        >
-          Next
-        </Button>
+              <p className="text-base font-medium text-Black_light">
+                {reviewedQuestionText}
+              </p>
+              <div className="mt-4">{renderQuestionContent(currentQuestion)}</div>
+              {reviewedQuestion?.explaination ? (
+                <p className="mt-4 text-sm text-paragraph">
+                  Explanation: {reviewedQuestion.explaination}
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
