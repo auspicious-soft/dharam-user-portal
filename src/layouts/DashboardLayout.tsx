@@ -11,7 +11,11 @@ const DashboardLayout = () => {
 
   const enforceCourseAccess = useCallback(() => {
     const hasCourseAccess = readSelectedCourseHasAccess();
-    if (!hasCourseAccess && window.location.pathname !== "/dashboard") {
+    const isAllowedWithoutCourseAccess =
+      window.location.pathname === "/dashboard" ||
+      window.location.pathname === "/profile";
+
+    if (!hasCourseAccess && !isAllowedWithoutCourseAccess) {
       navigate("/dashboard", { replace: true });
     }
   }, [navigate]);

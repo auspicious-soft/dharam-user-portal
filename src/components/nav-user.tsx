@@ -5,6 +5,15 @@ import api from "@/lib/axios";
 import { getFcmToken } from "@/lib/fcm";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,13 +40,16 @@ export function NavUser({
 }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setOpen(false);
+    setIsLoggingOut(true);
 
     let fcmToken: string | null = null;
     try {
-      fcmToken = await getFcmToken();
+      fcmToken = await getFcmToken({ requestPermission: false });
     } catch (tokenError) {
       console.warn("FCM token not available", tokenError);
     }
@@ -49,6 +61,8 @@ export function NavUser({
     } catch (logoutError) {
       console.error("Logout API call failed", logoutError);
     } finally {
+      setIsLoggingOut(false);
+      setLogoutDialogOpen(false);
       logout();
       navigate("/login", { replace: true });
     }
@@ -96,8 +110,10 @@ export function NavUser({
             <DropdownMenuSeparator /> 
 
             <DropdownMenuItem
-              onSelect={() => {
-                void handleLogout();
+              onSelect={(event) => {
+                event.preventDefault();
+                setOpen(false);
+                setLogoutDialogOpen(true);
               }}
               className="w-full p-2"
             >
@@ -105,6 +121,38 @@ export function NavUser({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+          <DialogContent className="max-w-md rounded-2xl p-7">
+            <DialogHeader className="items-center space-y-4 mb-4">
+              <DialogTitle className="text-center text-2xl text-Black_light md:text-3xl font-bold">
+                Logout?
+              </DialogTitle>
+              <DialogDescription className="text-paragraph text-base font-medium text-center">
+                Are you sure you want to logout?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                className="flex-1 max-h-[44px]"
+                variant="outline"
+                disabled={isLoggingOut}
+                onClick={() => setLogoutDialogOpen(false)}
+              >
+                No
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 max-h-[44px]"
+                disabled={isLoggingOut}
+                onClick={() => void handleLogout()}
+              >
+                {isLoggingOut ? "Logging out..." : "Yes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarMenuItem>
     </SidebarMenu>
   );

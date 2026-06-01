@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function ExamHeader() {
   const [user, setUser] = useState<{ name: string; avatar: string }>({
-    name: "User",
+    name: "",
     avatar: "",
   });
 

@@ -15,7 +15,13 @@ async function getMessagingSafe() {
   return getMessaging(firebaseApp);
 }
 
-export async function getFcmToken(): Promise<string | null> {
+type GetFcmTokenOptions = {
+  requestPermission?: boolean;
+};
+
+export async function getFcmToken({
+  requestPermission = true,
+}: GetFcmTokenOptions = {}): Promise<string | null> {
   if (!VAPID_KEY) {
     console.error("❌ Missing VITE_FIREBASE_VAPID_KEY; skipping FCM token.");
     return null;
@@ -32,8 +38,10 @@ export async function getFcmToken(): Promise<string | null> {
   }
 
   try {
-    console.log("🔐 Requesting notification permission...");
-    const permission = await Notification.requestPermission();
+    console.log("Checking notification permission...");
+    const permission = requestPermission
+      ? await Notification.requestPermission()
+      : Notification.permission;
     console.log("Permission result:", permission);
 
     if (permission !== "granted") {

@@ -10,6 +10,14 @@ import {
   User,
 } from "iconoir-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import api from "@/lib/axios";
 import { getFcmToken } from "@/lib/fcm";
 import { toast } from "sonner";
@@ -40,6 +48,7 @@ const CreateAccount = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmShowPassword, setConfirmShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,31 +76,46 @@ const CreateAccount = () => {
   }, []);
 
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
+  const validateForm = () => {
     if (!firstName || !email || !password || !confirmPassword) {
       setError("Please fill all required fields");
-      return;
+      return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email)) {
       setError("Please enter a valid email address");
-      return;
+      return false;
     }
 
     if (password.length < MIN_PASSWORD_LENGTH) {
       setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
-      return;
+      return false;
     }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
-      return;
+      return false;
     }
 
+    if (isSubmitting) {
+      return false;
+    }
+
+    setError("");
+    return true;
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (validateForm()) {
+      setConfirmDialogOpen(true);
+    }
+  };
+
+  const handleCreateAccount = async () => {
     if (isSubmitting) {
       return;
     }
@@ -103,9 +127,8 @@ const CreateAccount = () => {
 
     let fcmToken: string | null = null;
     try {
-      fcmToken = await getFcmToken();
+      fcmToken = await getFcmToken({ requestPermission: false });
     } catch (tokenError) {
-      // eslint-disable-next-line no-console
       console.warn("FCM token not available", tokenError);
     }
 
@@ -133,6 +156,7 @@ const CreateAccount = () => {
         (response.data as { message?: string | null })?.message ??
         "Registration successful";
       toast.success(successMessage);
+      setConfirmDialogOpen(false);
 
       navigate("/enter-otp", {
         state: {
@@ -328,6 +352,37 @@ const CreateAccount = () => {
         </p>
       </form>
 
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="max-w-md rounded-2xl p-7">
+          <DialogHeader className="items-center space-y-4 mb-4">
+            <DialogTitle className="text-center text-2xl text-Black_light md:text-3xl font-bold">
+              Create Account?
+            </DialogTitle>
+            <DialogDescription className="text-paragraph text-base font-medium text-center">
+              Are you sure you want to create this account?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              className="flex-1 max-h-[44px]"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => setConfirmDialogOpen(false)}
+            >
+              No
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 max-h-[44px]"
+              disabled={isSubmitting}
+              onClick={() => void handleCreateAccount()}
+            >
+              {isSubmitting ? "Creating..." : "Yes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -76,14 +76,27 @@ const EnterOtp = () => {
         data?: {
           accessToken?: string | null;
           changePasswordToken?: string | null;
+          refreshToken?: string | null;
+          user?: unknown;
         };
       };
 
       const accessToken = responseData?.data?.accessToken ?? null;
       const changePasswordToken = responseData?.data?.changePasswordToken ?? null;
+      const refreshToken = responseData?.data?.refreshToken ?? null;
+      const user = responseData?.data?.user ?? null;
 
       if (mode === "signup" && accessToken) {
         localStorage.setItem("authToken", accessToken);
+      }
+
+      if (mode === "signup" && refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      }
+
+      if (mode === "signup" && user) {
+        localStorage.setItem("user", JSON.stringify(user));
+        window.dispatchEvent(new Event("userUpdated"));
       }
 
       if (mode === "forgot" && changePasswordToken) {
@@ -179,8 +192,8 @@ const EnterOtp = () => {
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="relative max-w-72 w-full m-auto">
           <Input
-            type="number"
-            placeholder="123456"
+            type="text"
+            placeholder="Enter OTP"
             maxLength={6}
             value={otp}
             onChange={(e) => {
