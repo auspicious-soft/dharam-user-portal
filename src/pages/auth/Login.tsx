@@ -155,7 +155,7 @@ const Login = () => {
           Welcome Back
         </h2>
         <p className="text-paragraph text-base font-normal ">
-         Login to Your account to access the exam simulator.
+         Login to Your account
         </p>
       </div>
       <form onSubmit={handleLogin} className="flex flex-col gap-4">

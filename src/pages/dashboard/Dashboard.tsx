@@ -185,20 +185,16 @@ const mapApiPlanToBenefits = (plan: ApiPlan): string[] => {
 
 const formatPlanPrice = (plan: ApiPlan) => {
   const currencyCode = (plan.currency ?? "usd").toUpperCase();
-  const durationLabel =
-    plan.durationInMonths === 1 ? "Month" : `${plan.durationInMonths} Months`;
 
   try {
-    const formattedPrice = new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currencyCode,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(plan.stripePrice ?? 0);
-
-    return `${formattedPrice}/ ${durationLabel}`;
   } catch {
-    return `$${Number(plan.stripePrice ?? 0).toFixed(2)}/ ${durationLabel}`;
+    return `$${Number(plan.stripePrice ?? 0).toFixed(2)}`;
   }
 };
 
@@ -430,8 +426,7 @@ const Dashboard = () => {
           allStatusesNull ||
           allPurchaseStatusesNull
         ) {
-          message =
-            "You have not purchased any course yet. Please purchase one.";
+          message = "Select a plan to get started.";
         }
 
         if (!isCancelled) {

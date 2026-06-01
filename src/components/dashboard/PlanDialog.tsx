@@ -143,7 +143,7 @@ const PlanDialog = ({
                     {planItem.price}
                   </p>
                   <p className="self-stretch justify-start text-paragraph text-xs font-normal">
-                    One time purchase
+                    One-time Purchase
                   </p>
                 </div>
                 {planItem.name === selectedPlanName && (
@@ -165,7 +165,7 @@ const PlanDialog = ({
 
       <div className="space-y-1">
         <h3 className="justify-start text-primary_heading text-base font-bold">
-          Plan Benefits
+          What's Included
         </h3>
 
         {planBenefits.length ? (

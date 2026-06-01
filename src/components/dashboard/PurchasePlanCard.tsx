@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import Dialog from "./Dialog";
 import PlanCard from "./PlanCard";
-import PlanDialog from "./PlanDialog";
-import { Plan, DurationTab, DialogTab } from "./plans";
+import { Plan, DurationTab } from "./plans";
 import ReusableFilterTabs from "./ReusableFilterTabs";
 import CourseSelect from "../reusableComponents/CourseSelect";
 import StartFreeTrial from "./StartFreeTrial";
@@ -32,10 +30,6 @@ const PurchasePlanCard = ({
   freeTrialPlanId = null,
 }: PurchasePlanCardProps) => {
   const [activeTab, setActiveTab] = useState<DurationTab>("oneMonth");
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [activeDialogTab, setActiveDialogTab] = useState<DialogTab>("1Month");
-  const [selectedPlanName, setSelectedPlanName] = useState<string>("");
   const [isStartingTrial, setIsStartingTrial] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [courses, setCourses] = useState<UserCourse[]>([]);
@@ -182,16 +176,8 @@ const PurchasePlanCard = ({
     }
   };
 
-  const handleDialogTabChange = (tab: DialogTab) => {
-    const months = tab === "1Month" ? 1 : 3;
-    onDurationChange?.(months);
-  };
-
   const handleSelectPlan = (plan: Plan) => {
-    setSelectedPlan(plan);
-    setSelectedPlanName(plan.name);
-    setActiveDialogTab(activeTab === "oneMonth" ? "1Month" : "3Months");
-    setIsDialogOpen(true);
+    void handleBuyNow(plan);
   };
 
   useEffect(() => {
@@ -219,56 +205,12 @@ const PurchasePlanCard = ({
     onDurationChange?.(activeTab === "oneMonth" ? 1 : 3);
   }, [activeTab, onDurationChange]);
 
-  useEffect(() => {
-    if (!currentPlans.length) {
-      setSelectedPlan(null);
-      if (!isDialogOpen) {
-        setSelectedPlanName("");
-      }
-      return;
-    }
-
-    const matchingPlan =
-      currentPlans.find((plan) => plan.name === selectedPlanName) ??
-      currentPlans[0];
-
-    const dialogMatchesActiveTab =
-      (activeTab === "oneMonth" && activeDialogTab === "1Month") ||
-      (activeTab === "threeMonths" && activeDialogTab === "3Months");
-
-    if (!isDialogOpen || dialogMatchesActiveTab) {
-      setSelectedPlan(matchingPlan);
-    }
-
-    if (
-      matchingPlan.name !== selectedPlanName &&
-      (!isDialogOpen || dialogMatchesActiveTab)
-    ) {
-      setSelectedPlanName(matchingPlan.name);
-    }
-  }, [activeDialogTab, activeTab, currentPlans, isDialogOpen, selectedPlanName]);
-
-  useEffect(() => {
-    const dialogPlans =
-      activeDialogTab === "1Month" ? allPlans.oneMonth : allPlans.threeMonths;
-
-    if (!dialogPlans.length) {
-      return;
-    }
-
-    const hasSelectedPlan = dialogPlans.some(
-      (planItem) => planItem.name === selectedPlanName
-    );
-
-    if (!hasSelectedPlan) {
-      setSelectedPlanName(dialogPlans[0].name);
-    }
-  }, [activeDialogTab, allPlans.oneMonth, allPlans.threeMonths, selectedPlanName]);
-
   return (
     <div className="flex flex-col gap-6 lg:px-2.5 ">
       <div className="flex gap-3 flex-wrap items-center justify-between">
-        <h2 className="text-Black_light text-lg font-bold">Purchase a plan</h2>
+        <h2 className="text-Black_light text-lg font-bold">
+          What you'll access - find the right plan for you
+        </h2>
         <CourseSelect />
       </div>
       <div className="flex justify-center">
@@ -281,15 +223,23 @@ const PurchasePlanCard = ({
           ]}
         />
       </div>
+      <div className="text-center text-sm font-semibold text-primary_heading">
+        One-time Purchase
+      </div>
 
       {isLoadingPlans && !currentPlans.length ? (
         <div className="text-center text-paragraph text-sm py-8">
           Loading plans...
         </div>
       ) : currentPlans.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4 items-stretch">
           {currentPlans.map((plan) => (
-            <PlanCard key={plan.name} plan={plan} onSelectPlan={handleSelectPlan} />
+            <PlanCard
+              key={plan.name}
+              plan={plan}
+              onSelectPlan={handleSelectPlan}
+              isSubmitting={isPurchasing}
+            />
           ))}
         </div>
       ) : (
@@ -306,32 +256,6 @@ const PurchasePlanCard = ({
         showStartTrialButton={!hasUsedFreeTrialForSelectedCourse}
         trialNotice={freeTrialNotice}
       />
-
-      <Dialog isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
-        {selectedPlan && (
-          <PlanDialog
-            plan={selectedPlan}
-            onClose={() => setIsDialogOpen(false)}
-            activeDialogTab={activeDialogTab}
-            setActiveDialogTab={setActiveDialogTab}
-            onDialogTabChange={handleDialogTabChange}
-            isLoadingPlans={isLoadingPlans}
-            allPlans={allPlans}
-            selectedPlanName={selectedPlanName}
-            setSelectedPlanName={setSelectedPlanName}
-            onBuyNow={(planItem) => {
-              void handleBuyNow(planItem);
-            }}
-            onStartFreeTrial={() => {
-              void handleStartTrial();
-            }}
-            isPurchasing={isPurchasing}
-            isStartingTrial={isStartingTrial}
-            showStartTrialButton={!hasUsedFreeTrialForSelectedCourse}
-            startTrialNotice={freeTrialNotice}
-          />
-        )}
-      </Dialog>
     </div>
   );
 };

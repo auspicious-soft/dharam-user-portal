@@ -7,12 +7,13 @@ import { Button } from "../ui/button";
 interface PlanCardProps {
   plan: Plan;
   onSelectPlan: (plan: Plan) => void;
+  isSubmitting?: boolean;
 }
 
-const PlanCard = ({ plan, onSelectPlan }: PlanCardProps) => {
+const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) => {
   return (
     <div
-      className={`px-5 pt-10 pb-5 rounded-[20px] inline-flex flex-col gap-6 md:gap-10 relative
+      className={`px-5 pt-10 pb-5 rounded-[20px] flex h-full min-w-0 flex-col gap-6 md:gap-10 relative
     ${
       plan.popular
         ? "bg-primary_heading text-white pt-[60px]"
@@ -49,15 +50,14 @@ const PlanCard = ({ plan, onSelectPlan }: PlanCardProps) => {
       </div>
 
       <div
-        className={`flex flex-col gap-5 
-           ${plan.popular ? "lg:mb-10" : ""}`}
+        className="flex flex-1 flex-col gap-5"
       >
         <div className="text-xl font-semibold capitalize leading-6">
           {plan.price}
         </div>
 
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-semibold">Plan Benefits</p>
+          <p className="text-sm font-semibold">What's Included</p>
           {plan.benefits.length ? (
             plan.benefits.map((benefit, i) => (
               <div
@@ -79,14 +79,15 @@ const PlanCard = ({ plan, onSelectPlan }: PlanCardProps) => {
       <Button
         variant="outline"
         onClick={() => onSelectPlan(plan)}
-        className={`font-medium max-h-[44px]
+        disabled={isSubmitting}
+        className={`mt-auto font-medium max-h-[44px]
               ${
                 plan.popular
                   ? "bg-white text-primary_blue border-none"
                   : "border border-primary_blue text-primary_blue bg-transparent"
               }`}
       >
-        Choose Plan
+        {isSubmitting ? "Processing..." : "Choose Plan"}
       </Button>
     </div>
   );
