@@ -18,6 +18,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -27,7 +28,7 @@ const Login = () => {
       return;
     }
 
-    if (isSubmitting) {
+    if (isSubmitting || isGoogleSubmitting) {
       return;
     }
 
@@ -91,6 +92,13 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
+    if (isSubmitting || isGoogleSubmitting) {
+      return;
+    }
+
+    setError("");
+    setIsGoogleSubmitting(true);
+
     try {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -145,6 +153,12 @@ const Login = () => {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Google login failed", error);
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Google login failed. Please try again.";
+      setError(message);
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -216,7 +230,7 @@ const Login = () => {
           </Link>
         </div>
 
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting || isGoogleSubmitting}>
           {isSubmitting ? "Logging in..." : "Login"}{" "}
           <ArrowRight className="w-5 h-5" />
         </Button>
@@ -239,9 +253,12 @@ const Login = () => {
           variant="secondary"
           type="button"
           onClick={handleGoogleLogin}
+          disabled={isSubmitting || isGoogleSubmitting}
         >
           <GoogleIcon />
-          <div className=" text-sm ">Continue with Google</div>
+          <div className=" text-sm ">
+            {isGoogleSubmitting ? "Continuing..." : "Continue with Google"}
+          </div>
         </Button>
       </form>
     </div>
