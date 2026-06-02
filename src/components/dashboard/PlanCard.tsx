@@ -52,8 +52,17 @@ const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) =
       <div
         className="flex flex-1 flex-col gap-5"
       >
-        <div className="text-xl font-semibold capitalize leading-6">
-          {plan.price}
+        <div className="flex flex-col gap-1">
+          <div className="text-xl font-semibold leading-6">
+            {plan.price}
+          </div>
+          <div
+            className={`text-sm font-medium ${
+              plan.popular ? "text-white/80" : "text-paragraph"
+            }`}
+          >
+            {plan.accessLabel}
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">

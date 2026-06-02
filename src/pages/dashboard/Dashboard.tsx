@@ -198,6 +198,16 @@ const formatPlanPrice = (plan: ApiPlan) => {
   }
 };
 
+const formatPlanName = (name?: string | null, fallback = "Plan") =>
+  (name ?? "")
+    .replace(/\s*\([^)]*\bmonths?\b[^)]*\)\s*$/i, "")
+    .trim() || fallback;
+
+const formatPlanAccessLabel = (months: number) => {
+  const normalizedMonths = Math.max(1, Math.trunc(Number(months) || 1));
+  return `${normalizedMonths} month${normalizedMonths > 1 ? "s" : ""} of access`;
+};
+
 const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
   const paidPlans = apiPlans.filter((plan) => {
     const normalizedName = (plan.planName ?? "").trim().toLowerCase();
@@ -213,8 +223,9 @@ const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
     .sort((a, b) => (a.level ?? 0) - (b.level ?? 0))
     .map((plan, index) => ({
       planId: plan._id ?? null,
-      name: plan.planName?.trim() || `Plan ${index + 1}`,
+      name: formatPlanName(plan.planName, `Plan ${index + 1}`),
       price: formatPlanPrice(plan),
+      accessLabel: formatPlanAccessLabel(plan.durationInMonths),
       priceId: plan.priceId ?? plan.stripePriceId ?? null,
       features: mapApiPlanToFeatures(plan),
       benefits: mapApiPlanToBenefits(plan),
@@ -362,7 +373,7 @@ const Dashboard = () => {
         const timezone = getUserTimezone();
         const response = await api.post(
           "/user/schedule-exam",
-          { date, timezone },
+          { date,timeZone: timezone },
           {
             params: { courseId },
           },

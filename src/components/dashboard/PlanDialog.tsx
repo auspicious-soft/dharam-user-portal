@@ -143,7 +143,7 @@ const PlanDialog = ({
                     {planItem.price}
                   </p>
                   <p className="self-stretch justify-start text-paragraph text-xs font-normal">
-                    One-time Purchase
+                    {planItem.accessLabel}
                   </p>
                 </div>
                 {planItem.name === selectedPlanName && (

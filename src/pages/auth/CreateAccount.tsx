@@ -43,7 +43,6 @@ const CreateAccount = () => {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [confirmShowPassword, setConfirmShowPassword] = useState(false);
@@ -78,24 +77,24 @@ const CreateAccount = () => {
 
   const validateForm = () => {
     if (!firstName || !email || !password || !confirmPassword) {
-      setError("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address");
+      toast.error("Please enter a valid email address");
       return false;
     }
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+      toast.error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       return false;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       return false;
     }
 
@@ -103,7 +102,6 @@ const CreateAccount = () => {
       return false;
     }
 
-    setError("");
     return true;
   };
 
@@ -120,7 +118,6 @@ const CreateAccount = () => {
       return;
     }
 
-    setError("");
     setIsSubmitting(true);
 
     const fullName = `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
@@ -168,9 +165,10 @@ const CreateAccount = () => {
       const message =
         (error as { response?: { data?: { message?: string } } }).response?.data
           ?.message ?? "Registration failed. Please try again.";
-      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
+      setConfirmDialogOpen(false);
     }
   };
 
@@ -184,11 +182,11 @@ const CreateAccount = () => {
         </h2>
         <p className="text-paragraph text-base font-normal max-w-80 w-full m-auto">
           By continuing, you agree to our{" "}
-          <a href="https://www.vcareprojectmanagement.com/pages/terms-of-service" target="_blank" className="text-primary_heading ">
+          <a href="https://dharma-web.vercel.app/terms-of-service" target="_blank" className="text-primary_heading ">
             Terms
           </a>{" "}
           &{" "}
-          <a href="https://www.vcareprojectmanagement.com/pages/privacy-policy" target="_blank" className="text-primary_heading">
+          <a href="https://dharma-web.vercel.app/privacy-policy" target="_blank" className="text-primary_heading">
             Privacy Policy.
           </a>
         </p>
@@ -206,10 +204,7 @@ const CreateAccount = () => {
             placeholder="First Name"
             className="pl-12"
             value={firstName}
-            onChange={(e) => {
-              setFirstName(e.target.value);
-              setError("");
-            }}
+            onChange={(e) => setFirstName(e.target.value)}
           />
         </div>
 
@@ -223,10 +218,7 @@ const CreateAccount = () => {
             placeholder="Last Name"
             className="pl-12"
             value={lastName}
-            onChange={(e) => {
-              setLastName(e.target.value);
-              setError("");
-            }}
+            onChange={(e) => setLastName(e.target.value)}
           />
 
           <div className="absolute right-4 top-1/2 -translate-y-1/2 text-center justify-start text-[#556378]/40 text-[10px] font-normal italic">
@@ -246,10 +238,7 @@ const CreateAccount = () => {
             placeholder="Email Address"
             className="pl-12"
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setError("");
-            }}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
 
@@ -289,10 +278,7 @@ const CreateAccount = () => {
             placeholder="Password"
             className="pl-12 pr-10"
             value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setError("");
-            }}
+            onChange={(e) => setPassword(e.target.value)}
           />
           <button
             type="button"
@@ -318,10 +304,7 @@ const CreateAccount = () => {
             placeholder="Confirm Password"
             className="pl-12 pr-10"
             value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              setError("");
-            }}
+            onChange={(e) => setConfirmPassword(e.target.value)}
           />
           <button
             type="button"
@@ -335,8 +318,6 @@ const CreateAccount = () => {
             )}
           </button>
         </div>
-
-        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Creating..." : "Create Account"}{" "}

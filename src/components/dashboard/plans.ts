@@ -2,6 +2,7 @@ export interface Plan {
   planId?: string | null;
   name: string;
   price: string;
+  accessLabel: string;
   priceId?: string | null;
   features: string[];
   benefits: string[];

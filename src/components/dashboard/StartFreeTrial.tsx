@@ -5,12 +5,12 @@ import { Button } from "../ui/button";
 const content = {
   headings: "Start Your Free Trial",
   description:
-    "Test-drive our exam simulators, practice exams, and study bundles before you buy.",
+    "Take a test drive of our exam simulators, practice exams, and study resources to to support your certification success.",
   features: [
-    "Instant access after signup",
+    "Instant access",
     "Real exam timer, flag, and review features",
     "Detailed explanations and domain-wise analytics",
-    "Cancel anytime during trial—no charges",
+    " No credit card required",
   ],
   buttonText: "Start a Free Trial",
 };
@@ -41,7 +41,7 @@ const StartFreeTrial = ({
       <div className="flex flex-col gap-5 items-start">
         <h2 className="self-stretch justify-start text-white text-2xl font-bold">{content.headings}</h2>
 
-        <p className="self-stretch justify-start text-white text-sm font-normal">{content.description}</p>
+        <p className="self-stretch justify-start max-w-[500px] text-white text-sm font-normal">{content.description}</p>
 
         <ul className="space-y-2">
           {content.features.map((item, index) => (
