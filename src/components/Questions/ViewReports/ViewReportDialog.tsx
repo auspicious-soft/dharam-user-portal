@@ -78,6 +78,15 @@ const ViewReportDialog = ({
     return value % 1 === 0 ? String(value) : value.toFixed(2);
   };
 
+  const formatDomainName = (name: string) => {
+    const formattedName = name
+      .replace(/^(?:\s*-\s*\d+\s*-?\s*)+/, "")
+      .replace(/(?:\s*-\s*\d+\s*)+$/, "")
+      .trim();
+
+    return formattedName || name;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -164,7 +173,7 @@ const ViewReportDialog = ({
             report.domains.map((domain, index) => (
               <div key={index} className="flex justify-between py-2">
                 <span className="text-paragraph text-base font-medium">
-                  {domain.name}
+                  {formatDomainName(domain.name)}
                 </span>
                 <span className="text-primary_heading text-base font-semibold">
                   {formatPercent(domain.percentage)}% Correct
