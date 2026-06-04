@@ -28,6 +28,23 @@ import {
 
 const MIN_PASSWORD_LENGTH = 5;
 
+const sanitizeCountryCodeInput = (value: string) => {
+  const compactValue = value.replace(/\s+/g, "");
+  const hasLeadingPlus = compactValue.startsWith("+");
+  const digits = compactValue.replace(/\D/g, "");
+
+  if (!digits) {
+    return hasLeadingPlus ? "+" : "";
+  }
+
+  return hasLeadingPlus ? `+${digits}` : digits;
+};
+
+const normalizeCountryCodeForSubmit = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  return digits ? `+${digits}` : "";
+};
+
 const CreateAccount = () => {
  const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
@@ -135,7 +152,7 @@ const CreateAccount = () => {
         lastname: lastName.trim(),
         fullName,
         email: email.trim(),
-        countryCode,
+        countryCode: normalizeCountryCodeForSubmit(countryCode),
         phoneNumber: phone.trim(),
         password,
         fcmToken: fcmToken ?? "",
@@ -243,19 +260,31 @@ const CreateAccount = () => {
         </div>
 
         <div className="flex gap-2 relative bg-white rounded-[99px] outline-none w-full border border-[#e8e8e8] text-paragraph text-sm font-light">
-          <select
+          <Input
+            type="tel"
+            inputMode="tel"
+            list="country-code-options"
             id="country_code"
             value={countryCode}
-            onChange={(e) => setCountryCode(e.target.value)}
-            disabled={isCountryCodesLoading}
-            className="outline-none pl-3 pr-0 rounded-tl-[99px] rounded-bl-[99px] text-paragraph text-sm font-light"
-          >
+            onChange={(e) =>
+              setCountryCode(sanitizeCountryCodeInput(e.target.value))
+            }
+            onBlur={() =>
+              setCountryCode((currentCode) =>
+                normalizeCountryCodeForSubmit(currentCode) || "+91"
+              )
+            }
+            placeholder={isCountryCodesLoading ? "Loading..." : "+91"}
+            className="w-24 shrink-0 border-0 rounded-tr-none rounded-br-none pr-1"
+            aria-label="Country code"
+          />
+          <datalist id="country-code-options">
             {countryCodeOptions.map((option) => (
               <option key={`${option.isoCode}-${option.value}`} value={option.value}>
-                {option.value}
+                {option.label}
               </option>
             ))}
-          </select>
+          </datalist>
 
           <Input
             className="border-0 border-l rounded-tl-none rounded-bl-none"
