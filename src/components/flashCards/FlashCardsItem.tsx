@@ -89,9 +89,10 @@ const FlashCardsItem = ({
           <div className="w-full h-28 rounded-xl overflow-hidden bg-white/70 border border-[#556378]/20">
             {renderImageWithActions(image, "object-cover")}
           </div>
-          <p className="flex-1 overflow-y-auto break-words text-center text-sm font-medium leading-6 text-Desc-464646">
-            {text}
-          </p>
+          <div
+            className="flex-1 overflow-y-auto break-words text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
         </div>
       );
     }
@@ -104,9 +105,18 @@ const FlashCardsItem = ({
       );
     }
 
+    if (hasText) {
+      return (
+        <div
+          className="w-full max-h-full overflow-y-auto break-words whitespace-pre-wrap text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+          dangerouslySetInnerHTML={{ __html: text }}
+        />
+      );
+    }
+
     return (
       <h4 className="w-full max-h-full overflow-y-auto break-words whitespace-pre-wrap text-center text-sm font-medium leading-6 text-Desc-464646">
-        {hasText ? text : fallbackText}
+        {fallbackText}
       </h4>
     );
   };

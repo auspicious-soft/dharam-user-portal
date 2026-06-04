@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import ReportQuestionReview from "@/components/Questions/ViewReports/ReportQuestionReview";
 import {
@@ -21,6 +21,10 @@ type ExamReportQuestionsResponse = {
   data?: unknown;
 };
 
+type ReportQuestionsLocationState = {
+  fromExamStart?: boolean;
+};
+
 const QUESTION_STATUS_OPTIONS = [
   { label: "All", value: "All" },
   { label: "Correct", value: "Correct" },
@@ -30,6 +34,7 @@ const QUESTION_STATUS_OPTIONS = [
 
 const ReportQuestionsView = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [questions, setQuestions] = useState<ReportQuestionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +55,14 @@ const ReportQuestionsView = () => {
   );
 
   const handleBack = () => {
+    const fromExamStart = (location.state as ReportQuestionsLocationState | null)
+      ?.fromExamStart;
+
+    if (fromExamStart && reportType === "mock") {
+      navigate("/exams");
+      return;
+    }
+
     if (window.history.length > 1) {
       navigate(-1);
       return;
@@ -114,6 +127,18 @@ const ReportQuestionsView = () => {
       isMounted = false;
     };
   }, [attemptNumber, examId, reportId, reportType, statusFilter]);
+
+  useEffect(() => {
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+    };
+
+    document.addEventListener("copy", handleCopy);
+
+    return () => {
+      document.removeEventListener("copy", handleCopy);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-7">

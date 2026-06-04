@@ -48,16 +48,60 @@ type FlashCardApiItem = {
   price?: number | string | null;
 };
 
-const htmlToText = (value: unknown): string => {
+const normalizeFlashCardHtml = (value: unknown): string => {
   const raw = String(value ?? "");
   if (!raw) return "";
 
   if (typeof window === "undefined") {
-    return raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return raw;
   }
 
   const doc = new DOMParser().parseFromString(raw, "text/html");
-  return (doc.body.textContent ?? "").replace(/\s+/g, " ").trim();
+  const allowedTags = new Set([
+    "B",
+    "BR",
+    "EM",
+    "I",
+    "LI",
+    "OL",
+    "P",
+    "SPAN",
+    "STRONG",
+    "U",
+    "UL",
+  ]);
+  const blockedTags = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT"]);
+
+  doc.body.querySelectorAll("*").forEach((element) => {
+    if (blockedTags.has(element.tagName)) {
+      element.remove();
+      return;
+    }
+
+    if (!allowedTags.has(element.tagName)) {
+      element.replaceWith(...Array.from(element.childNodes));
+      return;
+    }
+
+    const htmlElement = element as HTMLElement;
+    const color = htmlElement.style.color;
+    const backgroundColor = htmlElement.style.backgroundColor;
+    const textAlign = htmlElement.style.textAlign;
+
+    Array.from(element.attributes).forEach((attribute) => {
+      element.removeAttribute(attribute.name);
+    });
+
+    const style: string[] = [];
+    if (color) style.push(`color: ${color}`);
+    if (backgroundColor) style.push(`background-color: ${backgroundColor}`);
+    if (textAlign) style.push(`text-align: ${textAlign}`);
+    if (style.length) {
+      element.setAttribute("style", style.join("; "));
+    }
+  });
+
+  return doc.body.innerHTML.trim();
 };
 
 const resolveAssetUrl = (value: unknown): string | undefined => {
@@ -159,8 +203,8 @@ const FlashCards = () => {
             {
               id,
               categoryId,
-              frontText: htmlToText(item.frontText),
-              backText: htmlToText(item.backText),
+              frontText: normalizeFlashCardHtml(item.frontText),
+              backText: normalizeFlashCardHtml(item.backText),
               frontImage: resolveAssetUrl(item.frontImage),
               backImage: resolveAssetUrl(item.backImage),
               price:

@@ -383,7 +383,9 @@ const StartExam = () => {
       reportId,
     });
 
-    navigate(`/exams/view-reports/questions?${params.toString()}`);
+    navigate(`/exams/view-reports/questions?${params.toString()}`, {
+      state: { fromExamStart: true },
+    });
   };
 
   useEffect(() => {
