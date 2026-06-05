@@ -39,7 +39,7 @@ const FlashCardsItem = ({
 
   const renderImageWithActions = (
     image: string,
-    className: "object-cover" | "object-contain"
+    className: "object-cover" | "object-contain",
   ) => (
     <div className="relative w-full h-full group/image">
       <img
@@ -70,16 +70,14 @@ const FlashCardsItem = ({
   const renderFaceContent = (
     text: string,
     image?: string,
-    fallbackText = "No content available"
+    fallbackText = "No content available",
   ) => {
     const hasText = Boolean(text.trim());
     const hasImage = Boolean(image);
 
     if (isLocked) {
       return (
-        <h4 className="w-full max-h-full overflow-y-auto break-words whitespace-pre-wrap text-center text-sm font-medium leading-6 text-Desc-464646">
-          
-        </h4>
+        <h4 className="w-full max-h-full overflow-y-auto break-words whitespace-pre-wrap text-center text-sm font-medium leading-6 text-Desc-464646"></h4>
       );
     }
 
@@ -90,7 +88,7 @@ const FlashCardsItem = ({
             {renderImageWithActions(image, "object-cover")}
           </div>
           <div
-            className="flex-1 overflow-y-auto break-words text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+            className="flex-1 overflow-y-auto break-words text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#556378] [&_td]:p-3 [&_th]:border [&_th]:border-[#556378] [&_th]:p-3 [&_th]:font-bold [&_th]:bg-slate-100 [&_tr]:hover:bg-slate-50"
             dangerouslySetInnerHTML={{ __html: text }}
           />
         </div>
@@ -108,7 +106,7 @@ const FlashCardsItem = ({
     if (hasText) {
       return (
         <div
-          className="w-full max-h-full overflow-y-auto break-words whitespace-pre-wrap text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+          className="w-full max-h-full overflow-y-auto break-words text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#556378] [&_td]:p-3 [&_th]:border [&_th]:border-[#556378] [&_th]:p-3 [&_th]:font-bold [&_th]:bg-slate-100 [&_tr]:hover:bg-slate-50"
           dangerouslySetInnerHTML={{ __html: text }}
         />
       );
@@ -150,7 +148,7 @@ const FlashCardsItem = ({
                 frontImage,
                 hasBackText || hasBackImage
                   ? "Flip to see answer"
-                  : "No front content available"
+                  : "No front content available",
               )}
             </div>
             <div
@@ -165,7 +163,7 @@ const FlashCardsItem = ({
                 backImage,
                 hasFrontText || hasFrontImage
                   ? "Flip to see front"
-                  : "No back content available"
+                  : "No back content available",
               )}
             </div>
           </div>

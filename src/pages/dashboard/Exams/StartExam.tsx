@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
 import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
@@ -353,6 +354,42 @@ const StartExam = () => {
     }
   }, [isSubmitting, mockExamData?.examId, navigate, timeTaken]);
 
+  const handleAttemptMarkedQuestions = useCallback(() => {
+    const firstMarkedQuestion = Array.from(marked).sort((a, b) => a - b)[0];
+    if (firstMarkedQuestion === undefined) return;
+
+    setCurrentQuestion(firstMarkedQuestion + 1);
+    toast.dismiss("marked-questions-submit");
+  }, [marked]);
+
+  const handleSubmitWithMarkedCheck = useCallback((openReport = true) => {
+    if (marked.size > 0) {
+      const markedQuestionNumbers = Array.from(marked)
+        .sort((a, b) => a - b)
+        .map((index) => index + 1)
+        .join(", ");
+
+      toast.warning("You have marked questions.", {
+        id: "marked-questions-submit",
+        description: `Marked questions: ${markedQuestionNumbers}. Do you want to attempt them before submitting?`,
+        action: {
+          label: "Attempt",
+          onClick: handleAttemptMarkedQuestions,
+        },
+        cancel: {
+          label: "Submit anyway",
+          onClick: () => {
+            void handleSubmitExam(openReport);
+          },
+        },
+        duration: 10000,
+      });
+      return;
+    }
+
+    void handleSubmitExam(openReport);
+  }, [handleAttemptMarkedQuestions, handleSubmitExam, marked]);
+
   const handleConfirmPause = async () => {
     if (!mockExamData?.examId) return;
 
@@ -481,6 +518,7 @@ const StartExam = () => {
           {hasQuiz ? (
             <ExamsQuizRenderer
               quiz={quiz}
+              activeQuestionIndex={currentQuestion - 1}
               onQuestionChange={handleQuestionChange}
               examId={mockExamData?.examId}
               courseId={examCourseId}
@@ -490,7 +528,7 @@ const StartExam = () => {
               marked={marked}
               setMarked={setMarked}
               onComplete={() => {
-                void handleSubmitExam();
+                handleSubmitWithMarkedCheck();
               }}
             />
           ) : (
@@ -552,7 +590,7 @@ const StartExam = () => {
             marked={marked}
             onJump={handleJump}
             onPauseChange={setIsPaused}
-            onSubmitExam={handleSubmitExam}
+            onSubmitExam={handleSubmitWithMarkedCheck}
             onConfirmPause={handleConfirmPause}
           />
         )}

@@ -69,6 +69,15 @@ const normalizeFlashCardHtml = (value: unknown): string => {
     "STRONG",
     "U",
     "UL",
+    "TABLE",
+    "THEAD",
+    "TBODY",
+    "TFOOT",
+    "TR",
+    "TH",
+    "TD",
+    "COLGROUP",
+    "COL",
   ]);
   const blockedTags = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT"]);
 
@@ -87,6 +96,11 @@ const normalizeFlashCardHtml = (value: unknown): string => {
     const color = htmlElement.style.color;
     const backgroundColor = htmlElement.style.backgroundColor;
     const textAlign = htmlElement.style.textAlign;
+    const width = htmlElement.style.width;
+    const height = htmlElement.style.height;
+    const padding = htmlElement.style.padding;
+    const margin = htmlElement.style.margin;
+    const borderCollapse = htmlElement.style.borderCollapse;
 
     Array.from(element.attributes).forEach((attribute) => {
       element.removeAttribute(attribute.name);
@@ -96,6 +110,11 @@ const normalizeFlashCardHtml = (value: unknown): string => {
     if (color) style.push(`color: ${color}`);
     if (backgroundColor) style.push(`background-color: ${backgroundColor}`);
     if (textAlign) style.push(`text-align: ${textAlign}`);
+    if (width) style.push(`width: ${width}`);
+    if (height) style.push(`height: ${height}`);
+    if (padding) style.push(`padding: ${padding}`);
+    if (margin) style.push(`margin: ${margin}`);
+    if (borderCollapse) style.push(`border-collapse: ${borderCollapse}`);
     if (style.length) {
       element.setAttribute("style", style.join("; "));
     }
@@ -122,19 +141,18 @@ const FlashCards = () => {
   >(null);
 
   const selectedCategory = categories.find(
-    (category) => category.id === selectedCategoryId
+    (category) => category.id === selectedCategoryId,
   );
   const isSelectedCategoryInactive =
     String(selectedCategory?.status ?? "").toUpperCase() === "INACTIVE";
   const areAllCategoriesInactive =
     categories.length > 0 &&
     categories.every(
-      (category) => String(category.status ?? "").toUpperCase() === "INACTIVE"
+      (category) => String(category.status ?? "").toUpperCase() === "INACTIVE",
     );
 
   useEffect(() => {
-    const courseId =
-      localStorage.getItem("selectedCourseId")
+    const courseId = localStorage.getItem("selectedCourseId");
 
     const fetchCategories = async () => {
       setIsCategoriesLoading(true);
@@ -163,8 +181,8 @@ const FlashCards = () => {
           ];
         });
         setCategories(mapped);
-        setSelectedCategoryId((currentCategoryId) =>
-          currentCategoryId || mapped[0]?.id || ""
+        setSelectedCategoryId(
+          (currentCategoryId) => currentCategoryId || mapped[0]?.id || "",
         );
       } catch (error) {
         console.error("Failed to fetch flashcard categories", error);
@@ -301,14 +319,17 @@ const FlashCards = () => {
       </div>
 
       <div className="flex justify-between items-center flex-wrap gap-3 mt-3">
-        <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+        <Select
+          value={selectedCategoryId}
+          onValueChange={setSelectedCategoryId}
+        >
           <SelectTrigger
             className="max-w-72 py-[11px]"
             disabled={isCategoriesLoading || categories.length === 0}
           >
             <SelectValue placeholder="Select A Category" />
           </SelectTrigger>
-          <SelectContent> 
+          <SelectContent>
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.name}
@@ -322,7 +343,7 @@ const FlashCards = () => {
             onChange={setSearch}
             placeholder="Search flashcards"
           />
-        </div>  
+        </div>
       </div>
 
       {isCategoriesLoading ? (
@@ -334,7 +355,7 @@ const FlashCards = () => {
       ) : isCardsLoading ? (
         <div className="p-4 text-sm text-paragraph">Loading flashcards...</div>
       ) : cards.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {cards.map((card) => (
             <FlashCardsItem
               key={card.id}

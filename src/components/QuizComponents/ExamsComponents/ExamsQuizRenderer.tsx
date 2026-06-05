@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { QuizQuestion } from "../quiz.types";
 import {
@@ -24,6 +24,7 @@ interface QuizRendererProps {
   quiz: QuizQuestion[];
   onComplete?: (results: { correct: number; incorrect: number }) => void;
   onQuestionChange?: (index: number) => void;
+  activeQuestionIndex?: number;
   examId?: string;
   courseId?: string;
   availableTime?: number;
@@ -39,6 +40,7 @@ export const ExamsQuizRenderer = ({
   quiz,
   onComplete,
   onQuestionChange,
+  activeQuestionIndex,
   examId,
   courseId,
   availableTime,
@@ -66,14 +68,16 @@ export const ExamsQuizRenderer = ({
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
-
-  useEffect(() => {
-    onQuestionChange?.(currentQuestionIndex);
-  }, [currentQuestionIndex, onQuestionChange]);
-
-  useEffect(() => {
-    setIsImageOpen(false);
-  }, [currentQuestionIndex]);
+  const dragDropCurrentAnswers = dragDropAnswers[currentQuestionIndex] ?? {};
+  const fillBlankCurrentAnswers = fillBlankAnswers[currentQuestionIndex] ?? {};
+  const hasCurrentAnswer =
+    question.type === "mcq"
+      ? selectedAnswers.length > 0
+      : question.type === "dragdrop"
+        ? Object.keys(dragDropCurrentAnswers).length > 0
+        : question.type === "fillblank"
+          ? Object.values(fillBlankCurrentAnswers).some(Boolean)
+          : false;
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
@@ -91,12 +95,38 @@ export const ExamsQuizRenderer = ({
         console.error("Failed to submit question response", error);
       });
   };
+
+  const moveToQuestion = useCallback((index: number) => {
+    setCurrentQuestionIndex(index);
+    setSelectedAnswers(mcqAnswers[index] ?? []);
+    setShowResult(false);
+    onQuestionChange?.(index);
+  }, [mcqAnswers, onQuestionChange]);
+
+  useEffect(() => {
+    if (typeof activeQuestionIndex !== "number") return;
+    if (activeQuestionIndex < 0 || activeQuestionIndex >= totalQuestions) return;
+    if (activeQuestionIndex === currentQuestionIndex) return;
+
+    moveToQuestion(activeQuestionIndex);
+  }, [
+    activeQuestionIndex,
+    currentQuestionIndex,
+    moveToQuestion,
+    totalQuestions,
+  ]);
+
+  useEffect(() => {
+    setIsImageOpen(false);
+  }, [currentQuestionIndex]);
+
   // ---------------------------------------------------
   // NEXT
   // ---------------------------------------------------
 
   const handleNext = () => {
     if (currentQuestionIndex === totalQuestions - 1) return;
+    if (!hasCurrentAnswer) return;
 
     let isCorrect: boolean | null = null;
 
@@ -161,11 +191,7 @@ export const ExamsQuizRenderer = ({
     }
 
     // ---------- MOVE ----------
-    const nextIndex = currentQuestionIndex + 1;
-
-    setCurrentQuestionIndex(nextIndex);
-    setSelectedAnswers(mcqAnswers[nextIndex] ?? []);
-    setShowResult(false);
+    moveToQuestion(currentQuestionIndex + 1);
   };
 
   // ---------------------------------------------------
@@ -177,10 +203,7 @@ export const ExamsQuizRenderer = ({
 
     const prevIndex = currentQuestionIndex - 1;
 
-    setCurrentQuestionIndex(prevIndex);
-    setSelectedAnswers(mcqAnswers[prevIndex] ?? []);
-
-    setShowResult(false);
+    moveToQuestion(prevIndex);
   };
 
   // ---------------------------------------------------
@@ -262,13 +285,39 @@ export const ExamsQuizRenderer = ({
   // ---------------------------------------------------
 
   const markCurrent = () => {
+    if (currentQuestionIndex === totalQuestions - 1) return;
+
     setMarked((prev) => {
       const copy = new Set(prev);
       copy.add(currentQuestionIndex);
       return copy;
     });
 
-    handleNext();
+    setResults((prev) => {
+      const copy = { ...prev };
+      delete copy[currentQuestionIndex];
+      return copy;
+    });
+
+    setMcqAnswers((prev) => {
+      const copy = { ...prev };
+      delete copy[currentQuestionIndex];
+      return copy;
+    });
+
+    setDragDropAnswers((prev) => {
+      const copy = { ...prev };
+      delete copy[currentQuestionIndex];
+      return copy;
+    });
+
+    setFillBlankAnswers((prev) => {
+      const copy = { ...prev };
+      delete copy[currentQuestionIndex];
+      return copy;
+    });
+
+    moveToQuestion(currentQuestionIndex + 1);
   };
 
   const getQuestionTypeLabel = () => {
@@ -374,7 +423,9 @@ export const ExamsQuizRenderer = ({
 
           <Button
             onClick={handleNext}
-            disabled={currentQuestionIndex === totalQuestions - 1}
+            disabled={
+              currentQuestionIndex === totalQuestions - 1 || !hasCurrentAnswer
+            }
              className="rounded-[10px] h-10 !py-1 !px-4"
           >
            
