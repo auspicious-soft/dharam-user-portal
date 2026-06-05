@@ -214,7 +214,7 @@ function useTimer(initialSeconds: number, isPaused: boolean) {
 
   return { display: `${hh}:${mm}:${ss}`, seconds };
 }
-
+ 
 // ─── Main Component ───
 const StartExam = () => {
   const location = useLocation();
