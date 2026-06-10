@@ -111,6 +111,8 @@ const ViewReports = () => {
         ([name, values]) => ({
           name,
           percentage: Number(values?.percentage ?? 0),
+          correct: Number(values?.correct ?? 0),
+          total: Number(values?.total ?? 0),
         })
       );
 
@@ -212,6 +214,8 @@ const ViewReports = () => {
             ([name, values]) => ({
               name,
               percentage: Number(values?.percentage ?? 0),
+              correct: Number(values?.correct ?? 0),
+              total: Number(values?.total ?? 0),
             }),
           );
 

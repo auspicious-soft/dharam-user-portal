@@ -16,6 +16,8 @@ export type { ReportQuestionItem } from "./reportQuestions";
 export type DomainScore = {
   name: string;
   percentage: number;
+  correct: number;
+  total: number;
 };
 
 export type ReportData = {
@@ -176,7 +178,8 @@ const ViewReportDialog = ({
                   {formatDomainName(domain.name)}
                 </span>
                 <span className="text-primary_heading text-base font-semibold">
-                  {formatPercent(domain.percentage)}% Correct
+                  {formatPercent(domain.percentage)}% Correct ({domain.correct}
+                  /{domain.total})
                 </span>
               </div>
             ))
