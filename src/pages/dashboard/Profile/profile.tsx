@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CountryCodeSearchInput from "@/components/reusableComponents/CountryCodeSearchInput";
 import ImageUploader from "@/components/reusableComponents/ImageUploader";
 import api from "@/lib/axios";
 import {
@@ -13,6 +14,9 @@ import { Eye, EyeClosed } from "iconoir-react";
 import {
   COUNTRY_CODE_FALLBACK_OPTIONS,
   fetchCountryCodeOptions,
+  getCountryCodeFromSearchInput,
+  getCountryCodeOptionLabel,
+  getSupportedCountryCode,
 } from "@/utils/countryCodeOptions";
 export default function Profile() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -24,6 +28,11 @@ export default function Profile() {
   const [countryCodeOptions, setCountryCodeOptions] = useState(
     COUNTRY_CODE_FALLBACK_OPTIONS
   );
+  const [countryCodeSearch, setCountryCodeSearch] = useState(
+    getCountryCodeOptionLabel("+91", COUNTRY_CODE_FALLBACK_OPTIONS)
+  );
+  const countryCodeOptionsRef = useRef(COUNTRY_CODE_FALLBACK_OPTIONS);
+  const hasResolvedCountryCodesRef = useRef(false);
   const [isCountryCodesLoading, setIsCountryCodesLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [imageKey, setImageKey] = useState<string | null>(null);
@@ -55,7 +64,24 @@ export default function Profile() {
       setFirstName(profile.firstname ?? "");
       setLastName(profile.lastname ?? "");
       setEmail(profile.email ?? "");
-      setCountryCode(profile.countryCode ?? "+91");
+      const profileCountryCode = profile.countryCode ?? "+91";
+      setCountryCode(
+        (() => {
+          const supportedCode = hasResolvedCountryCodesRef.current
+            ? getSupportedCountryCode(
+                profileCountryCode,
+                countryCodeOptionsRef.current
+              )
+            : profileCountryCode;
+          setCountryCodeSearch(
+            getCountryCodeOptionLabel(
+              supportedCode,
+              countryCodeOptionsRef.current
+            )
+          );
+          return supportedCode;
+        })()
+      );
       setPhoneNumber(profile.phoneNumber ?? "");
       const rawImage = profile.image ?? null;
       let previewUrl: string | null = null;
@@ -82,7 +108,6 @@ export default function Profile() {
       localStorage.setItem("user", JSON.stringify(userPayload));
       window.dispatchEvent(new Event("userUpdated"));
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to fetch profile stats", error);
     }
   };
@@ -93,15 +118,31 @@ export default function Profile() {
       setIsCountryCodesLoading(true);
       try {
         const options = await fetchCountryCodeOptions(controller.signal);
+        countryCodeOptionsRef.current = options;
+        hasResolvedCountryCodesRef.current = true;
         setCountryCodeOptions(options);
         setCountryCode((currentCode) => {
-          if (options.some((option) => option.value === currentCode)) {
-            return currentCode;
-          }
-          return options.find((option) => option.value === "+91")?.value ?? options[0].value;
+          const supportedCode = getSupportedCountryCode(currentCode, options);
+          setCountryCodeSearch(getCountryCodeOptionLabel(supportedCode, options));
+          return supportedCode;
         });
       } catch {
+        countryCodeOptionsRef.current = COUNTRY_CODE_FALLBACK_OPTIONS;
+        hasResolvedCountryCodesRef.current = true;
         setCountryCodeOptions(COUNTRY_CODE_FALLBACK_OPTIONS);
+        setCountryCode((currentCode) => {
+          const supportedCode = getSupportedCountryCode(
+            currentCode,
+            COUNTRY_CODE_FALLBACK_OPTIONS
+          );
+          setCountryCodeSearch(
+            getCountryCodeOptionLabel(
+              supportedCode,
+              COUNTRY_CODE_FALLBACK_OPTIONS
+            )
+          );
+          return supportedCode;
+        });
       } finally {
         setIsCountryCodesLoading(false);
       }
@@ -126,6 +167,7 @@ export default function Profile() {
 
     setIsSaving(true);
     try {
+      const supportedCountryCode = normalizeCountryCodeSearch();
       let imageUrl = logoPreview;
       let finalImageKey = imageKey;
 
@@ -141,7 +183,7 @@ export default function Profile() {
         firstname: firstName,
         lastname: lastName,
         email,
-        countryCode,
+        countryCode: supportedCountryCode,
         phoneNumber,
         image: finalImageKey,
       });
@@ -165,7 +207,6 @@ export default function Profile() {
       }
       toast.success("Profile updated successfully.");
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to save profile details", error);
       const message =
         (error as { response?: { data?: { message?: string } } })?.response
@@ -174,6 +215,19 @@ export default function Profile() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const normalizeCountryCodeSearch = () => {
+    const supportedCode = getCountryCodeFromSearchInput(
+      countryCodeSearch,
+      countryCodeOptions,
+      countryCode
+    );
+    setCountryCode(supportedCode);
+    setCountryCodeSearch(
+      getCountryCodeOptionLabel(supportedCode, countryCodeOptions)
+    );
+    return supportedCode;
   };
 
   const handleChangePassword = async () => {
@@ -201,7 +255,6 @@ export default function Profile() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to change password", error);
       const message =
         (error as { response?: { data?: { message?: string } } })?.response
@@ -254,19 +307,15 @@ export default function Profile() {
             />
 
             <div className="flex gap-2 relative bg-white rounded-[99px] outline-none w-full border border-[#e8e8e8] text-paragraph text-sm font-light">
-              <select
+              <CountryCodeSearchInput
                 id="country_code"
-                className="outline-none pl-3 pr-0 rounded-tl-[99px] rounded-bl-[99px] text-paragraph text-sm font-light"
                 value={countryCode}
+                searchValue={countryCodeSearch}
+                options={countryCodeOptions}
                 disabled={isCountryCodesLoading}
-                onChange={(e) => setCountryCode(e.target.value)}
-              >
-                {countryCodeOptions.map((option) => (
-                  <option key={`${option.isoCode}-${option.value}`} value={option.value}>
-                    {option.value}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setCountryCode}
+                onSearchValueChange={setCountryCodeSearch}
+              />
 
               <Input
                 className="border-0 border-l rounded-tl-none rounded-bl-none"

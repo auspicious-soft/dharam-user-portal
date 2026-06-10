@@ -41,7 +41,7 @@ export const ExitExamDialog = ({
           />
 
           <DialogTitle className="text-center text-2xl text-Black_light md:text-3xl font-bold">
-            Exit Exam?
+            Exit Practice?
           </DialogTitle>
 
           <DialogDescription className="text-paragraph text-base font-medium text-center">

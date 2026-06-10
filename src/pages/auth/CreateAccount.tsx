@@ -18,32 +18,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import CountryCodeSearchInput from "@/components/reusableComponents/CountryCodeSearchInput";
 import api from "@/lib/axios";
 import { getFcmToken } from "@/lib/fcm";
 import { toast } from "sonner";
 import {
   COUNTRY_CODE_FALLBACK_OPTIONS,
   fetchCountryCodeOptions,
+  getCountryCodeFromSearchInput,
+  getCountryCodeOptionLabel,
+  getSupportedCountryCode,
 } from "@/utils/countryCodeOptions";
 
 const MIN_PASSWORD_LENGTH = 5;
-
-const sanitizeCountryCodeInput = (value: string) => {
-  const compactValue = value.replace(/\s+/g, "");
-  const hasLeadingPlus = compactValue.startsWith("+");
-  const digits = compactValue.replace(/\D/g, "");
-
-  if (!digits) {
-    return hasLeadingPlus ? "+" : "";
-  }
-
-  return hasLeadingPlus ? `+${digits}` : digits;
-};
-
-const normalizeCountryCodeForSubmit = (value: string) => {
-  const digits = value.replace(/\D/g, "");
-  return digits ? `+${digits}` : "";
-};
 
 const CreateAccount = () => {
  const navigate = useNavigate();
@@ -54,6 +41,9 @@ const CreateAccount = () => {
   const [countryCode, setCountryCode] = useState("+91");
   const [countryCodeOptions, setCountryCodeOptions] = useState(
     COUNTRY_CODE_FALLBACK_OPTIONS
+  );
+  const [countryCodeSearch, setCountryCodeSearch] = useState(
+    getCountryCodeOptionLabel("+91", COUNTRY_CODE_FALLBACK_OPTIONS)
   );
   const [isCountryCodesLoading, setIsCountryCodesLoading] = useState(false);
   const [phone, setPhone] = useState("");
@@ -75,13 +65,25 @@ const CreateAccount = () => {
         const options = await fetchCountryCodeOptions(controller.signal);
         setCountryCodeOptions(options);
         setCountryCode((currentCode) => {
-          if (options.some((option) => option.value === currentCode)) {
-            return currentCode;
-          }
-          return options.find((option) => option.value === "+91")?.value ?? options[0].value;
+          const supportedCode = getSupportedCountryCode(currentCode, options);
+          setCountryCodeSearch(getCountryCodeOptionLabel(supportedCode, options));
+          return supportedCode;
         });
       } catch {
         setCountryCodeOptions(COUNTRY_CODE_FALLBACK_OPTIONS);
+        setCountryCode((currentCode) => {
+          const supportedCode = getSupportedCountryCode(
+            currentCode,
+            COUNTRY_CODE_FALLBACK_OPTIONS
+          );
+          setCountryCodeSearch(
+            getCountryCodeOptionLabel(
+              supportedCode,
+              COUNTRY_CODE_FALLBACK_OPTIONS
+            )
+          );
+          return supportedCode;
+        });
       } finally {
         setIsCountryCodesLoading(false);
       }
@@ -122,6 +124,19 @@ const CreateAccount = () => {
     return true;
   };
 
+  const normalizeCountryCodeSearch = () => {
+    const supportedCode = getCountryCodeFromSearchInput(
+      countryCodeSearch,
+      countryCodeOptions,
+      countryCode
+    );
+    setCountryCode(supportedCode);
+    setCountryCodeSearch(
+      getCountryCodeOptionLabel(supportedCode, countryCodeOptions)
+    );
+    return supportedCode;
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -147,12 +162,13 @@ const CreateAccount = () => {
     }
 
     try {
+      const supportedCountryCode = normalizeCountryCodeSearch();
       const response = await api.post("/create-user", {
         firstname: firstName.trim(),
         lastname: lastName.trim(),
         fullName,
         email: email.trim(),
-        countryCode: normalizeCountryCodeForSubmit(countryCode),
+        countryCode: supportedCountryCode,
         phoneNumber: phone.trim(),
         password,
         fcmToken: fcmToken ?? "",
@@ -260,31 +276,15 @@ const CreateAccount = () => {
         </div>
 
         <div className="flex gap-2 relative bg-white rounded-[99px] outline-none w-full border border-[#e8e8e8] text-paragraph text-sm font-light">
-          <Input
-            type="tel"
-            inputMode="tel"
-            list="country-code-options"
+          <CountryCodeSearchInput
             id="country_code"
             value={countryCode}
-            onChange={(e) =>
-              setCountryCode(sanitizeCountryCodeInput(e.target.value))
-            }
-            onBlur={() =>
-              setCountryCode((currentCode) =>
-                normalizeCountryCodeForSubmit(currentCode) || "+91"
-              )
-            }
-            placeholder={isCountryCodesLoading ? "Loading..." : "+91"}
-            className="w-24 shrink-0 border-0 rounded-tr-none rounded-br-none pr-1"
-            aria-label="Country code"
+            searchValue={countryCodeSearch}
+            options={countryCodeOptions}
+            disabled={isCountryCodesLoading}
+            onValueChange={setCountryCode}
+            onSearchValueChange={setCountryCodeSearch}
           />
-          <datalist id="country-code-options">
-            {countryCodeOptions.map((option) => (
-              <option key={`${option.isoCode}-${option.value}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </datalist>
 
           <Input
             className="border-0 border-l rounded-tl-none rounded-bl-none"
