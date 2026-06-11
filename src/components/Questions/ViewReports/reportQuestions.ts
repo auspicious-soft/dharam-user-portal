@@ -3,6 +3,11 @@ export type ReportQuestionItem = {
   examId?: string;
   isCorrect?: boolean | null;
   isAttempted?: boolean;
+  answerJson?: {
+    questionId?: string;
+    type?: string;
+    selectedAnswer?: string[] | Record<string, string>;
+  };
   questionId?: {
     _id: string;
     question?: string;
@@ -33,6 +38,40 @@ export type ReportQuestionItem = {
   };
 };
 
+const normalizeSelectedAnswer = (
+  value: unknown,
+): string[] | Record<string, string> | undefined => {
+  if (Array.isArray(value)) {
+    return value.map((answer) => String(answer ?? "")).filter(Boolean);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).reduce<
+      Record<string, string>
+    >((answers, [key, answer]) => {
+      const text = String(answer ?? "");
+      if (text) answers[key] = text;
+      return answers;
+    }, {});
+  }
+
+  return undefined;
+};
+
+const normalizeAnswerJson = (
+  value: unknown,
+): ReportQuestionItem["answerJson"] | undefined => {
+  if (!value || typeof value !== "object") return undefined;
+
+  const answerJson = value as Record<string, unknown>;
+
+  return {
+    questionId: answerJson.questionId ? String(answerJson.questionId) : "",
+    type: answerJson.type ? String(answerJson.type) : "",
+    selectedAnswer: normalizeSelectedAnswer(answerJson.selectedAnswer),
+  };
+};
+
 export const normalizeReportQuestions = (
   raw: unknown,
 ): ReportQuestionItem[] => {
@@ -54,6 +93,9 @@ export const normalizeReportQuestions = (
             : undefined,
       isAttempted:
         typeof row.isAttempted === "boolean" ? row.isAttempted : undefined,
+      answerJson: normalizeAnswerJson(
+        row.answerJson ?? row.answerJSon ?? row.answerJSON,
+      ),
       questionId: {
         _id: String(question._id ?? ""),
         question: question.question ? String(question.question) : "",

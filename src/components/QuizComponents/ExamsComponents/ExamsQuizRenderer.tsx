@@ -36,6 +36,86 @@ interface QuizRendererProps {
   setMarked: React.Dispatch<React.SetStateAction<Set<number>>>;
 }
 
+type ExamAnswerJson = {
+  questionId: string;
+  type: "MCQ" | "DND" | "FIB";
+  selectedAnswer: string[] | Record<string, string>;
+};
+
+const buildAnswerJson = (
+  question: QuizQuestion,
+  selectedAnswers: string[],
+  dragDropCurrentAnswers: Record<string, string>,
+  fillBlankCurrentAnswers: Record<number, string>,
+): ExamAnswerJson | null => {
+  if (question.type === "mcq") {
+    const selectedAnswer = selectedAnswers
+      .map(
+        (optionId) =>
+          question.options.find((option) => option.id === optionId)?.text,
+      )
+      .filter((answer): answer is string => Boolean(answer));
+
+    if (selectedAnswer.length === 0) return null;
+
+    return {
+      questionId: question.id,
+      type: "MCQ",
+      selectedAnswer,
+    };
+  }
+
+  if (question.type === "dragdrop") {
+    const selectedAnswer = question.dropZones.reduce<Record<string, string>>(
+      (answers, zone, index) => {
+        const droppedItemId = dragDropCurrentAnswers[zone.id];
+        const droppedItem = question.draggableItems.find(
+          (item) => item.id === droppedItemId,
+        );
+
+        if (droppedItem?.text) {
+          answers[String(index)] = droppedItem.text;
+        }
+
+        return answers;
+      },
+      {},
+    );
+
+    if (Object.keys(selectedAnswer).length === 0) return null;
+
+    return {
+      questionId: question.id,
+      type: "DND",
+      selectedAnswer,
+    };
+  }
+
+  if (question.type === "fillblank") {
+    const selectedAnswer = question.blanks
+      .map((blank) => {
+        const assignedOptionIndex = Object.keys(fillBlankCurrentAnswers).find(
+          (key) => fillBlankCurrentAnswers[parseInt(key)] === blank.id,
+        );
+
+        if (assignedOptionIndex === undefined) return "";
+
+        return question.options[parseInt(assignedOptionIndex)] ?? "";
+      })
+      .filter(Boolean);
+
+    if (selectedAnswer.length === 0) return null;
+
+    return {
+      questionId: question.id,
+      type: "FIB",
+      selectedAnswer,
+    };
+  }
+
+  return null;
+};
+
 export const ExamsQuizRenderer = ({
   quiz,
   onComplete,
@@ -81,7 +161,10 @@ export const ExamsQuizRenderer = ({
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
-  const submitQuestionResponse = (isCorrect: boolean | null) => {
+  const submitQuestionResponse = (
+    isCorrect: boolean | null,
+    answerJson: ExamAnswerJson | null,
+  ) => {
     if (!examId || isCorrect === null) return;
 
     void api
@@ -90,6 +173,7 @@ export const ExamsQuizRenderer = ({
         isCorrect,
         examId,
         availableTime: typeof availableTime === "number" ? availableTime : 0,
+        answerJson,
       })
       .catch((error) => {
         console.error("Failed to submit question response", error);
@@ -176,6 +260,13 @@ export const ExamsQuizRenderer = ({
 
     // ---------- SAVE RESULT + CLEAR MARK ----------
     if (isCorrect !== null) {
+      const answerJson = buildAnswerJson(
+        question,
+        selectedAnswers,
+        dragDropAnswers[currentQuestionIndex] ?? {},
+        fillBlankAnswers[currentQuestionIndex] ?? {},
+      );
+
       setResults((prev) => ({
         ...prev,
         [currentQuestionIndex]: isCorrect,
@@ -187,7 +278,7 @@ export const ExamsQuizRenderer = ({
         return copy;
       });
 
-      submitQuestionResponse(isCorrect);
+      submitQuestionResponse(isCorrect, answerJson);
     }
 
     // ---------- MOVE ----------
@@ -255,6 +346,13 @@ export const ExamsQuizRenderer = ({
     }
 
     if (isCorrect !== null) {
+      const answerJson = buildAnswerJson(
+        question,
+        selectedAnswers,
+        dragDropAnswers[currentQuestionIndex] ?? {},
+        fillBlankAnswers[currentQuestionIndex] ?? {},
+      );
+
       setResults((prev) => ({
         ...prev,
         [currentQuestionIndex]: isCorrect,
@@ -266,7 +364,7 @@ export const ExamsQuizRenderer = ({
         return copy;
       });
 
-      submitQuestionResponse(isCorrect);
+      submitQuestionResponse(isCorrect, answerJson);
     }
 
     if (!onComplete) return;

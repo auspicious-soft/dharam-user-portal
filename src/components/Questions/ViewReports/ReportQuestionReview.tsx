@@ -1,13 +1,145 @@
+import { useState } from "react";
+
 import type { ReportQuestionItem } from "./reportQuestions";
 
 type Props = {
   questions: ReportQuestionItem[];
 };
 
+const normalizeText = (value: unknown) => String(value ?? "").trim();
+
+const sortByNumericKey = ([firstKey]: [string, string], [secondKey]: [string, string]) =>
+  Number(firstKey) - Number(secondKey);
+
+const getSelectedAnswerArray = (currentQuestion: ReportQuestionItem) => {
+  const selectedAnswer = currentQuestion.answerJson?.selectedAnswer;
+
+  if (Array.isArray(selectedAnswer)) {
+    return selectedAnswer.map(normalizeText).filter(Boolean);
+  }
+
+  if (selectedAnswer && typeof selectedAnswer === "object") {
+    return Object.entries(selectedAnswer)
+      .sort(sortByNumericKey)
+      .map(([, answer]) => normalizeText(answer))
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const getSelectedAnswerRecord = (currentQuestion: ReportQuestionItem) => {
+  const selectedAnswer = currentQuestion.answerJson?.selectedAnswer;
+
+  if (selectedAnswer && !Array.isArray(selectedAnswer)) {
+    return selectedAnswer;
+  }
+
+  return {};
+};
+
+const isSelectedText = (selectedAnswers: string[], value: unknown) => {
+  const text = normalizeText(value).toLowerCase();
+
+  return selectedAnswers.some(
+    (answer) => normalizeText(answer).toLowerCase() === text,
+  );
+};
+
+const getSelectedAnswerClass = (currentQuestion: ReportQuestionItem) =>
+  currentQuestion.isCorrect
+    ? "border-[#53A32D] bg-[#EAF8E3] text-[#2C7A1F]"
+    : "border-[#F04438] bg-[#FDECEC] text-[#B42318]";
+
+const getOrderedFibAnswers = (
+  currentQuestion: ReportQuestionItem,
+) => {
+  const reviewedQuestion = currentQuestion.questionId;
+  const fibItems = reviewedQuestion?.fib ?? [];
+  const blankCount = (
+    String(reviewedQuestion?.question ?? "").match(/BLANK/gi) || []
+  ).length;
+  const maxSelection =
+    typeof reviewedQuestion?.maxSelection === "number" &&
+    reviewedQuestion.maxSelection > 0
+      ? reviewedQuestion.maxSelection
+      : blankCount > 0
+        ? blankCount
+        : Number.POSITIVE_INFINITY;
+  return fibItems
+    .map((item, index) => {
+      const order = Number(item.correctOrder);
+      const normalizedOrder = Number.isFinite(order) ? order : index + 1;
+
+      return {
+        label: `Blank ${normalizedOrder}`,
+        answer: item.answer ?? "-",
+        order: normalizedOrder,
+      };
+    })
+    .filter((item) => item.order > 0 && item.order <= maxSelection)
+    .sort((first, second) => first.order - second.order);
+};
+
+const getCorrectAnswerRows = (currentQuestion: ReportQuestionItem) => {
+  const reviewedQuestion = currentQuestion.questionId;
+  const reviewType = String(reviewedQuestion?.type ?? "").toUpperCase();
+
+  if (!reviewedQuestion) return [];
+
+  if (reviewType === "MCQ") {
+    return (reviewedQuestion.mcq ?? [])
+      .filter((option) => option.isCorrect)
+      .map((option, index) => ({
+        label: `Answer ${index + 1}`,
+        answer: option.text ?? "-",
+      }));
+  }
+
+  if (reviewType === "FIB") {
+    return getOrderedFibAnswers(currentQuestion);
+  }
+
+  if (reviewType === "DND") {
+    const optionsById = new Map(
+      (reviewedQuestion.dnd?.options ?? []).map((item) => [
+        item.id,
+        item.text ?? "",
+      ]),
+    );
+
+    return (reviewedQuestion.dnd?.pairs ?? []).map((pair) => ({
+      label: pair.leftText ?? "-",
+      answer: optionsById.get(pair.rightId) ?? "-",
+    }));
+  }
+
+  return [];
+};
+
 const ReportQuestionReview = ({ questions }: Props) => {
+  const [openCorrectAnswers, setOpenCorrectAnswers] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const toggleCorrectAnswer = (questionId: string) => {
+    setOpenCorrectAnswers((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(questionId)) {
+        next.delete(questionId);
+      } else {
+        next.add(questionId);
+      }
+
+      return next;
+    });
+  };
+
   const renderQuestionContent = (currentQuestion: ReportQuestionItem) => {
     const reviewedQuestion = currentQuestion.questionId;
     const reviewType = String(reviewedQuestion?.type ?? "").toUpperCase();
+    const selectedAnswers = getSelectedAnswerArray(currentQuestion);
 
     if (!reviewedQuestion) return null;
 
@@ -18,8 +150,8 @@ const ReportQuestionReview = ({ questions }: Props) => {
             <div
               key={option._id ?? `${index}`}
               className={`rounded-lg border px-3 py-2 text-sm ${
-                option.isCorrect
-                  ? "border-[#53A32D] bg-[#EAF8E3]"
+                isSelectedText(selectedAnswers, option.text)
+                  ? getSelectedAnswerClass(currentQuestion)
                   : "border-[#d9e8ff] bg-white"
               }`}
             >
@@ -32,41 +164,22 @@ const ReportQuestionReview = ({ questions }: Props) => {
 
     if (reviewType === "FIB") {
       const fibItems = reviewedQuestion.fib ?? [];
-      const blankCount = (
-        String(reviewedQuestion.question ?? "").match(/BLANK/gi) || []
-      ).length;
-      const maxFibSelection =
-        typeof reviewedQuestion.maxSelection === "number" &&
-        reviewedQuestion.maxSelection > 0
-          ? reviewedQuestion.maxSelection
-          : blankCount > 0
-            ? blankCount
-            : Number.POSITIVE_INFINITY;
 
       return (
         <div className="space-y-2">
           {fibItems.length ? (
-            fibItems.map((item, index) => {
-              const normalizedOrder =
-                typeof item.correctOrder === "number" ? item.correctOrder : null;
-              const isCorrect =
-                typeof normalizedOrder === "number" &&
-                normalizedOrder >= 1 &&
-                normalizedOrder <= maxFibSelection;
-
-              return (
-                <div
-                  key={item._id ?? `${index}`}
-                  className={`rounded-lg border px-3 py-2 text-sm ${
-                    isCorrect
-                      ? "border-[#53A32D] bg-[#EAF8E3]"
-                      : "border-[#d9e8ff] bg-white"
-                  }`}
-                >
-                  {item.answer ?? "-"}
-                </div>
-              );
-            })
+            fibItems.map((item, index) => (
+              <div
+                key={item._id ?? `${index}`}
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  isSelectedText(selectedAnswers, item.answer)
+                    ? getSelectedAnswerClass(currentQuestion)
+                    : "border-[#d9e8ff] bg-white"
+                }`}
+              >
+                {item.answer ?? "-"}
+              </div>
+            ))
           ) : (
             <div className="text-sm text-paragraph">No answer options found.</div>
           )}
@@ -75,27 +188,30 @@ const ReportQuestionReview = ({ questions }: Props) => {
     }
 
     if (reviewType === "DND") {
-      const optionsById = new Map(
-        (reviewedQuestion.dnd?.options ?? []).map((item) => [
-          item.id,
-          item.text ?? "",
-        ]),
-      );
       const pairs = reviewedQuestion.dnd?.pairs ?? [];
+      const selectedAnswerRecord = getSelectedAnswerRecord(currentQuestion);
 
       return (
         <div className="space-y-2">
           {pairs.length ? (
-            pairs.map((pair, index) => (
-              <div
-                key={`${pair.leftId ?? index}`}
-                className="rounded-lg border border-[#d9e8ff] bg-white px-3 py-2 text-sm"
-              >
-                <span className="font-medium">{pair.leftText ?? "-"}</span>
-                <span className="mx-2">-&gt;</span>
-                <span>{optionsById.get(pair.rightId) ?? "-"}</span>
-              </div>
-            ))
+            pairs.map((pair, index) => {
+              const selectedAnswer = selectedAnswerRecord[String(index)];
+
+              return (
+                <div
+                  key={`${pair.leftId ?? index}`}
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    selectedAnswer
+                      ? getSelectedAnswerClass(currentQuestion)
+                      : "border-[#d9e8ff] bg-white"
+                  }`}
+                >
+                  <span className="font-medium">{pair.leftText ?? "-"}</span>
+                  <span className="mx-2">-&gt;</span>
+                  <span>{selectedAnswer || "-"}</span>
+                </div>
+              );
+            })
           ) : (
             <div className="text-sm text-paragraph">No drag-drop pairs found.</div>
           )}
@@ -104,6 +220,43 @@ const ReportQuestionReview = ({ questions }: Props) => {
     }
 
     return <div className="text-sm text-paragraph">Unsupported question type.</div>;
+  };
+
+  const renderCorrectAnswerToggle = (currentQuestion: ReportQuestionItem) => {
+    const correctAnswerRows = getCorrectAnswerRows(currentQuestion);
+
+    if (!correctAnswerRows.length) return null;
+
+    return (
+      <button
+        type="button"
+        onClick={() => toggleCorrectAnswer(currentQuestion._id)}
+        className="text-sm font-semibold text-[#2C7A1F] hover:underline"
+      >
+        See Correct Answer
+      </button>
+    );
+  };
+
+  const renderCorrectAnswerContent = (currentQuestion: ReportQuestionItem) => {
+    const isOpen = openCorrectAnswers.has(currentQuestion._id);
+    const correctAnswerRows = getCorrectAnswerRows(currentQuestion);
+
+    if (!isOpen || !correctAnswerRows.length) return null;
+
+    return (
+      <div className="mt-3 space-y-2 rounded-lg border border-[#BFE6B0] bg-white p-3">
+        {correctAnswerRows.map((row, index) => (
+          <div
+            key={`${row.label}-${index}`}
+            className="rounded-md border border-[#53A32D] bg-[#EAF8E3] px-3 py-2 text-sm text-[#2C7A1F]"
+          >
+            <span className="font-medium">{row.label}: </span>
+            <span>{row.answer}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (!questions.length) {
@@ -169,11 +322,21 @@ const ReportQuestionReview = ({ questions }: Props) => {
                 {reviewedQuestionText}
               </p>
               <div className="mt-4">{renderQuestionContent(currentQuestion)}</div>
-              {reviewedQuestion?.explaination ? (
-                <p className="mt-4 text-sm text-paragraph">
-                  Explanation: {reviewedQuestion.explaination}
-                </p>
-              ) : null}
+              <div className="mt-4">
+                <div className="flex gap-2 justify-between flex-wrap">
+                  {reviewedQuestion?.explaination ? (
+                    <p className="text-sm text-paragraph">
+                      Explanation: {reviewedQuestion.explaination}
+                    </p>
+                  ) : (
+                    <div />
+                  )}
+                  <div className="shrink-0 sm:text-right">
+                    {renderCorrectAnswerToggle(currentQuestion)}
+                  </div>
+                </div>
+                {renderCorrectAnswerContent(currentQuestion)}
+              </div>
             </div>
           );
         })}
