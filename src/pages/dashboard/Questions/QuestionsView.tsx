@@ -117,12 +117,8 @@ const QuestionsView = () => {
             .map((item: any) => {
               const order = Number(item.correctOrder);
               if (!Number.isFinite(order)) return null;
-              if (hasExplicitBlanks) {
-                if (order <= 0) return null;
-                return { ...item, normalizedOrder: order };
-              }
-              if (order < 0) return null;
-              return { ...item, normalizedOrder: order + 1 };
+              if (order <= 0) return null;
+              return { ...item, normalizedOrder: order };
             })
             .filter(Boolean) as Array<{ answer: string; normalizedOrder: number }>;
 

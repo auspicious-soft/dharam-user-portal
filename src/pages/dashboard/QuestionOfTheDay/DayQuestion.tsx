@@ -74,19 +74,11 @@ const DayQuestion = () => {
       const blankCount = (
         String(rawQuestion.question ?? "").match(/BLANK/gi) || []
       ).length;
-      const hasZeroBasedOrder = fibItems.some(
-        (item: any) => Number(item.correctOrder) === 0,
-      );
-      const normalizeOrder = (order: number) =>
-        hasZeroBasedOrder ? order + 1 : order;
-
       const normalizedFibItems = fibItems
         .map((item: any) => {
           const order = Number(item.correctOrder);
           if (!Number.isFinite(order)) return null;
-          const normalizedOrder = hasExplicitBlanks
-            ? normalizeOrder(order)
-            : order + 1;
+          const normalizedOrder = order;
           if (normalizedOrder < 1) return null;
           return { ...item, normalizedOrder };
         })

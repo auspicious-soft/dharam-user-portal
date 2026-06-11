@@ -67,17 +67,19 @@ const getOrderedFibAnswers = (
         ? blankCount
         : Number.POSITIVE_INFINITY;
   return fibItems
-    .map((item, index) => {
+    .map((item) => {
       const order = Number(item.correctOrder);
-      const normalizedOrder = Number.isFinite(order) ? order : index + 1;
+      if (!Number.isFinite(order)) return null;
 
       return {
-        label: `Blank ${normalizedOrder}`,
+        label: `Blank ${order}`,
         answer: item.answer ?? "-",
-        order: normalizedOrder,
+        order,
       };
     })
-    .filter((item) => item.order > 0 && item.order <= maxSelection)
+    .filter((item): item is { label: string; answer: string; order: number } =>
+      Boolean(item && item.order > 0 && item.order <= maxSelection),
+    )
     .sort((first, second) => first.order - second.order);
 };
 
