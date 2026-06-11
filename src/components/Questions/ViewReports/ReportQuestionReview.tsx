@@ -51,6 +51,28 @@ const getSelectedAnswerClass = (currentQuestion: ReportQuestionItem) =>
     ? "border-[#53A32D] bg-[#EAF8E3] text-[#2C7A1F]"
     : "border-[#F04438] bg-[#FDECEC] text-[#B42318]";
 
+const getSelectedFibAnswerClass = (
+  currentQuestion: ReportQuestionItem,
+  optionText: unknown,
+) => {
+  const selectedAnswers = getSelectedAnswerArray(currentQuestion);
+  const normalizedOption = normalizeText(optionText).toLowerCase();
+  const selectedIndex = selectedAnswers.findIndex(
+    (answer) => normalizeText(answer).toLowerCase() === normalizedOption,
+  );
+
+  if (selectedIndex === -1) return "";
+
+  const blankOrder = selectedIndex + 1;
+  const matchingCorrectAnswers = (currentQuestion.questionId?.fib ?? [])
+    .filter((item) => Number(item.correctOrder) === blankOrder)
+    .map((item) => normalizeText(item.answer).toLowerCase());
+
+  return matchingCorrectAnswers.includes(normalizedOption)
+    ? "border-[#53A32D] bg-[#EAF8E3] text-[#2C7A1F]"
+    : "border-[#F04438] bg-[#FDECEC] text-[#B42318]";
+};
+
 const getOrderedFibAnswers = (
   currentQuestion: ReportQuestionItem,
 ) => {
@@ -175,7 +197,7 @@ const ReportQuestionReview = ({ questions }: Props) => {
                 key={item._id ?? `${index}`}
                 className={`rounded-lg border px-3 py-2 text-sm ${
                   isSelectedText(selectedAnswers, item.answer)
-                    ? getSelectedAnswerClass(currentQuestion)
+                    ? getSelectedFibAnswerClass(currentQuestion, item.answer)
                     : "border-[#d9e8ff] bg-white"
                 }`}
               >

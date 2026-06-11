@@ -127,8 +127,9 @@ export const ExamsDragDropRenderer: React.FC<DragDropRendererProps> = ({
           {question.dropZones.map((zone) => {
             const droppedItemId = currentAnswers[zone.id];
             const droppedItem = question.draggableItems.find(
-              (item) => item.id === droppedItemId,
+              (item) => item.id === droppedItemId || item.text === droppedItemId,
             );
+            const droppedItemText = droppedItem?.text ?? droppedItemId;
 
             return (
               <div key={zone.id} className="flex items-center gap-1 md:gap-4">
@@ -143,19 +144,19 @@ export const ExamsDragDropRenderer: React.FC<DragDropRendererProps> = ({
                     ${droppedItem ? "!border-primary_blue bg-[#F0F8FF] text-primary_blue" : ""}
                   `}
                   >
-                    {droppedItem ? (
+                    {droppedItemId ? (
                       <>
                         <span className="text-xs md:text-sm font-medium ">
-                          {droppedItem.text}
+                          {droppedItemText}
                         </span>
-                        {(
+                        {!showResult ? (
                           <button
                             onClick={() => handleRemoveItem(zone.id)}
                             className="absolute top-[-4px] right-[-4px] text-gray-400 hover:text-gray-600 border border-[#556378]/50 hover:border-[#556378] bg-[#f3f3f3] rounded-full p-1"
                           >
                             <X className="w-3 h-3" />
                           </button>
-                        )}
+                        ) : null}
                       </>
                     ) : (
                       <span className="text-gray-400 text-xs md:text-sm italic"></span>

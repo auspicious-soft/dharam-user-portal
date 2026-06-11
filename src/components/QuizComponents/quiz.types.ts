@@ -3,6 +3,12 @@ export interface BaseQuestion {
   question: string;
   qExplanation: string;
   isAttempted?: boolean;
+  isCorrect?: boolean | null;
+  answerJson?: {
+    questionId?: string;
+    type?: string;
+    selectedAnswer?: string[] | Record<string, string>;
+  } | null;
   imageUrl?: string;
 }
 

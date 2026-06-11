@@ -42,6 +42,79 @@ type ExamAnswerJson = {
   selectedAnswer: string[] | Record<string, string>;
 };
 
+const normalizeAnswerText = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase();
+
+const getAnswerJsonSelectedArray = (question: QuizQuestion) => {
+  const selectedAnswer = question.answerJson?.selectedAnswer;
+
+  if (Array.isArray(selectedAnswer)) {
+    return selectedAnswer.map((answer) => String(answer ?? "")).filter(Boolean);
+  }
+
+  if (selectedAnswer && typeof selectedAnswer === "object") {
+    return Object.entries(selectedAnswer)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([, answer]) => String(answer ?? ""))
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const hydrateMcqAnswer = (question: QuizQuestion) => {
+  if (question.type !== "mcq") return [];
+
+  const selectedAnswers = getAnswerJsonSelectedArray(question).map(
+    normalizeAnswerText,
+  );
+
+  return question.options
+    .filter((option) => selectedAnswers.includes(normalizeAnswerText(option.text)))
+    .map((option) => option.id);
+};
+
+const hydrateDragDropAnswer = (question: QuizQuestion) => {
+  if (question.type !== "dragdrop") return {};
+
+  const selectedAnswer = question.answerJson?.selectedAnswer;
+  if (!selectedAnswer || Array.isArray(selectedAnswer)) return {};
+
+  return question.dropZones.reduce<Record<string, string>>((answers, zone, index) => {
+    const selectedValue = selectedAnswer[String(index)];
+    const matchedItem = question.draggableItems.find(
+      (item) =>
+        normalizeAnswerText(item.text) === normalizeAnswerText(selectedValue) ||
+        normalizeAnswerText(item.id) === normalizeAnswerText(selectedValue),
+    );
+
+    if (selectedValue) {
+      answers[zone.id] = matchedItem?.id ?? selectedValue;
+    }
+
+    return answers;
+  }, {});
+};
+
+const hydrateFillBlankAnswer = (question: QuizQuestion) => {
+  if (question.type !== "fillblank") return {};
+
+  return getAnswerJsonSelectedArray(question).reduce<Record<number, string>>(
+    (answers, answer, index) => {
+      const optionIndex = question.options.findIndex(
+        (option) => normalizeAnswerText(option) === normalizeAnswerText(answer),
+      );
+
+      if (optionIndex >= 0) {
+        answers[optionIndex] = String(index + 1);
+      }
+
+      return answers;
+    },
+    {},
+  );
+};
+
 const buildAnswerJson = (
   question: QuizQuestion,
   selectedAnswers: string[],
@@ -148,6 +221,8 @@ export const ExamsQuizRenderer = ({
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
+  const isCurrentQuestionLocked = Boolean(question?.isAttempted);
+  const showResultState = showResult || isCurrentQuestionLocked;
   const dragDropCurrentAnswers = dragDropAnswers[currentQuestionIndex] ?? {};
   const fillBlankCurrentAnswers = fillBlankAnswers[currentQuestionIndex] ?? {};
   const hasCurrentAnswer =
@@ -160,6 +235,36 @@ export const ExamsQuizRenderer = ({
           : false;
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
+
+  useEffect(() => {
+    const hydratedMcqAnswers: Record<number, string[]> = {};
+    const hydratedDragDropAnswers: Record<number, Record<string, string>> = {};
+    const hydratedFillBlankAnswers: Record<number, Record<number, string>> = {};
+
+    quiz.forEach((item, index) => {
+      if (!item.isAttempted) return;
+
+      if (item.type === "mcq") {
+        hydratedMcqAnswers[index] = hydrateMcqAnswer(item);
+      }
+
+      if (item.type === "dragdrop") {
+        hydratedDragDropAnswers[index] = hydrateDragDropAnswer(item);
+      }
+
+      if (item.type === "fillblank") {
+        hydratedFillBlankAnswers[index] = hydrateFillBlankAnswer(item);
+      }
+    });
+
+    setMcqAnswers(hydratedMcqAnswers);
+    setDragDropAnswers(hydratedDragDropAnswers);
+    setFillBlankAnswers(hydratedFillBlankAnswers);
+    setSelectedAnswers(hydratedMcqAnswers[currentQuestionIndex] ?? []);
+    // Hydrate saved answers only when a paused/resumed quiz payload arrives.
+    // Navigating questions must not reset answers the user is entering now.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quiz]);
 
   const submitQuestionResponse = (
     isCorrect: boolean | null,
@@ -210,6 +315,10 @@ export const ExamsQuizRenderer = ({
 
   const handleNext = () => {
     if (currentQuestionIndex === totalQuestions - 1) return;
+    if (isCurrentQuestionLocked) {
+      moveToQuestion(currentQuestionIndex + 1);
+      return;
+    }
     if (!hasCurrentAnswer) return;
 
     let isCorrect: boolean | null = null;
@@ -302,6 +411,8 @@ export const ExamsQuizRenderer = ({
   // ---------------------------------------------------
 
   const handleComplete = () => {
+    if (isCurrentQuestionLocked) return;
+
     let isCorrect: boolean | null = null;
 
     if (question.type === "mcq" && selectedAnswers.length > 0) {
@@ -384,6 +495,7 @@ export const ExamsQuizRenderer = ({
 
   const markCurrent = () => {
     if (currentQuestionIndex === totalQuestions - 1) return;
+    if (isCurrentQuestionLocked) return;
 
     setMarked((prev) => {
       const copy = new Set(prev);
@@ -483,7 +595,7 @@ export const ExamsQuizRenderer = ({
             question={question}
             selectedAnswers={selectedAnswers}
             setSelectedAnswers={setSelectedAnswers}
-            showResult={showResult}
+            showResult={showResultState}
           />
         )}
 
@@ -492,7 +604,7 @@ export const ExamsQuizRenderer = ({
             question={question}
             answers={dragDropAnswers}
             setAnswers={setDragDropAnswers}
-            showResult={showResult}
+            showResult={showResultState}
             currentQuestionIndex={currentQuestionIndex}
           />
         )}
@@ -502,7 +614,7 @@ export const ExamsQuizRenderer = ({
             question={question}
             answers={fillBlankAnswers}
             setAnswers={setFillBlankAnswers}
-            showResult={showResult}
+            showResult={showResultState}
             currentQuestionIndex={currentQuestionIndex}
           />
         )}
@@ -522,7 +634,8 @@ export const ExamsQuizRenderer = ({
           <Button
             onClick={handleNext}
             disabled={
-              currentQuestionIndex === totalQuestions - 1 || !hasCurrentAnswer
+              currentQuestionIndex === totalQuestions - 1 ||
+              (!isCurrentQuestionLocked && !hasCurrentAnswer)
             }
              className="rounded-[10px] h-10 !py-1 !px-4"
           >
@@ -531,7 +644,7 @@ export const ExamsQuizRenderer = ({
              <ArrowRight /> 
           </Button>
 
-          {currentQuestionIndex === totalQuestions - 1 && (
+          {currentQuestionIndex === totalQuestions - 1 && !isCurrentQuestionLocked && (
             <Button onClick={handleComplete} 
              className="rounded-[10px] h-10 !py-1 !px-4"
              >
@@ -539,7 +652,7 @@ export const ExamsQuizRenderer = ({
             </Button>
           )}
 
-        {currentQuestionIndex !== totalQuestions - 1 && (
+        {currentQuestionIndex !== totalQuestions - 1 && !isCurrentQuestionLocked && (
           <Button
             variant="outline"
             onClick={markCurrent}

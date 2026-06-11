@@ -49,6 +49,12 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
     if (!raw) return undefined;
     return /^https?:\/\//i.test(raw) ? raw : getPublicUrlForKey(raw);
   };
+  const getAttemptMeta = (question: any) => ({
+    isAttempted: Boolean(question.isAttempted),
+    isCorrect:
+      typeof question.isCorrect === "boolean" ? question.isCorrect : null,
+    answerJson: question.answerJson ?? question.answerJSon ?? null,
+  });
 
   return (Array.isArray(rawQuestions) ? rawQuestions : [])
     .map((question) => {
@@ -83,6 +89,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           correctAnswer,
           correctAnswers,
           maxSelection,
+          ...getAttemptMeta(question),
         } as QuizQuestion;
       }
 
@@ -151,6 +158,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           questionTemplate,
           blanks,
           options: fibItems.map((blank: any) => blank.answer ?? ""),
+          ...getAttemptMeta(question),
         } as QuizQuestion;
       }
 
@@ -176,6 +184,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           imageUrl: resolveQuestionImageUrl(question.image),
           draggableItems,
           dropZones,
+          ...getAttemptMeta(question),
         } as QuizQuestion;
       }
 
@@ -267,9 +276,22 @@ const StartExam = () => {
     if (!mockExamData) return;
 
     const mapped = mapQuestions(mockExamData.questions ?? []);
+    const firstUnattemptedIndex = mapped.findIndex(
+      (question) => !question.isAttempted,
+    );
+    const attemptedResults = mapped.reduce<Record<number, boolean>>(
+      (acc, question, index) => {
+        if (question.isAttempted) {
+          acc[index] = Boolean(question.isCorrect);
+        }
+        return acc;
+      },
+      {},
+    );
+
     setQuiz(mapped);
-    setCurrentQuestion(1);
-    setResults({});
+    setCurrentQuestion(firstUnattemptedIndex >= 0 ? firstUnattemptedIndex + 1 : 1);
+    setResults(attemptedResults);
     setMarked(new Set());
     setIsPaused(false);
   }, [mockExamData]);

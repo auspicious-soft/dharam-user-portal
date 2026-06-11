@@ -89,6 +89,9 @@ const ViewReportDialog = ({
     return formattedName || name;
   };
 
+  const getTargetLabel = (percentage: number) =>
+    percentage > 50 ? "Above Target" : "Below Target";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -172,17 +175,32 @@ const ViewReportDialog = ({
           <h3 className="text-sm font-semibold mb-2">Score Breakdown</h3>
 
           {report?.domains?.length ? (
-            report.domains.map((domain, index) => (
-              <div key={index} className="flex justify-between py-2">
+            report.domains.map((domain, index) => {
+              const targetLabel = getTargetLabel(domain.percentage);
+              const targetClass =
+                domain.percentage > 50
+                  ? "text-[#0751AB] "
+                  : "text-[#0751AB] ";
+
+              return (
+              <div key={index} className="flex justify-between gap-3 py-2">
                 <span className="text-paragraph text-base font-medium">
                   {formatDomainName(domain.name)}
                 </span>
-                <span className="text-primary_heading text-base font-semibold">
-                  {formatPercent(domain.percentage)}% Correct ({domain.correct}
-                  /{domain.total})
-                </span>
+                <div className="flex flex-wrap justify-end gap-2 text-right">
+                  <span className="text-primary_heading text-base font-semibold">
+                    {formatPercent(domain.percentage)}% Correct ({domain.correct}
+                    /{domain.total})
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${targetClass}`}
+                  >
+                    {targetLabel}
+                  </span>
+                </div>
               </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-sm text-paragraph">No breakdown available.</div>
           )}
