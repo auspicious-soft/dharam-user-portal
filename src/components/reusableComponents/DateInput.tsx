@@ -11,10 +11,11 @@ type DateInputProps = {
   className?: string;
   placeholder?: string;
   disabled?: boolean;
+  min?: string;
 };
 
 const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
-  ({ value, onChange, className, placeholder, disabled }, ref) => {
+  ({ value, onChange, className, placeholder, disabled, min }, ref) => {
     const innerRef = useRef<HTMLInputElement>(null);
 
     const inputRef = (ref as React.MutableRefObject<HTMLInputElement>) || innerRef;
@@ -33,6 +34,7 @@ const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
+          min={min}
           className={cn("cursor-pointer pr-10", className)}
           onClick={openPicker}
         />

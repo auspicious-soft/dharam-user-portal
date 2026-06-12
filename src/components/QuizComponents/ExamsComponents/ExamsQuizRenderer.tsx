@@ -233,6 +233,10 @@ export const ExamsQuizRenderer = ({
         : question.type === "fillblank"
           ? Object.values(fillBlankCurrentAnswers).some(Boolean)
           : false;
+  const isMarkAndNextDisabled =
+    isCurrentQuestionLocked ||
+    results[currentQuestionIndex] !== undefined ||
+    hasCurrentAnswer;
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
@@ -495,7 +499,7 @@ export const ExamsQuizRenderer = ({
 
   const markCurrent = () => {
     if (currentQuestionIndex === totalQuestions - 1) return;
-    if (isCurrentQuestionLocked) return;
+    if (isMarkAndNextDisabled) return;
 
     setMarked((prev) => {
       const copy = new Set(prev);
@@ -652,10 +656,11 @@ export const ExamsQuizRenderer = ({
             </Button>
           )}
 
-        {currentQuestionIndex !== totalQuestions - 1 && !isCurrentQuestionLocked && (
+        {currentQuestionIndex !== totalQuestions - 1 && (
           <Button
             variant="outline"
             onClick={markCurrent}
+            disabled={isMarkAndNextDisabled}
             className="rounded-[10px] h-10 !py-1 !px-4"
           >
             <Check />

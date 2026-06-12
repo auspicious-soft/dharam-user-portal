@@ -48,6 +48,11 @@ const formatDateForInput = (dateValue?: string | null) => {
     return "";
   }
 
+  const dateOnlyMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    return dateValue;
+  }
+
   const parsedDate = new Date(dateValue);
   if (Number.isNaN(parsedDate.getTime())) {
     return "";
@@ -56,6 +61,37 @@ const formatDateForInput = (dateValue?: string | null) => {
   const year = parsedDate.getFullYear();
   const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
   const day = String(parsedDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getCalendarDayDifference = (dateValue: string, todayValue: string) => {
+  const dateParts = dateValue.split("-").map(Number);
+  const todayParts = todayValue.split("-").map(Number);
+
+  if (dateParts.length !== 3 || todayParts.length !== 3) {
+    return null;
+  }
+
+  if (
+    dateParts.some((part) => !Number.isFinite(part)) ||
+    todayParts.some((part) => !Number.isFinite(part))
+  ) {
+    return null;
+  }
+
+  const [year, month, day] = dateParts;
+  const [todayYear, todayMonth, todayDay] = todayParts;
+  const dateUtc = Date.UTC(year, month - 1, day);
+  const todayUtc = Date.UTC(todayYear, todayMonth - 1, todayDay);
+
+  return Math.round((dateUtc - todayUtc) / 86_400_000);
+};
+
+const getTodayInputValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
@@ -101,15 +137,28 @@ const StatsCard = ({
   const hasExamDate = Boolean(examDate);
   const formattedExamDate = formatDateForDisplay(examDate);
   const inputExamDate = formatDateForInput(examDate);
-  const isExamDay = hasExamDate && Number(daysLeftForScheduledExam ?? 0) === 0;
+  const todayInputValue = getTodayInputValue();
+  const calendarDaysUntilExam = inputExamDate
+    ? getCalendarDayDifference(inputExamDate, todayInputValue)
+    : null;
+  const daysUntilExam =
+    calendarDaysUntilExam ?? Number(daysLeftForScheduledExam ?? 0);
+  const isExamDatePassed =
+    hasExamDate &&
+    (calendarDaysUntilExam !== null
+      ? calendarDaysUntilExam < 0
+      : Number(daysLeftForScheduledExam ?? 0) < 0);
+  const isExamDay = hasExamDate && !isExamDatePassed && daysUntilExam === 0;
   const isDateUnchanged = hasExamDate && selectedDate === inputExamDate;
+  const isSelectedDatePassed =
+    Boolean(selectedDate) && selectedDate < todayInputValue;
 
   useEffect(() => {
     setSelectedDate(inputExamDate);
   }, [inputExamDate]);
 
   const handleScheduleExam = async () => {
-    if (!selectedDate || !onScheduleExam) {
+    if (!selectedDate || !onScheduleExam || isSelectedDatePassed) {
       return;
     }
 
@@ -145,12 +194,14 @@ const StatsCard = ({
           <div className="w-full col-span-2 md:col-auto md:w-auto min-w-60 px-[19px] py-2.5 rounded-lg outline outline-1 outline-offset-[-1px] outline-primary_blue inline-flex flex-col justify-start items-center gap-2.5 text-white-custom">
             <div className="text-[#10375c] text-2xl md:text-3xl font-bold text-center">
               {hasExamDate
-                ? isExamDay
-                  ? "It's your exam day"
-                  : (daysLeftForScheduledExam ?? 0)
+                ? isExamDatePassed
+                  ? "Exam date has passed"
+                  : isExamDay
+                    ? "It's your exam day"
+                    : daysUntilExam
                 : "No exam scheduled"}
             </div>
-            {hasExamDate && !isExamDay ? (
+            {hasExamDate && !isExamDay && !isExamDatePassed ? (
               <div className="justify-start text-Primary-Font text-xs font-medium ">
                 Days Until Exam
               </div>
@@ -164,12 +215,18 @@ const StatsCard = ({
                   <DateInput
                     value={selectedDate}
                     onChange={(event) => setSelectedDate(event.target.value)}
+                    min={todayInputValue}
                     className="bg-primary_blue text-white py-2 px-4 border-0 text-xs rounded"
                   />
                   <Button
                     size="sm"
                     onClick={handleScheduleExam}
-                    disabled={!selectedDate || isSchedulingExam || isDateUnchanged}
+                    disabled={
+                      !selectedDate ||
+                      isSchedulingExam ||
+                      isDateUnchanged ||
+                      isSelectedDatePassed
+                    }
                   >
                     {isSchedulingExam ? "Updating..." : "Update"}
                   </Button>
@@ -180,12 +237,15 @@ const StatsCard = ({
                 <DateInput
                   value={selectedDate}
                   onChange={(event) => setSelectedDate(event.target.value)}
+                  min={todayInputValue}
                   className="bg-primary_blue text-white py-2 px-4 border-0 text-xs rounded"
                 />
                 <Button
                   size="sm"
                   onClick={handleScheduleExam}
-                  disabled={!selectedDate || isSchedulingExam}
+                  disabled={
+                    !selectedDate || isSchedulingExam || isSelectedDatePassed
+                  }
                 >
                   {isSchedulingExam ? "Saving..." : "Save"}
                 </Button>
