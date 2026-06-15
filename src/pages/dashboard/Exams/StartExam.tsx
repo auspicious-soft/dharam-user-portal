@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
@@ -42,6 +42,8 @@ type MockExamResultResponse = {
     >;
   };
 };
+
+const MOCK_EXAM_SESSION_PREFIX = "mockExam:start:";
 
 const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
   const resolveQuestionImageUrl = (value: unknown): string | undefined => {
@@ -220,7 +222,22 @@ function useTimer(initialSeconds: number, isPaused: boolean) {
 const StartExam = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const mockExamData = (location.state as { mockExam?: any })?.mockExam;
+  const { id: routeExamId } = useParams<{ id: string }>();
+  const locationMockExamData = (location.state as { mockExam?: any })?.mockExam;
+  const examSessionKey = `${MOCK_EXAM_SESSION_PREFIX}${routeExamId ?? "current"}`;
+  const [sessionMockExamData] = useState(() => {
+    if (typeof window === "undefined") return null;
+
+    const raw = sessionStorage.getItem(examSessionKey);
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  });
+  const mockExamData = locationMockExamData ?? sessionMockExamData;
 
   const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(1);
@@ -271,6 +288,11 @@ const StartExam = () => {
     const ss = String(elapsed % 60).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
   }, [initialSeconds, remainingSeconds]);
+
+  useEffect(() => {
+    if (!locationMockExamData || typeof window === "undefined") return;
+    sessionStorage.setItem(examSessionKey, JSON.stringify(locationMockExamData));
+  }, [examSessionKey, locationMockExamData]);
 
   useEffect(() => {
     if (!mockExamData) return;
@@ -328,6 +350,7 @@ const StartExam = () => {
       const response = await api.get("/user/mock-exam-result", {
         params: { examId: mockExamData.examId, timeTaken },
       });
+      sessionStorage.removeItem(examSessionKey);
       if (!openReport) {
         navigate("/exams");
         return;
@@ -368,7 +391,7 @@ const StartExam = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, mockExamData?.examId, navigate, timeTaken]);
+  }, [examSessionKey, isSubmitting, mockExamData?.examId, navigate, timeTaken]);
 
   const handleAttemptMarkedQuestions = useCallback(() => {
     const firstMarkedQuestion = Array.from(marked).sort((a, b) => a - b)[0];
@@ -417,6 +440,7 @@ const StartExam = () => {
           params: { timeTaken },
         },
       );
+      sessionStorage.removeItem(examSessionKey);
       navigate("/exams");
     } catch (error) {
       console.error("Failed to pause mock exam", error);
@@ -426,6 +450,21 @@ const StartExam = () => {
   const handleLeaveAndSubmit = async () => {
     setShowLeaveDialog(false);
     await handleSubmitExam(false);
+  };
+
+  const handleOpenExamExitDialog = useCallback(() => {
+    setIsPaused(true);
+    setShowLeaveDialog(true);
+  }, []);
+
+  const handleStayInExam = useCallback(() => {
+    setShowLeaveDialog(false);
+    setIsPaused(false);
+  }, []);
+
+  const handlePauseAndExit = async () => {
+    setShowLeaveDialog(false);
+    await handleConfirmPause();
   };
 
   const handleViewQuestions = () => {
@@ -445,7 +484,7 @@ const StartExam = () => {
     if (!hasQuiz) return;
 
     const handlePopState = () => {
-      setShowLeaveDialog(true);
+      handleOpenExamExitDialog();
       window.history.pushState({ examBackGuard: true }, "", window.location.href);
     };
 
@@ -454,6 +493,21 @@ const StartExam = () => {
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
+    };
+  }, [handleOpenExamExitDialog, hasQuiz]);
+
+  useEffect(() => {
+    if (!hasQuiz) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [hasQuiz]);
 
@@ -475,6 +529,11 @@ const StartExam = () => {
       if ((event.ctrlKey || event.metaKey) && key === "c") {
         event.preventDefault();
       }
+
+      if (hasQuiz && (event.key === "F5" || ((event.ctrlKey || event.metaKey) && key === "r"))) {
+        event.preventDefault();
+        handleOpenExamExitDialog();
+      }
     };
 
     document.addEventListener("copy", handleCopy);
@@ -484,7 +543,7 @@ const StartExam = () => {
       document.removeEventListener("copy", handleCopy);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [handleOpenExamExitDialog, hasQuiz]);
 
   return (
     <div className="h-full flex flex-col">
@@ -611,30 +670,44 @@ const StartExam = () => {
           />
         )}
       </div>
-      <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+      <Dialog
+        open={showLeaveDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleStayInExam();
+          }
+        }}
+      >
         <DialogContent className="max-w-md rounded-2xl p-7">
           <DialogHeader className="space-y-3">
             <DialogTitle className="text-center text-2xl text-Black_light font-bold">
-              Leave Exam?
+              Exit Exam?
             </DialogTitle>
             <DialogDescription className="text-paragraph text-base font-medium text-center">
-              Are you sure you want to leave this exam? We will submit your exam now.
+              Refresh and back are disabled during the exam. You can pause your exam and exit, or submit it now.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <Button
               variant="outline"
-              className="flex-1 max-h-[44px]"
-              onClick={() => setShowLeaveDialog(false)}
+              className="w-full max-h-[44px]"
+              onClick={handleStayInExam}
             >
               Stay Here
             </Button>
             <Button
-              className="flex-1 max-h-[44px]"
+              variant="outline"
+              className="w-full max-h-[44px]"
+              onClick={handlePauseAndExit}
+            >
+              Pause & Exit
+            </Button>
+            <Button
+              className="w-full max-h-[44px]"
               onClick={handleLeaveAndSubmit}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Submitting..." : "Yes, Leave"}
+              {isSubmitting ? "Submitting..." : "Submit Exam"}
             </Button>
           </DialogFooter>
         </DialogContent>

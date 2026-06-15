@@ -24,6 +24,7 @@ type StatsCardProps = {
   examDate?: string | null;
   onScheduleExam?: (date: string) => Promise<void>;
   isSchedulingExam?: boolean;
+  onShowPlans?: () => void;
 };
 
 const formatDateForDisplay = (dateValue?: string | null) => {
@@ -101,6 +102,7 @@ const StatsCard = ({
   examDate,
   onScheduleExam,
   isSchedulingExam = false,
+  onShowPlans,
 }: StatsCardProps) => {
   const [selectedDate, setSelectedDate] = useState("");
 
@@ -169,6 +171,18 @@ const StatsCard = ({
   return (
     <div className="flex flex-col gap-3.5 mt-[-14px]">
       <div className="flex flex-col gap-3.5 ">
+        {onShowPlans ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={onShowPlans}
+              className="max-h-[44px] !px-5"
+            >
+              Upgrade / Buy Another Plan
+            </Button>
+          </div>
+        ) : null}
+
         {/* Stats */}
         <div className=" grid grid-cols-2 md:grid-cols-3 gap-4 lg:flex lg:justify-between items-center">
           {statsData.map((item) => (

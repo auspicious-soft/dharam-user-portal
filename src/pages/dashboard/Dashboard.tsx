@@ -254,6 +254,8 @@ const Dashboard = () => {
   const [isHomeLoading, setIsHomeLoading] = useState(true);
   const [isPlansLoading, setIsPlansLoading] = useState(false);
   const [isSchedulingExam, setIsSchedulingExam] = useState(false);
+  const [showPlansForSubscribedUser, setShowPlansForSubscribedUser] =
+    useState(false);
   const [homeData, setHomeData] = useState<HomeApiData | null>(null);
   const [homeSubscriptionStatus, setHomeSubscriptionStatus] = useState<
     boolean | null
@@ -299,6 +301,8 @@ const Dashboard = () => {
   const examDateValue =
     typeof homeData?.examDate === "string" ? homeData.examDate : null;
   const shouldShowSubscribedView = homeSubscriptionStatus ?? isSubscribed;
+  const shouldShowPlans =
+    !shouldShowSubscribedView || showPlansForSubscribedUser;
 
   const readUserNameFromStorage = useCallback(() => {
     if (typeof window === "undefined") {
@@ -463,7 +467,7 @@ const Dashboard = () => {
   useEffect(() => {
     let isCancelled = false;
 
-    if (isHomeLoading || shouldShowSubscribedView) {
+    if (isHomeLoading || !shouldShowPlans) {
       return () => {
         isCancelled = true;
       };
@@ -531,7 +535,7 @@ const Dashboard = () => {
     return () => {
       isCancelled = true;
     };
-  }, [selectedMonths, fetchedByDuration, isHomeLoading, shouldShowSubscribedView]);
+  }, [selectedMonths, fetchedByDuration, isHomeLoading, shouldShowPlans]);
 
   return (
     <>
@@ -557,7 +561,7 @@ const Dashboard = () => {
 
         {isHomeLoading ? (
           <div className="p-4 text-sm text-paragraph">Loading dashboard...</div>
-        ) : shouldShowSubscribedView ? (
+        ) : shouldShowSubscribedView && !showPlansForSubscribedUser ? (
           <>
             <StatsCard
               stats={homeData?.stats}
@@ -565,17 +569,32 @@ const Dashboard = () => {
               examDate={examDateValue}
               onScheduleExam={handleScheduleExam}
               isSchedulingExam={isSchedulingExam}
+              onShowPlans={() => setShowPlansForSubscribedUser(true)}
             />
             <RecentModules modules={mappedModules} />
             <RecentActivities activities={mappedActivities} />
           </>
         ) : (
-          <PurchasePlanCard
-            onDurationChange={setSelectedMonths}
-            allPlans={plansByDuration}
-            isLoadingPlans={isPlansLoading}
-            freeTrialPlanId={freeTrialPlanId}
-          />
+          <>
+            {shouldShowSubscribedView ? (
+              <div className="flex justify-start">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPlansForSubscribedUser(false)}
+                  className="max-h-[44px]"
+                >
+                  Back to Dashboard
+                </Button>
+              </div>
+            ) : null}
+            <PurchasePlanCard
+              onDurationChange={setSelectedMonths}
+              allPlans={plansByDuration}
+              isLoadingPlans={isPlansLoading}
+              freeTrialPlanId={freeTrialPlanId}
+            />
+          </>
         )}
       </div>
 
