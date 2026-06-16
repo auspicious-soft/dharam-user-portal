@@ -112,7 +112,20 @@ export const ExamColumns = ({
       );
     }
 
-    return null;
+    if (!status) {
+      return <span className="text-paragraph">-</span>;
+    }
+
+    const normalizedStatus = status
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+    return (
+      <span className="text-primary_heading font-medium">
+        {normalizedStatus}
+      </span>
+    );
   },
 },
   

@@ -8,6 +8,7 @@ export type FileItem = {
   attempts: string;
   correctPercentage: string;
   status: string;
+  currentStatus?: string | null;
   isPremium?: boolean;
   price?: number | null;
 };

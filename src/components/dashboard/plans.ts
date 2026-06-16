@@ -7,6 +7,8 @@ export interface Plan {
   features: string[];
   benefits: string[];
   popular: boolean;
+  isPurchased?: boolean;
+  expiryDate?: string | null;
 }
 export type DurationTab = "oneMonth" | "threeMonths";
 export type DialogTab = "1Month" | "3Months";

@@ -38,6 +38,9 @@ type ApiPlan = {
   applicationSupport?: boolean;
   mockExams?: number | unknown[] | null;
   practiceExams?: number | unknown[] | null;
+  isPurchased?: boolean;
+  purchaseStatus?: boolean | string | null;
+  expiryDate?: string | null;
 };
 
 type HomeApiData = {
@@ -230,6 +233,11 @@ const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
       features: mapApiPlanToFeatures(plan),
       benefits: mapApiPlanToBenefits(plan),
       popular: (plan.level ?? 0) === maxLevel && maxLevel > 0,
+      isPurchased:
+        plan.isPurchased === true ||
+        plan.purchaseStatus === true ||
+        String(plan.purchaseStatus).toUpperCase() === "TRUE",
+      expiryDate: plan.expiryDate ?? null,
     }));
 };
 

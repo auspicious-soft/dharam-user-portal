@@ -17,6 +17,8 @@ type MockExam = {
   order?: number | null;
   price?: number | string | null;
   status?: string | null;
+  currentStatus?: string | null;
+  correctPercentage?: number | null;
 };
 
 type PausedExam = {
@@ -88,6 +90,7 @@ const Exams = () => {
             attempts: String(item.attemptNumber ?? 0),
             correctPercentage: percentage,
             status: "Paused",
+            currentStatus: item.currentStatus ?? "PAUSED",
             isPremium: mock.isPremium ?? false,
             price:
               typeof mock.price === "number"
@@ -116,8 +119,12 @@ const Exams = () => {
               questionCount: item.numberOfQuestions ?? 0,
               examTime: item.timeInMin ?? "Untimed",
               attempts: String(item.totalAttempt ?? 0),
-              correctPercentage: "-",
-              status: "",
+              correctPercentage:
+                typeof item.correctPercentage === "number"
+                  ? `${item.correctPercentage}%`
+                  : "-",
+              status: item.currentStatus ?? "",
+              currentStatus: item.currentStatus ?? null,
               isPremium:
                 status === "ACTIVE"
                   ? false
