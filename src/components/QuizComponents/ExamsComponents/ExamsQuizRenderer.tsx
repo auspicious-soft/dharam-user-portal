@@ -236,11 +236,6 @@ export const ExamsQuizRenderer = ({
   const isMarkAndNextDisabled =
     isCurrentQuestionLocked ||
     results[currentQuestionIndex] !== undefined;
-  const isSkipDisabled =
-    currentQuestionIndex === totalQuestions - 1 ||
-    isCurrentQuestionLocked ||
-    results[currentQuestionIndex] !== undefined ||
-    hasCurrentAnswer;
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
@@ -327,7 +322,23 @@ export const ExamsQuizRenderer = ({
       moveToQuestion(currentQuestionIndex + 1);
       return;
     }
-    if (!hasCurrentAnswer) return;
+
+    if (!hasCurrentAnswer) {
+      setMarked((prev) => {
+        const copy = new Set(prev);
+        copy.delete(currentQuestionIndex);
+        return copy;
+      });
+
+      setResults((prev) => {
+        const copy = { ...prev };
+        delete copy[currentQuestionIndex];
+        return copy;
+      });
+
+      moveToQuestion(currentQuestionIndex + 1);
+      return;
+    }
 
     let isCorrect: boolean | null = null;
 
@@ -501,24 +512,6 @@ export const ExamsQuizRenderer = ({
   // MARK & NEXT
   // ---------------------------------------------------
 
-  const handleSkip = () => {
-    if (isSkipDisabled) return;
-
-    setMarked((prev) => {
-      const copy = new Set(prev);
-      copy.delete(currentQuestionIndex);
-      return copy;
-    });
-
-    setResults((prev) => {
-      const copy = { ...prev };
-      delete copy[currentQuestionIndex];
-      return copy;
-    });
-
-    moveToQuestion(currentQuestionIndex + 1);
-  };
-
   const markCurrent = () => {
     if (currentQuestionIndex === totalQuestions - 1) return;
     if (isMarkAndNextDisabled) return;
@@ -648,10 +641,7 @@ export const ExamsQuizRenderer = ({
 
           <Button
             onClick={handleNext}
-            disabled={
-              currentQuestionIndex === totalQuestions - 1 ||
-              (!isCurrentQuestionLocked && !hasCurrentAnswer)
-            }
+            disabled={currentQuestionIndex === totalQuestions - 1}
              className="rounded-[10px] h-10 !py-1 !px-4"
           >
            
@@ -666,18 +656,6 @@ export const ExamsQuizRenderer = ({
               Submit
             </Button>
           )}
-
-        {currentQuestionIndex !== totalQuestions - 1 && (
-          <Button
-            variant="outline"
-            onClick={handleSkip}
-            disabled={isSkipDisabled}
-            className="rounded-[10px] h-10 !py-1 !px-4"
-          >
-            Skip
-            <ArrowRight />
-          </Button>
-        )}
 
         {currentQuestionIndex !== totalQuestions - 1 && (
           <Button
