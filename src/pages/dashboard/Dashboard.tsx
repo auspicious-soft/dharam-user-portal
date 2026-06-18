@@ -24,6 +24,7 @@ type FetchedByDuration = {
 type ApiPlan = {
   _id?: string | null;
   planName: string;
+  planDescription?: string | null;
   priceId?: string | null;
   stripePriceId?: string | null;
   stripePrice: number;
@@ -227,6 +228,7 @@ const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
     .map((plan, index) => ({
       planId: plan._id ?? null,
       name: formatPlanName(plan.planName, `Plan ${index + 1}`),
+      description: plan.planDescription?.trim() || null,
       price: formatPlanPrice(plan),
       accessLabel: formatPlanAccessLabel(plan.durationInMonths),
       priceId: plan.priceId ?? plan.stripePriceId ?? null,

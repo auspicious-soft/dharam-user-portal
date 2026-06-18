@@ -74,6 +74,12 @@ const PlanDialog = ({
         <h3 className="justify-start text-white text-lg md:text-xl font-bold">
           PgMP {currentPlan.name} Plan
         </h3>
+        {currentPlan.description ? (
+          <div
+            className="max-w-3xl text-sm font-normal leading-6 text-white/85 [&_a]:underline [&_ol]:ml-5 [&_ol]:list-decimal [&_p:not(:last-child)]:mb-2 [&_strong]:font-semibold [&_ul]:ml-5 [&_ul]:list-disc"
+            dangerouslySetInnerHTML={{ __html: currentPlan.description }}
+          />
+        ) : null}
 
         {headerFeatures.length ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full mt-2 pb-2.5">
@@ -145,6 +151,12 @@ const PlanDialog = ({
                   <p className="self-stretch justify-start text-paragraph text-xs font-normal">
                     {planItem.accessLabel}
                   </p>
+                  {planItem.description ? (
+                    <div
+                      className="mt-2 self-stretch justify-start text-paragraph text-xs font-normal leading-5 [&_a]:underline [&_ol]:ml-4 [&_ol]:list-decimal [&_p:not(:last-child)]:mb-1.5 [&_strong]:font-semibold [&_ul]:ml-4 [&_ul]:list-disc"
+                      dangerouslySetInnerHTML={{ __html: planItem.description }}
+                    />
+                  ) : null}
                 </div>
                 {planItem.name === selectedPlanName && (
                   <div className="flex justify-center mb-2">

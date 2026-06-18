@@ -82,6 +82,14 @@ const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) =
           >
             {plan.accessLabel}
           </div>
+          {plan.description ? (
+            <div
+              className={`text-sm leading-6 [&_a]:underline [&_ol]:ml-5 [&_ol]:list-decimal [&_p:not(:last-child)]:mb-2 [&_strong]:font-semibold [&_ul]:ml-5 [&_ul]:list-disc ${
+                isHighlighted ? "text-white/85" : "text-paragraph"
+              }`}
+              dangerouslySetInnerHTML={{ __html: plan.description }}
+            />
+          ) : null}
           {plan.isPurchased && formattedExpiryDate ? (
             <div className="text-xs font-semibold text-primary_heading">
               Active until {formattedExpiryDate}

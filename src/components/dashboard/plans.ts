@@ -1,6 +1,7 @@
 export interface Plan {
   planId?: string | null;
   name: string;
+  description?: string | null;
   price: string;
   accessLabel: string;
   priceId?: string | null;
