@@ -1,12 +1,14 @@
 import { Toaster } from "./components/ui/sonner";
 import AppRoutes from "./routes/AppRoutes";
 import { useEffect } from "react";
-import { setupForegroundNotifications } from "./lib/fcm";
-
+import { setupForegroundNotifications, initializeFcmToken } from "./lib/fcm";
 
 function App() {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+
+    // Initialize FCM token early on app load
+    void initializeFcmToken();
 
     void setupForegroundNotifications()
       .then((handler) => {
@@ -23,8 +25,8 @@ function App() {
 
   return (
     <>
-     <Toaster position="top-center" richColors />
-    <AppRoutes />
+      <Toaster position="top-center" richColors />
+      <AppRoutes />
     </>
   );
 }
