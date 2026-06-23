@@ -551,6 +551,26 @@ export const ExamsQuizRenderer = ({
     }
   };
 
+  const getQuestionInstruction = () => {
+    switch (question.type) {
+      case "mcq": {
+        const maxSelection = getMaxSelection(question);
+        return maxSelection > 1
+          ? `Select up to ${maxSelection} correct options for this question.`
+          : "Select the correct option for this question.";
+      }
+      case "dragdrop":
+        return "Drag each option and drop it beside the matching item.";
+      case "fillblank":
+        return "Choose the correct answers and place them into the blanks.";
+      default:
+        return "Read the question carefully before answering.";
+    }
+  };
+
+  const questionTypeLabel = getQuestionTypeLabel();
+  const questionInstruction = getQuestionInstruction();
+
   return (
     <div className="flex overflow-hidden flex-col gap-2.5">
       {/* HEADER */}
@@ -561,12 +581,19 @@ export const ExamsQuizRenderer = ({
         <div className="flex flex-col justify-end items-end gap-2 w-full lg:w-auto">
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="px-4 py-1.5 bg-Black_light text-white rounded-full text-xs flex items-center gap-2">
+            <button
+              type="button"
+              className="px-4 py-1.5 bg-Black_light text-white rounded-full text-xs flex items-center gap-2"
+              aria-label={`Show ${questionTypeLabel || "question"} instructions`}
+            >
               <InfoCircle /> Show Instructions
             </button>
           </TooltipTrigger>
-          <TooltipContent>
-            <p>Question instructions</p>
+          <TooltipContent className="max-w-[260px] bg-Black_light text-white">
+            <div className="flex flex-col gap-1">
+              <p className="font-semibold">{questionTypeLabel}</p>
+              <p className="leading-5">{questionInstruction}</p>
+            </div>
           </TooltipContent>
         </Tooltip>
          <Button

@@ -52,6 +52,9 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
   const pdfDevicePixelRatio =
     typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 3) : 1;
   const pdfRenderMode: "canvas" | "svg" = "canvas";
+  const preventContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+  };
   const isDirectVideoUrl = (url?: string) =>
     Boolean(url && /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url));
   const contentResetKey = content.type === "module" ? content.title : content.id;
@@ -149,7 +152,10 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
               src={content.videoUrl}
               className="w-full aspect-video rounded-[10px]"
               controls
+              controlsList="nodownload"
+              disablePictureInPicture
               playsInline
+              onContextMenu={preventContextMenu}
               onLoadedData={() => setIsVideoLoading(false)}
               onTimeUpdate={(event) => {
                 const { currentTime, duration } = event.currentTarget;
@@ -161,13 +167,15 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
               }}
             />
           ) : (
-            <iframe
-              src={content.videoUrl}
-              className="w-full aspect-video rounded-[10px]"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              onLoad={() => setIsVideoLoading(false)}
-            />
+            <div onContextMenu={preventContextMenu}>
+              <iframe
+                src={content.videoUrl}
+                className="w-full aspect-video rounded-[10px]"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                onLoad={() => setIsVideoLoading(false)}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -211,40 +219,44 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
             src={content.pdfUrl}
             alt={content.title}
             className={imageClassName}
+            draggable={false}
+            onContextMenu={preventContextMenu}
           />
         );
       }
 
       return (
-        <Document
-          file={content.pdfUrl}
-          onLoadSuccess={onDocumentLoadSuccess}
-          loading={
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
-                <p className="text-paragraph">Loading PDF...</p>
+        <div onContextMenu={preventContextMenu}>
+          <Document
+            file={content.pdfUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            loading={
+              <div className="flex items-center justify-center">
+                <div className="text-center">
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
+                  <p className="text-paragraph">Loading PDF...</p>
+                </div>
               </div>
-            </div>
-          }
-          error={
-            <div className="text-center text-red-600">
-              <p>Failed to load PDF</p>
-              <p className="text-sm text-paragraph mt-2">
-                Please check the file path or URL
-              </p>
-            </div>
-          }
-        >
-          <Page
-            pageNumber={currentSlideIndex}
-            renderMode={pdfRenderMode}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            width={width ?? undefined}
-            devicePixelRatio={pdfDevicePixelRatio}
-          />
-        </Document>
+            }
+            error={
+              <div className="text-center text-red-600">
+                <p>Failed to load PDF</p>
+                <p className="text-sm text-paragraph mt-2">
+                  Please check the file path or URL
+                </p>
+              </div>
+            }
+          >
+            <Page
+              pageNumber={currentSlideIndex}
+              renderMode={pdfRenderMode}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              width={width ?? undefined}
+              devicePixelRatio={pdfDevicePixelRatio}
+            />
+          </Document>
+        </div>
       );
     };
 
@@ -301,6 +313,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
           <div
             className="flex-1 flex items-center justify-center w-full"
             ref={pdfContainerRef}
+            onContextMenu={preventContextMenu}
           >
             {renderSlideFile(pdfWidth)}
           </div>
@@ -339,6 +352,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
             <div
               ref={enlargedPdfContainerRef}
               className="min-h-0 flex-1 overflow-auto rounded-[10px] bg-[#EDF4FD] p-3 flex justify-center"
+              onContextMenu={preventContextMenu}
             >
               {renderSlideFile(
                 enlargedPdfWidth,
