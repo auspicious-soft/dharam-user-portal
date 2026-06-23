@@ -7,6 +7,7 @@ const FCM_ENDPOINT = import.meta.env.VITE_FCM_TOKEN_ENDPOINT ?? "";
 let foregroundUnsubscribe: (() => void) | null = null;
 let cachedFcmToken: string | null = null;
 let fcmTokenPromise: Promise<string | null> | null = null;
+let fcmTokenPromiseRequestsPermission = false;
 
 // Log config on initialization
 if (!VAPID_KEY) {
@@ -62,14 +63,19 @@ export async function getFcmToken({
     return cachedFcmToken;
   }
 
-  // If a fetch is already in progress, wait for it
   if (fcmTokenPromise) {
-    console.log("⏳ Waiting for in-progress FCM token fetch...");
-    return fcmTokenPromise;
+    const canReusePromise =
+      fcmTokenPromiseRequestsPermission ||
+      !requestPermission ||
+      Notification.permission === "granted";
+
+    if (canReusePromise) {
+      console.log("⏳ Waiting for in-progress FCM token fetch...");
+      return fcmTokenPromise;
+    }
   }
 
-  // Start new fetch and cache the promise
-  fcmTokenPromise = (async () => {
+  const tokenPromise = (async () => {
     try {
       console.log("🔍 Starting FCM token fetch process...");
 
@@ -143,9 +149,15 @@ export async function getFcmToken({
       return null;
     } finally {
       // Always clear the promise cache so the next call can retry
-      fcmTokenPromise = null;
+      if (fcmTokenPromise === tokenPromise) {
+        fcmTokenPromise = null;
+        fcmTokenPromiseRequestsPermission = false;
+      }
     }
   })();
+
+  fcmTokenPromise = tokenPromise;
+  fcmTokenPromiseRequestsPermission = requestPermission;
 
   return fcmTokenPromise;
 }

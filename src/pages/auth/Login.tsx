@@ -24,6 +24,18 @@ const Login = () => {
     const token = await getFcmToken({ requestPermission: true });
 
     if (!token) {
+      if (!window.isSecureContext) {
+        throw new Error(
+          "Notifications require localhost or HTTPS. Please test from http://localhost.",
+        );
+      }
+
+      if ("Notification" in window && Notification.permission === "denied") {
+        throw new Error(
+          "Notifications are blocked for this site. Please allow them from the browser site settings, then try again.",
+        );
+      }
+
       throw new Error(
         "Please allow notifications so we can register this device for alerts.",
       );
@@ -123,7 +135,6 @@ const Login = () => {
     setIsGoogleSubmitting(true);
 
     try {
-      const requiredFcmToken = await getRequiredFcmToken();
       const result = await signInWithPopup(firebaseAuth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const googleIdToken = credential?.idToken ?? null;
@@ -131,6 +142,8 @@ const Login = () => {
       if (!googleIdToken) {
         throw new Error("Missing Google ID token from popup result.");
       }
+
+      const requiredFcmToken = await getRequiredFcmToken();
 
       console.log(
         "📡 Sending social-login request with fcmToken:",
