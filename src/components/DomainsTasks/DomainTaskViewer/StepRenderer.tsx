@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { AdvancedQuiz } from "./AdvancedQuiz";
 import { Step } from "./domainQuiz.types";
@@ -9,6 +10,11 @@ import { getPublicUrlForKey } from "@/utils/s3Upload";
 interface StepRendererProps {
   step: Step;
 }
+
+export const DOMAIN_TASK_UNAVAILABLE_MESSAGE =
+  "Questions are not available yet for this task.";
+const DOMAIN_TASK_CONTENT_AND_QUESTIONS_UNAVAILABLE_MESSAGE =
+  "Content and questions are not available yet for this task.";
 
 export const StepRenderer = ({ step }: StepRendererProps) => {
   switch (step.type) {
@@ -48,14 +54,25 @@ export const StepRenderer = ({ step }: StepRendererProps) => {
     case "quiz":
       return step.quiz ? <AdvancedQuiz quiz={step.quiz} /> : null;
     case "questions":
-      return <DomainTaskQuestions taskId={step.content ?? ""} />;
+      return (
+        <DomainTaskQuestions
+          taskId={step.content ?? ""}
+          hasTaskContent={Boolean(step.hasTaskContent)}
+        />
+      );
 
     default:
       return null;
   }
 };
 
-const DomainTaskQuestions = ({ taskId }: { taskId: string }) => {
+const DomainTaskQuestions = ({
+  taskId,
+  hasTaskContent,
+}: {
+  taskId: string;
+  hasTaskContent: boolean;
+}) => {
   const [isLoading, setIsLoading] = useState(true);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [allAttempted, setAllAttempted] = useState(false);
@@ -197,7 +214,6 @@ const DomainTaskQuestions = ({ taskId }: { taskId: string }) => {
         setAllAttempted(mapped.length > 0 && filtered.length === 0);
         setQuestions(filtered);
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to fetch domain task questions", error);
         setQuestions([]);
         setAllAttempted(false);
@@ -222,7 +238,9 @@ const DomainTaskQuestions = ({ taskId }: { taskId: string }) => {
       <div className="p-5 bg-light-blue rounded-[20px] text-paragraph text-sm">
         {allAttempted
           ? "You have already attempted all questions for this task."
-          : "Questions are not available yet for this task."}
+          : hasTaskContent
+            ? DOMAIN_TASK_UNAVAILABLE_MESSAGE
+            : DOMAIN_TASK_CONTENT_AND_QUESTIONS_UNAVAILABLE_MESSAGE}
       </div>
     );
   }

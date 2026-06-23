@@ -22,12 +22,13 @@ export const QuestionsColumns = ({
         // eslint-disable-next-line react-hooks/rules-of-hooks
         const navigate = useNavigate();
         const isPremium = row.original.isPremium;
+        const hasQuestions = Number(row.original.questionCount ?? 0) > 0;
 
         return (
           <div className="flex items-center gap-2">
             <div
               onClick={() => {
-                if (!isPremium) {
+                if (!isPremium && hasQuestions) {
                   navigate(
                     `/practice-questions/questions-view/${row.original.id}`,
                     { state: { examName: row.original.categoryName } }
@@ -35,7 +36,7 @@ export const QuestionsColumns = ({
                 }
               }}
               className={`text-left ${
-                isPremium
+                isPremium || !hasQuestions
                   ? "cursor-not-allowed"
                   : " hover:underline cursor-pointer"
               }`}
@@ -55,7 +56,16 @@ export const QuestionsColumns = ({
         // eslint-disable-next-line react-hooks/rules-of-hooks
         const navigate = useNavigate();
         const isPremium = row.original.isPremium;
+        const hasQuestions = Number(row.original.questionCount ?? 0) > 0;
       
+        if (!hasQuestions) {
+          return (
+            <div className="max-w-[190px] text-xs font-medium leading-5 text-paragraph">
+              There is no question to start exam.
+            </div>
+          );
+        }
+
         return isPremium ? (
           <button
             onClick={() => onBuyPremiumExam?.(row.original)}

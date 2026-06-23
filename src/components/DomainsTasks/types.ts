@@ -1,6 +1,7 @@
 export interface DomainItem {
   id: string;
   title: string;
+  order?: number;
   taskLabel?: string;
   taskName?: string;
   status?: string;
@@ -11,6 +12,7 @@ export interface DomainItem {
 export interface Module {
   id: string;
   title: string;
+  order?: number;
   task: number;
   price?: number | null;
   isPremium?: boolean;

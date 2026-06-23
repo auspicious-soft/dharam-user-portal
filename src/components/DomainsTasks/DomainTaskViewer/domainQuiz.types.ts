@@ -4,5 +4,6 @@ import { QuizQuestion } from "@/components/QuizComponents/quiz.types";
 export interface Step {
   type: "task" | "image" | "examples" | "keywords" | "quiz" | "questions";
   content?: string;
+  hasTaskContent?: boolean;
   quiz?: QuizQuestion[];
 }

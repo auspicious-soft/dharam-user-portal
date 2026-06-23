@@ -21,6 +21,12 @@ type FetchedByDuration = {
   threeMonths: boolean;
 };
 
+type FreeTrialPlanInfo = {
+  planId: string | null;
+  isPurchased: boolean;
+  expiryDate: string | null;
+};
+
 type ApiPlan = {
   _id?: string | null;
   planName: string;
@@ -243,7 +249,7 @@ const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
     }));
 };
 
-const getFreeTrialPlanId = (apiPlans: ApiPlan[]): string | null => {
+const getFreeTrialPlanInfo = (apiPlans: ApiPlan[]): FreeTrialPlanInfo | null => {
   const freeTrialPlan = apiPlans.find((plan) => {
     const normalizedName = (plan.planName ?? "").trim().toLowerCase();
     const isFreeTrialByName =
@@ -253,7 +259,18 @@ const getFreeTrialPlanId = (apiPlans: ApiPlan[]): string | null => {
     return isFreeTrialByName || isFreeByDuration;
   });
 
-  return freeTrialPlan?._id ?? null;
+  if (!freeTrialPlan) {
+    return null;
+  }
+
+  return {
+    planId: freeTrialPlan._id ?? null,
+    isPurchased:
+      freeTrialPlan.isPurchased === true ||
+      freeTrialPlan.purchaseStatus === true ||
+      String(freeTrialPlan.purchaseStatus).toUpperCase() === "TRUE",
+    expiryDate: freeTrialPlan.expiryDate ?? null,
+  };
 };
 
 const Dashboard = () => {
@@ -277,7 +294,8 @@ const Dashboard = () => {
     oneMonth: [],
     threeMonths: [],
   });
-  const [freeTrialPlanId, setFreeTrialPlanId] = useState<string | null>(null);
+  const [freeTrialPlanInfo, setFreeTrialPlanInfo] =
+    useState<FreeTrialPlanInfo | null>(null);
   const [fetchedByDuration, setFetchedByDuration] = useState<FetchedByDuration>(
     {
       oneMonth: false,
@@ -511,15 +529,15 @@ const Dashboard = () => {
         const apiPlans = ((response.data as { data?: ApiPlan[] })?.data ??
           []) as ApiPlan[];
         const mappedPlans = mapApiPlansToUiPlans(apiPlans);
-        const extractedFreeTrialPlanId = getFreeTrialPlanId(apiPlans);
+        const extractedFreeTrialPlanInfo = getFreeTrialPlanInfo(apiPlans);
 
         if (!isCancelled) {
           setPlansByDuration((prev) => ({
             ...prev,
             [durationKey]: mappedPlans,
           }));
-          if (extractedFreeTrialPlanId) {
-            setFreeTrialPlanId(extractedFreeTrialPlanId);
+          if (extractedFreeTrialPlanInfo) {
+            setFreeTrialPlanInfo(extractedFreeTrialPlanInfo);
           }
           setFetchedByDuration((prev) => ({
             ...prev,
@@ -602,7 +620,9 @@ const Dashboard = () => {
               onDurationChange={setSelectedMonths}
               allPlans={plansByDuration}
               isLoadingPlans={isPlansLoading}
-              freeTrialPlanId={freeTrialPlanId}
+              freeTrialPlanId={freeTrialPlanInfo?.planId ?? null}
+              hasPurchasedFreeTrial={Boolean(freeTrialPlanInfo?.isPurchased)}
+              freeTrialExpiryDate={freeTrialPlanInfo?.expiryDate ?? null}
             />
           </>
         )}

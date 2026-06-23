@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -22,7 +23,6 @@ const DomainTaskViewer = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isTaskLocked, setIsTaskLocked] = useState(false);
-
   useEffect(() => {
     const courseId = localStorage.getItem("selectedCourseId");
     if (!courseId || !taskId) return;
@@ -91,7 +91,6 @@ const DomainTaskViewer = () => {
           keywords: foundTask.keywords ?? "",
         });
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to fetch domain task", error);
         setIsTaskLocked(false);
         setTask(null);
@@ -116,13 +115,21 @@ const DomainTaskViewer = () => {
         ? getPublicUrlForKey(task.flowDiagram)
         : "";
 
-    return [
+    const contentSteps = [
       { type: "task", content: task.taskDetails },
       ...(resolvedDiagram ? [{ type: "image", content: resolvedDiagram }] : []),
       { type: "examples", content: task.examples },
       { type: "keywords", content: task.keywords },
-      { type: "questions", content: task.id },
     ].filter((step) => step.content);
+
+    return [
+      ...contentSteps,
+      {
+        type: "questions",
+        content: task.id,
+        hasTaskContent: contentSteps.length > 0,
+      },
+    ];
   }, [task]);
 
   const step = steps[currentStep];
@@ -195,7 +202,15 @@ const DomainTaskViewer = () => {
       </div>
 
       {/* CONTENT */}
-      <div className="">{step ? <StepRenderer step={step} /> : null}</div>
+      <div className="">
+        {step ? (
+          <StepRenderer step={step} />
+        ) : (
+          <div className="p-5 bg-light-blue rounded-[20px] text-paragraph text-sm">
+            Content is not available yet for this task.
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -90,10 +90,13 @@ const Questions = () => {
                    ? parsedPrice
                    : null;
 
+             const questionCount = Number(item.questionCount ?? 0);
+
              return {
                id: item._id ?? item.id,
                categoryName: item.name ?? "Practice Exam",
-               totalQuestions: `${item.questionCount ?? 0} Questions`,
+               totalQuestions: `${questionCount} Questions`,
+               questionCount,
                examTime: "Untimed",
                isPremium:
                  String(item.status ?? "").toUpperCase() === "ACTIVE"

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,6 @@ const DomainsTasks = () => {
         }
         return next;
       });
-      // eslint-disable-next-line no-console
       console.error("Failed to update task bookmark", error);
     }
   };
@@ -80,6 +80,11 @@ const DomainsTasks = () => {
       parsed?.checkoutUrl ??
       null
     );
+  };
+
+  const getOrderValue = (value: unknown, fallback: number) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
   };
 
   const handleBuyPremiumDomain = async (module: Module) => {
@@ -171,7 +176,13 @@ const DomainsTasks = () => {
           );
 
         const nextBookmarkedItems = new Set<string>();
-        const mappedModules: Module[] = rawModules.map(
+        const orderedRawModules = [...rawModules].sort((a: any, b: any) => {
+          const firstOrder = getOrderValue(a?.order, rawModules.indexOf(a));
+          const secondOrder = getOrderValue(b?.order, rawModules.indexOf(b));
+          return firstOrder - secondOrder;
+        });
+
+        const mappedModules: Module[] = orderedRawModules.map(
           (module: any, moduleIndex: number) => {
             const moduleStatus = String(module.status ?? "ACTIVE").toUpperCase();
             const isInactiveDomain = moduleStatus === "INACTIVE";
@@ -182,7 +193,13 @@ const DomainsTasks = () => {
               (Array.isArray(module.taskList) && module.taskList) ||
               [];
 
-            const items = rawItems
+            const orderedRawItems = [...rawItems].sort((a: any, b: any) => {
+              const firstOrder = getOrderValue(a?.order, rawItems.indexOf(a));
+              const secondOrder = getOrderValue(b?.order, rawItems.indexOf(b));
+              return firstOrder - secondOrder;
+            });
+
+            const items = orderedRawItems
               .map((item: any, index: number) => {
                 const id =
                   item._id ??
@@ -213,6 +230,7 @@ const DomainsTasks = () => {
                     item.task ??
                     item.name ??
                     "Task",
+                  order: getOrderValue(item.order, index),
                   status: itemStatus,
                   taskLabel: item.taskLabel ?? undefined,
                   taskName: item.taskName ?? undefined,
@@ -233,6 +251,7 @@ const DomainsTasks = () => {
             return {
               id: module._id ?? module.id ?? `${module.title}-${module.order ?? 0}`,
               title: module.domain ?? module.title ?? module.module ?? "Domain",
+              order: getOrderValue(module.order, moduleIndex),
               status: moduleStatus,
               task: taskCount,
               price:
@@ -250,7 +269,6 @@ const DomainsTasks = () => {
         setModules(mappedModules);
         setBookmarkedItems(nextBookmarkedItems);
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to fetch domain tasks", error);
       } finally {
         setIsLoading(false);
@@ -364,11 +382,11 @@ const DomainsTasks = () => {
                         alt="Task"
                         className="w-8 h-8"
                       />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs text-paragraph font-medium">
                           {item.taskLabel ?? `${moduleShortCode} ${index + 1}`}
                         </p>
-                        <h4 className="text-Black_light text-sm font-semibold truncate max-w-[320px]">
+                        <h4 className="text-Black_light text-sm font-semibold whitespace-normal break-words leading-5">
                           {item.taskName ?? item.title}
                         </h4>
                       </div>

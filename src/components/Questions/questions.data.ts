@@ -2,6 +2,7 @@ export type FileItem = {
   id: string;
   categoryName: string;
   totalQuestions: string;
+  questionCount?: number;
   examTime: string;
   isPremium?: boolean;
   price?: number | null;

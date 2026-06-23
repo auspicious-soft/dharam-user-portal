@@ -21,6 +21,8 @@ type PurchasePlanCardProps = {
   allPlans: PlansByDuration;
   isLoadingPlans?: boolean;
   freeTrialPlanId?: string | null;
+  hasPurchasedFreeTrial?: boolean;
+  freeTrialExpiryDate?: string | null;
 };
 
 const PurchasePlanCard = ({
@@ -28,6 +30,8 @@ const PurchasePlanCard = ({
   allPlans,
   isLoadingPlans = false,
   freeTrialPlanId = null,
+  hasPurchasedFreeTrial = false,
+  freeTrialExpiryDate = null,
 }: PurchasePlanCardProps) => {
   const [activeTab, setActiveTab] = useState<DurationTab>("oneMonth");
   const [isStartingTrial, setIsStartingTrial] = useState(false);
@@ -56,11 +60,20 @@ const PurchasePlanCard = ({
     [courses, selectedCourseId]
   );
   const hasUsedFreeTrialForSelectedCourse =
+    hasPurchasedFreeTrial ||
     String(selectedCourse?.purchaseStatus ?? "").toUpperCase() === "FREE_TRIAL";
   const hasActiveFreeTrialForSelectedCourse =
-    hasUsedFreeTrialForSelectedCourse &&
-    String(selectedCourse?.status ?? "").toUpperCase() === "ACTIVE" &&
-    Number(selectedCourse?.daysLeft ?? 0) > 0;
+    hasPurchasedFreeTrial ||
+    (hasUsedFreeTrialForSelectedCourse &&
+      String(selectedCourse?.status ?? "").toUpperCase() === "ACTIVE" &&
+      Number(selectedCourse?.daysLeft ?? 0) > 0);
+  const formattedFreeTrialExpiryDate = freeTrialExpiryDate
+    ? new Date(freeTrialExpiryDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
   const freeTrialNotice = hasActiveFreeTrialForSelectedCourse
     ? "You already have free trial for this course."
     : hasUsedFreeTrialForSelectedCourse
@@ -248,14 +261,28 @@ const PurchasePlanCard = ({
         </div>
       )}
 
-      <StartFreeTrial
-        onStartFreeTrial={() => {
-          void handleStartTrial();
-        }}
-        isSubmitting={isStartingTrial}
-        showStartTrialButton={!hasUsedFreeTrialForSelectedCourse}
-        trialNotice={freeTrialNotice}
-      />
+      {freeTrialNotice ? (
+        <div className="rounded-[12px] border border-primary_heading/30 bg-white px-4 py-3 text-center shadow-sm">
+          <p className="text-sm font-semibold text-primary_heading">
+            {freeTrialNotice}
+          </p>
+          {hasActiveFreeTrialForSelectedCourse &&
+          formattedFreeTrialExpiryDate ? (
+            <p className="mt-1 text-xs font-semibold text-primary_heading">
+              Active until {formattedFreeTrialExpiryDate}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!hasUsedFreeTrialForSelectedCourse ? (
+        <StartFreeTrial
+          onStartFreeTrial={() => {
+            void handleStartTrial();
+          }}
+          isSubmitting={isStartingTrial}
+        />
+      ) : null}
     </div>
   );
 };

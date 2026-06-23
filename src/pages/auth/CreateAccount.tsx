@@ -10,14 +10,6 @@ import {
   User,
 } from "iconoir-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import CountryCodeSearchInput from "@/components/reusableComponents/CountryCodeSearchInput";
 import api from "@/lib/axios";
 import { getFcmToken } from "@/lib/fcm";
@@ -31,6 +23,7 @@ import {
 } from "@/utils/countryCodeOptions";
 
 const MIN_PASSWORD_LENGTH = 5;
+const DEFAULT_COUNTRY_CODE = "+1";
 
 const CreateAccount = () => {
  const navigate = useNavigate();
@@ -38,12 +31,15 @@ const CreateAccount = () => {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
 
-  const [countryCode, setCountryCode] = useState("+91");
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [countryCodeOptions, setCountryCodeOptions] = useState(
     COUNTRY_CODE_FALLBACK_OPTIONS
   );
   const [countryCodeSearch, setCountryCodeSearch] = useState(
-    getCountryCodeOptionLabel("+91", COUNTRY_CODE_FALLBACK_OPTIONS)
+    getCountryCodeOptionLabel(
+      DEFAULT_COUNTRY_CODE,
+      COUNTRY_CODE_FALLBACK_OPTIONS,
+    )
   );
   const [isCountryCodesLoading, setIsCountryCodesLoading] = useState(false);
   const [phone, setPhone] = useState("");
@@ -54,7 +50,6 @@ const CreateAccount = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmShowPassword, setConfirmShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -141,7 +136,7 @@ const CreateAccount = () => {
     e.preventDefault();
 
     if (validateForm()) {
-      setConfirmDialogOpen(true);
+      void handleCreateAccount();
     }
   };
 
@@ -186,7 +181,6 @@ const CreateAccount = () => {
         (response.data as { message?: string | null })?.message ??
         "Registration successful";
       toast.success(successMessage);
-      setConfirmDialogOpen(false);
 
       navigate("/enter-otp", {
         state: {
@@ -201,7 +195,6 @@ const CreateAccount = () => {
       toast.error(message);
     } finally {
       setIsSubmitting(false);
-      setConfirmDialogOpen(false);
     }
   };
 
@@ -362,37 +355,6 @@ const CreateAccount = () => {
         </p>
       </form>
 
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="max-w-md rounded-2xl p-7">
-          <DialogHeader className="items-center space-y-4 mb-4">
-            <DialogTitle className="text-center text-2xl text-Black_light md:text-3xl font-bold">
-              Create Account?
-            </DialogTitle>
-            <DialogDescription className="text-paragraph text-base font-medium text-center">
-              Are you sure you want to create this account?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              className="flex-1 max-h-[44px]"
-              variant="outline"
-              disabled={isSubmitting}
-              onClick={() => setConfirmDialogOpen(false)}
-            >
-              No
-            </Button>
-            <Button
-              type="button"
-              className="flex-1 max-h-[44px]"
-              disabled={isSubmitting}
-              onClick={() => void handleCreateAccount()}
-            >
-              {isSubmitting ? "Creating..." : "Yes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
