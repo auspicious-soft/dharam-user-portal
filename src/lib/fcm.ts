@@ -8,6 +8,13 @@ let foregroundUnsubscribe: (() => void) | null = null;
 let cachedFcmToken: string | null = null;
 let fcmTokenPromise: Promise<string | null> | null = null;
 
+// Log config on initialization
+if (!VAPID_KEY) {
+  console.warn("⚠️ VITE_FIREBASE_VAPID_KEY is not set");
+} else {
+  console.log("✅ VITE_FIREBASE_VAPID_KEY is configured");
+}
+
 async function getMessagingSafe() {
   if (!(await isSupported())) {
     return null;
@@ -20,6 +27,31 @@ async function getMessagingSafe() {
 type GetFcmTokenOptions = {
   requestPermission?: boolean;
 };
+
+/**
+ * Request notification permission explicitly
+ */
+export async function requestNotificationPermission(): Promise<NotificationPermission> {
+  if (!("Notification" in window)) {
+    console.error("❌ Notifications not supported in this browser");
+    return "denied";
+  }
+
+  if (Notification.permission === "granted") {
+    console.log("✅ Notification permission already granted");
+    return "granted";
+  }
+
+  if (Notification.permission === "denied") {
+    console.warn("⚠️ Notification permission was denied by user");
+    return "denied";
+  }
+
+  console.log("📋 Requesting notification permission...");
+  const permission = await Notification.requestPermission();
+  console.log("Permission result:", permission);
+  return permission;
+}
 
 export async function getFcmToken({
   requestPermission = true,
@@ -39,6 +71,8 @@ export async function getFcmToken({
   // Start new fetch and cache the promise
   fcmTokenPromise = (async () => {
     try {
+      console.log("🔍 Starting FCM token fetch process...");
+
       if (!VAPID_KEY) {
         console.error(
           "❌ Missing VITE_FIREBASE_VAPID_KEY; skipping FCM token.",
@@ -56,18 +90,26 @@ export async function getFcmToken({
         return null;
       }
 
-      console.log("Checking notification permission...");
-      const permission = requestPermission
-        ? await Notification.requestPermission()
-        : Notification.permission;
-      console.log("Permission result:", permission);
-
-      if (permission !== "granted") {
-        console.error(
-          "❌ Notification permission denied. Current state:",
-          Notification.permission,
-        );
-        return null;
+      // Request permission if needed
+      if (requestPermission) {
+        const permission = await requestNotificationPermission();
+        if (permission !== "granted") {
+          console.error(
+            "❌ Notification permission not granted. Permission state:",
+            permission,
+          );
+          return null;
+        }
+      } else {
+        // Check current permission
+        const currentPermission = Notification.permission;
+        if (currentPermission !== "granted") {
+          console.error(
+            "❌ Notification permission not granted. Current state:",
+            currentPermission,
+          );
+          return null;
+        }
       }
 
       const messaging = await getMessagingSafe();
@@ -100,6 +142,7 @@ export async function getFcmToken({
       console.error("❌ Error getting FCM token:", error);
       return null;
     } finally {
+      // Always clear the promise cache so the next call can retry
       fcmTokenPromise = null;
     }
   })();
@@ -112,7 +155,8 @@ export async function sendFcmToken(
 ): Promise<void> {
   try {
     console.log("📤 Getting FCM token for context:", context);
-    const token = await getFcmToken();
+    // Explicitly request permission during login/register
+    const token = await getFcmToken({ requestPermission: true });
     if (!token) {
       console.warn("⚠️ No FCM token available to send");
       return;

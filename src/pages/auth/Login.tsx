@@ -20,6 +20,18 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
+  const getRequiredFcmToken = async () => {
+    const token = await getFcmToken({ requestPermission: true });
+
+    if (!token) {
+      throw new Error(
+        "Please allow notifications so we can register this device for alerts.",
+      );
+    }
+
+    return token;
+  };
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -37,13 +49,24 @@ const Login = () => {
 
     let fcmToken: string | null = null;
     try {
-      fcmToken = await getFcmToken();
+      console.log("📱 Attempting to get FCM token for login...");
+      fcmToken = await getFcmToken({ requestPermission: true });
+      if (fcmToken) {
+        console.log("✅ FCM token obtained successfully");
+      } else {
+        console.warn(
+          "⚠️ FCM token is null - notification permission may have been denied",
+        );
+      }
     } catch (tokenError) {
-      // eslint-disable-next-line no-console
-      console.warn("FCM token not available", tokenError);
+      console.error("❌ Error getting FCM token:", tokenError);
     }
 
     try {
+      console.log(
+        "📡 Sending login request with fcmToken:",
+        fcmToken ? "present" : "empty",
+      );
       const response = await api.post("/user-login", {
         email: email.trim(),
         password,
@@ -100,6 +123,7 @@ const Login = () => {
     setIsGoogleSubmitting(true);
 
     try {
+      const requiredFcmToken = await getRequiredFcmToken();
       const result = await signInWithPopup(firebaseAuth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const googleIdToken = credential?.idToken ?? null;
@@ -108,18 +132,14 @@ const Login = () => {
         throw new Error("Missing Google ID token from popup result.");
       }
 
-      let fcmToken: string | null = null;
-      try {
-        fcmToken = await getFcmToken();
-      } catch (tokenError) {
-        // eslint-disable-next-line no-console
-        console.warn("FCM token not available", tokenError);
-      }
-
+      console.log(
+        "📡 Sending social-login request with fcmToken:",
+        requiredFcmToken ? "present" : "empty",
+      );
       const response = await api.post("/social-login", {
         authType: "GOOGLE",
         idToken: googleIdToken,
-        fcmToken: fcmToken ?? "",
+        fcmToken: requiredFcmToken,
         deviceType: "WEB",
       });
 
@@ -151,11 +171,13 @@ const Login = () => {
       login();
       navigate("/dashboard", { replace: true });
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Google login failed", error);
       const message =
         (error as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message ?? "Google login failed. Please try again.";
+          ?.data?.message ??
+        (error instanceof Error
+          ? error.message
+          : "Google login failed. Please try again.");
       setError(message);
     } finally {
       setIsGoogleSubmitting(false);
@@ -169,7 +191,7 @@ const Login = () => {
           Welcome Back
         </h2>
         <p className="text-paragraph text-base font-normal ">
-         Login to Your account
+          Login to Your account
         </p>
       </div>
       <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -235,11 +257,11 @@ const Login = () => {
           <ArrowRight className="w-5 h-5" />
         </Button>
         <p className="text-sm text-paragraph text-center ">
-          Don’t have an account? {" "} 
-          <Link
-            to="/create-account"
-            className="underline"
-          > Create One.</Link>
+          Don’t have an account?{" "}
+          <Link to="/create-account" className="underline">
+            {" "}
+            Create One.
+          </Link>
         </p>
         <div className="self-stretch inline-flex justify-start items-center gap-[30px] my-3">
           <div className="flex-1 h-0 outline outline-1 outline-offset-[-0.50px] outline-black/10"></div>
