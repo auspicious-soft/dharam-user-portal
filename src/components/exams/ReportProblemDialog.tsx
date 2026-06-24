@@ -44,7 +44,7 @@ export const ReportProblemDialog = ({
       const storedCourseId = localStorage.getItem("selectedCourseId") ?? "";
       await api.post("/user/report-problem", {
         courseId: storedCourseId || courseId || "",
-        type: "MOCK-EXAM",
+        type: "Mock Exam",
         relevantId: examId,
         emailSent: false,
         comments: comments.trim(),
