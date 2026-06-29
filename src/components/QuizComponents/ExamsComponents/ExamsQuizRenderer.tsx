@@ -34,12 +34,22 @@ interface QuizRendererProps {
 
   marked: Set<number>;
   setMarked: React.Dispatch<React.SetStateAction<Set<number>>>;
+  draftStorageKey?: string;
 }
 
 type ExamAnswerJson = {
   questionId: string;
   type: "MCQ" | "DND" | "FIB";
   selectedAnswer: string[] | Record<string, string>;
+};
+
+type ExamDraft = {
+  currentQuestionIndex?: number;
+  results?: Record<string, boolean>;
+  marked?: number[];
+  mcqAnswers?: Record<string, string[]>;
+  dragDropAnswers?: Record<string, Record<string, string>>;
+  fillBlankAnswers?: Record<string, Record<string, string>>;
 };
 
 const normalizeAnswerText = (value: unknown) =>
@@ -199,7 +209,9 @@ export const ExamsQuizRenderer = ({
   availableTime,
   results,
   setResults,
+  marked,
   setMarked,
+  draftStorageKey,
 }: QuizRendererProps) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
@@ -218,6 +230,7 @@ export const ExamsQuizRenderer = ({
     Record<number, Record<number, string>>
   >({});
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const [isDraftHydrated, setIsDraftHydrated] = useState(false);
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
@@ -239,10 +252,24 @@ export const ExamsQuizRenderer = ({
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
+  const getStoredDraft = useCallback((): ExamDraft | null => {
+    if (!draftStorageKey || typeof window === "undefined") return null;
+
+    try {
+      const raw = sessionStorage.getItem(draftStorageKey);
+      return raw ? (JSON.parse(raw) as ExamDraft) : null;
+    } catch {
+      return null;
+    }
+  }, [draftStorageKey]);
+
   useEffect(() => {
+    setIsDraftHydrated(false);
+
     const hydratedMcqAnswers: Record<number, string[]> = {};
     const hydratedDragDropAnswers: Record<number, Record<string, string>> = {};
     const hydratedFillBlankAnswers: Record<number, Record<number, string>> = {};
+    const storedDraft = getStoredDraft();
 
     quiz.forEach((item, index) => {
       if (!item.isAttempted) return;
@@ -260,14 +287,121 @@ export const ExamsQuizRenderer = ({
       }
     });
 
+    Object.entries(storedDraft?.mcqAnswers ?? {}).forEach(([index, answers]) => {
+      hydratedMcqAnswers[Number(index)] = answers;
+    });
+    Object.entries(storedDraft?.dragDropAnswers ?? {}).forEach(
+      ([index, answers]) => {
+        hydratedDragDropAnswers[Number(index)] = answers;
+      },
+    );
+    Object.entries(storedDraft?.fillBlankAnswers ?? {}).forEach(
+      ([index, answers]) => {
+        hydratedFillBlankAnswers[Number(index)] = Object.fromEntries(
+          Object.entries(answers).map(([key, value]) => [Number(key), value]),
+        );
+      },
+    );
+
+    if (storedDraft?.results) {
+      setResults(
+        Object.fromEntries(
+          Object.entries(storedDraft.results).map(([key, value]) => [
+            Number(key),
+            value,
+          ]),
+        ),
+      );
+    }
+
+    if (storedDraft?.marked) {
+      setMarked(new Set(storedDraft.marked));
+    }
+
+    const storedDraftIndex =
+      typeof storedDraft?.currentQuestionIndex === "number"
+        ? storedDraft.currentQuestionIndex
+        : currentQuestionIndex;
+    const storedQuestionIndex = Math.min(
+      quiz.length - 1,
+      Math.max(0, storedDraftIndex),
+    );
+
     setMcqAnswers(hydratedMcqAnswers);
     setDragDropAnswers(hydratedDragDropAnswers);
     setFillBlankAnswers(hydratedFillBlankAnswers);
-    setSelectedAnswers(hydratedMcqAnswers[currentQuestionIndex] ?? []);
+    setCurrentQuestionIndex(storedQuestionIndex);
+    setSelectedAnswers(hydratedMcqAnswers[storedQuestionIndex] ?? []);
+    onQuestionChange?.(storedQuestionIndex);
+    setIsDraftHydrated(true);
     // Hydrate saved answers only when a paused/resumed quiz payload arrives.
     // Navigating questions must not reset answers the user is entering now.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quiz]);
+
+  useEffect(() => {
+    if (
+      !isDraftHydrated ||
+      !draftStorageKey ||
+      typeof window === "undefined" ||
+      !quiz.length
+    ) {
+      return;
+    }
+
+    const draftMcqAnswers =
+      question?.type === "mcq" && selectedAnswers.length > 0
+        ? {
+            ...mcqAnswers,
+            [currentQuestionIndex]: selectedAnswers,
+          }
+        : mcqAnswers;
+
+    const draft: ExamDraft = {
+      currentQuestionIndex,
+      results: Object.fromEntries(
+        Object.entries(results).map(([key, value]) => [String(key), value]),
+      ),
+      marked: Array.from(marked),
+      mcqAnswers: Object.fromEntries(
+        Object.entries(draftMcqAnswers).map(([key, value]) => [
+          String(key),
+          value,
+        ]),
+      ),
+      dragDropAnswers: Object.fromEntries(
+        Object.entries(dragDropAnswers).map(([key, value]) => [
+          String(key),
+          value,
+        ]),
+      ),
+      fillBlankAnswers: Object.fromEntries(
+        Object.entries(fillBlankAnswers).map(([key, value]) => [
+          String(key),
+          Object.fromEntries(
+            Object.entries(value).map(([answerKey, answerValue]) => [
+              String(answerKey),
+              answerValue,
+            ]),
+          ),
+        ]),
+      ),
+    };
+
+    sessionStorage.setItem(draftStorageKey, JSON.stringify(draft));
+  }, [
+    currentQuestionIndex,
+    draftStorageKey,
+    dragDropAnswers,
+    fillBlankAnswers,
+    isDraftHydrated,
+    marked,
+    mcqAnswers,
+    question?.type,
+    quiz.length,
+    results,
+    selectedAnswers,
+  ]);
 
   const submitQuestionResponse = (
     isCorrect: boolean | null,

@@ -35,7 +35,9 @@ const PurchasePlanCard = ({
 }: PurchasePlanCardProps) => {
   const [activeTab, setActiveTab] = useState<DurationTab>("oneMonth");
   const [isStartingTrial, setIsStartingTrial] = useState(false);
-  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchasingPlanKey, setPurchasingPlanKey] = useState<string | null>(
+    null,
+  );
   const [courses, setCourses] = useState<UserCourse[]>([]);
 
   const currentPlans = useMemo(
@@ -54,6 +56,7 @@ const PurchasePlanCard = ({
       : "";
 
   const currentDuration = activeTab === "oneMonth" ? "1 Month" : "3 Months";
+  const isPurchasing = purchasingPlanKey !== null;
   const selectedCourseId = getSelectedCourseId();
   const selectedCourse = useMemo(
     () => courses.find((course) => course._id === selectedCourseId),
@@ -97,6 +100,9 @@ const PurchasePlanCard = ({
       null
     );
   };
+
+  const getPlanPurchaseKey = (planItem: Plan) =>
+    planItem.planId ?? planItem.priceId ?? planItem.name;
 
   const handleStartTrial = async () => {
     if (!freeTrialPlanId) {
@@ -156,8 +162,9 @@ const PurchasePlanCard = ({
     }
 
     const dashboardUrl = getDashboardUrl();
+    const planPurchaseKey = getPlanPurchaseKey(planItem);
 
-    setIsPurchasing(true);
+    setPurchasingPlanKey(planPurchaseKey);
     try {
       const response = await api.post("/user/create-purchase", {
         // priceId: planItem.priceId,
@@ -185,7 +192,7 @@ const PurchasePlanCard = ({
           ?.data?.message ?? "Unable to create purchase.";
       toast.error(message);
     } finally {
-      setIsPurchasing(false);
+      setPurchasingPlanKey(null);
     }
   };
 
@@ -251,7 +258,8 @@ const PurchasePlanCard = ({
               key={plan.name}
               plan={plan}
               onSelectPlan={handleSelectPlan}
-              isSubmitting={isPurchasing}
+              isSubmitting={purchasingPlanKey === getPlanPurchaseKey(plan)}
+              isPurchaseDisabled={isPurchasing}
             />
           ))}
         </div>

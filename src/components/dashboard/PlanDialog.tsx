@@ -181,16 +181,16 @@ const PlanDialog = ({
         </h3>
 
         {planBenefits.length ? (
-          <ul className="space-y-1 list-disc ml-5">
+          <div className="space-y-1">
             {planBenefits.map((benefit, index) => (
-              <li
+              <p
                 key={`${benefit}-benefit-${index}`}
                 className="self-stretch justify-start text-paragraph text-sm font-normal leading-7"
               >
                 {benefit}
-              </li>
+              </p>
             ))}
-          </ul>
+          </div>
         ) : (
           <p className="text-sm text-paragraph">No included benefits.</p>
         )}

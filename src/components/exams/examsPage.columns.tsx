@@ -89,7 +89,19 @@ export const ExamColumns = ({
     { accessorKey: "totalQuestions", header: "Exam Length" }, 
     { accessorKey: "examTime", header: "Exam Time" }, 
     { accessorKey: "attempts", header: "Attempts" }, 
-    { accessorKey: "correctPercentage", header: "Correct Percentage" },  
+    {
+      accessorKey: "correctPercentage",
+      header: "Correct Percentage",
+      cell: ({ row }) => {
+        const isPaused =
+          row.original.status === "Paused" ||
+          String(row.original.currentStatus ?? "").toUpperCase() === "PAUSED";
+
+        return isPaused || row.original.isPremium
+          ? null
+          : row.original.correctPercentage;
+      },
+    },
   {
   accessorKey: "status",
   header: "Status",

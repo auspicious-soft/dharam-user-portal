@@ -75,11 +75,6 @@ const Exams = () => {
           : []
         ).map((item) => {
           const mock = item.mockExamId ?? {};
-          const percentage =
-            typeof item.overallPercentage === "number"
-              ? `${item.overallPercentage}%`
-              : "-";
-
           return {
             id: mock._id ?? item._id ?? "",
             resumeId: item._id ?? "",
@@ -88,7 +83,7 @@ const Exams = () => {
             questionCount: mock.numberOfQuestions ?? 0,
             examTime: item.timeLeft ?? mock.timeInMin ?? "Untimed",
             attempts: String(item.attemptNumber ?? 0),
-            correctPercentage: percentage,
+            correctPercentage: "",
             status: "Paused",
             currentStatus: item.currentStatus ?? "PAUSED",
             isPremium: mock.isPremium ?? false,
@@ -105,6 +100,12 @@ const Exams = () => {
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           .map((item) => {
             const status = String(item.status ?? "").toUpperCase();
+            const isPremium =
+              status === "ACTIVE"
+                ? false
+                : status === "INACTIVE"
+                  ? true
+                  : (item.isPremium ?? false);
             const itemPrice =
               typeof item.price === "number"
                 ? item.price
@@ -120,17 +121,12 @@ const Exams = () => {
               examTime: item.timeInMin ?? "Untimed",
               attempts: String(item.totalAttempt ?? 0),
               correctPercentage:
-                typeof item.correctPercentage === "number"
+                !isPremium && typeof item.correctPercentage === "number"
                   ? `${item.correctPercentage}%`
-                  : "-",
+                  : "",
               status: item.currentStatus ?? "",
               currentStatus: item.currentStatus ?? null,
-              isPremium:
-                status === "ACTIVE"
-                  ? false
-                  : status === "INACTIVE"
-                    ? true
-                    : (item.isPremium ?? false),
+              isPremium,
               price:
                 parsedExamPrice != null && Number.isFinite(parsedExamPrice)
                   ? parsedExamPrice

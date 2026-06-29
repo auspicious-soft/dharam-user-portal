@@ -337,9 +337,6 @@ const ContactUs = () => {
             <DialogTitle className="text-center text-2xl lg:text-3xl  text-Black_light md:text-3xl font-bold capitalize leading-[45px] md:leading-[65px]">
               Report a Problem
             </DialogTitle>
-            <DialogDescription className=" self-stretch text-center justify-start text-[#444444] text-base font-medium leading-[30px]">
-              You’ll be reverted on the mail by the admin.
-            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col items-end lg:items-center gap-3 w-full">

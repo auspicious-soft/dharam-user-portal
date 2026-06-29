@@ -44,6 +44,8 @@ type MockExamResultResponse = {
 };
 
 const MOCK_EXAM_SESSION_PREFIX = "mockExam:start:";
+const MOCK_EXAM_DRAFT_PREFIX = "mockExam:draft:";
+const MOCK_EXAM_TIME_PREFIX = "mockExam:time:";
 
 const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
   const resolveQuestionImageUrl = (value: unknown): string | undefined => {
@@ -225,6 +227,8 @@ const StartExam = () => {
   const { id: routeExamId } = useParams<{ id: string }>();
   const locationMockExamData = (location.state as { mockExam?: any })?.mockExam;
   const examSessionKey = `${MOCK_EXAM_SESSION_PREFIX}${routeExamId ?? "current"}`;
+  const examDraftKey = `${MOCK_EXAM_DRAFT_PREFIX}${routeExamId ?? "current"}`;
+  const examTimeKey = `${MOCK_EXAM_TIME_PREFIX}${routeExamId ?? "current"}`;
   const [sessionMockExamData] = useState(() => {
     if (typeof window === "undefined") return null;
 
@@ -270,11 +274,22 @@ const StartExam = () => {
     return 0;
   };
 
+  const examTotalSeconds = useMemo(
+    () => parseDuration(mockExamData?.timeInMin),
+    [mockExamData?.timeInMin],
+  );
+
   const initialSeconds = useMemo(() => {
-    const totalSeconds = parseDuration(mockExamData?.timeInMin);
     const takenSeconds = parseDuration(mockExamData?.timeTaken);
-    return Math.max(0, totalSeconds - takenSeconds);
-  }, [mockExamData?.timeInMin, mockExamData?.timeTaken]);
+    const fallbackSeconds = Math.max(0, examTotalSeconds - takenSeconds);
+
+    if (typeof window === "undefined") return fallbackSeconds;
+
+    const storedSeconds = Number(sessionStorage.getItem(examTimeKey));
+    return Number.isFinite(storedSeconds) && storedSeconds > 0
+      ? storedSeconds
+      : fallbackSeconds;
+  }, [examTimeKey, examTotalSeconds, mockExamData?.timeTaken]);
 
   const { display: timeDisplay, seconds: remainingSeconds } = useTimer(
     initialSeconds,
@@ -282,17 +297,28 @@ const StartExam = () => {
   );
 
   const timeTaken = useMemo(() => {
-    const elapsed = Math.max(0, initialSeconds - remainingSeconds);
+    const elapsed = Math.max(0, examTotalSeconds - remainingSeconds);
     const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
     const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
     const ss = String(elapsed % 60).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
-  }, [initialSeconds, remainingSeconds]);
+  }, [examTotalSeconds, remainingSeconds]);
+
+  const totalQuestions = quiz.length;
+  const progressPercent = totalQuestions
+    ? (currentQuestion / totalQuestions) * 100
+    : 0;
+  const hasQuiz = totalQuestions > 0;
 
   useEffect(() => {
     if (!locationMockExamData || typeof window === "undefined") return;
     sessionStorage.setItem(examSessionKey, JSON.stringify(locationMockExamData));
   }, [examSessionKey, locationMockExamData]);
+
+  useEffect(() => {
+    if (!hasQuiz || typeof window === "undefined") return;
+    sessionStorage.setItem(examTimeKey, String(remainingSeconds));
+  }, [examTimeKey, hasQuiz, remainingSeconds]);
 
   useEffect(() => {
     if (!mockExamData) return;
@@ -301,6 +327,27 @@ const StartExam = () => {
     const firstUnattemptedIndex = mapped.findIndex(
       (question) => !question.isAttempted,
     );
+    let storedQuestionNumber: number | null = null;
+
+    if (typeof window !== "undefined") {
+      try {
+        const rawDraft = sessionStorage.getItem(examDraftKey);
+        const draft = rawDraft
+          ? (JSON.parse(rawDraft) as { currentQuestionIndex?: unknown })
+          : null;
+        const draftIndex = Number(draft?.currentQuestionIndex);
+
+        if (
+          Number.isInteger(draftIndex) &&
+          draftIndex >= 0 &&
+          draftIndex < mapped.length
+        ) {
+          storedQuestionNumber = draftIndex + 1;
+        }
+      } catch {
+        storedQuestionNumber = null;
+      }
+    }
     const attemptedResults = mapped.reduce<Record<number, boolean>>(
       (acc, question, index) => {
         if (question.isAttempted) {
@@ -312,17 +359,15 @@ const StartExam = () => {
     );
 
     setQuiz(mapped);
-    setCurrentQuestion(firstUnattemptedIndex >= 0 ? firstUnattemptedIndex + 1 : 1);
+    setCurrentQuestion(
+      storedQuestionNumber ??
+        (firstUnattemptedIndex >= 0 ? firstUnattemptedIndex + 1 : 1),
+    );
     setResults(attemptedResults);
     setMarked(new Set());
     setIsPaused(false);
-  }, [mockExamData]);
+  }, [examDraftKey, mockExamData]);
 
-  const totalQuestions = quiz.length;
-  const progressPercent = totalQuestions
-    ? (currentQuestion / totalQuestions) * 100
-    : 0;
-  const hasQuiz = totalQuestions > 0;
   const examTitle = mockExamData?.examName ?? "Mock Exam";
   const examCourseId = useMemo(() => {
     const rawCourseId = mockExamData?.courseId;
@@ -351,6 +396,8 @@ const StartExam = () => {
         params: { examId: mockExamData.examId, timeTaken },
       });
       sessionStorage.removeItem(examSessionKey);
+      sessionStorage.removeItem(examDraftKey);
+      sessionStorage.removeItem(examTimeKey);
       if (!openReport) {
         navigate("/exams");
         return;
@@ -441,6 +488,8 @@ const StartExam = () => {
         },
       );
       sessionStorage.removeItem(examSessionKey);
+      sessionStorage.removeItem(examDraftKey);
+      sessionStorage.removeItem(examTimeKey);
       navigate("/exams");
     } catch (error) {
       console.error("Failed to pause mock exam", error);
@@ -598,6 +647,7 @@ const StartExam = () => {
               examId={mockExamData?.examId}
               courseId={examCourseId}
               availableTime={remainingSeconds}
+              draftStorageKey={examDraftKey}
               results={results}
               setResults={setResults}
               marked={marked}

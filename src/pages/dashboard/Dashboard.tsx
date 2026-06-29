@@ -37,12 +37,16 @@ type ApiPlan = {
   currency?: string;
   durationInMonths: number;
   level?: number;
+  lessonsAndVideos?: boolean;
+  hasLessonsAndVideos?: boolean;
   questionOfTheDay?: boolean;
   flashCards?: boolean;
   domainAndTask?: boolean;
   digitalStudyMaterial?: boolean;
   expertVideoModule?: boolean;
   applicationSupport?: boolean;
+  examStrategy?: boolean;
+  hasExamStrategy?: boolean;
   mockExams?: number | unknown[] | null;
   practiceExams?: number | unknown[] | null;
   isPurchased?: boolean;
@@ -159,36 +163,40 @@ const mapApiPlanToFeatures = (plan: ApiPlan): string[] => {
   if (plan.applicationSupport) features.push("Application Support");
 
   if (mockExamsCount > 0) {
-    features.push(
-      `${mockExamsCount} Mock Exam${mockExamsCount > 1 ? "s" : ""}`,
-    );
+    features.push(`Full length Mock Exams: ${mockExamsCount}`);
   }
 
   if (practiceExamsCount > 0) {
-    features.push(
-      `${practiceExamsCount} Practice Exam${
-        practiceExamsCount > 1 ? "s" : ""
-      }`,
-    );
+    features.push(`Practice Questions: ${practiceExamsCount}`);
   }
 
   return features;
 };
 
 const mapApiPlanToBenefits = (plan: ApiPlan): string[] => {
-  const benefits: string[] = [];
   const mockExamsCount = getExamCount(plan.mockExams);
   const practiceExamsCount = getExamCount(plan.practiceExams);
+  const hasLessonsAndVideos = Boolean(
+    plan.lessonsAndVideos ??
+      plan.hasLessonsAndVideos ??
+      plan.digitalStudyMaterial ??
+      plan.expertVideoModule,
+  );
+  const hasExamStrategy = Boolean(plan.examStrategy ?? plan.hasExamStrategy);
+  const benefits: string[] = [];
 
-  if (plan.questionOfTheDay) benefits.push("Question of the Day");
-  if (plan.flashCards) benefits.push("Flash Cards");
-  if (plan.domainAndTask) benefits.push("Domain and Task");
-  if (plan.digitalStudyMaterial) benefits.push("Digital Study Material");
-  if (plan.expertVideoModule) benefits.push("Expert Video Module");
+  if (hasLessonsAndVideos) benefits.push("Lessons and Videos");
+  if (mockExamsCount > 0) {
+    benefits.push(`Full length Mock Exams: ${mockExamsCount}`);
+  }
+  if (practiceExamsCount > 0) {
+    benefits.push(`Practice Questions: ${practiceExamsCount}`);
+  }
   if (plan.applicationSupport) benefits.push("Application Support");
-
-  benefits.push(`Mock Exams: ${mockExamsCount}`);
-  benefits.push(`Practice Exams: ${practiceExamsCount}`);
+  if (plan.domainAndTask) benefits.push("Domains and Tasks");
+  if (plan.flashCards) benefits.push("Flashcards");
+  if (hasExamStrategy) benefits.push("Exam Strategy");
+  if (plan.questionOfTheDay) benefits.push("Question of the Day");
 
   return benefits;
 };
@@ -218,6 +226,11 @@ const formatPlanAccessLabel = (months: number) => {
   return `${normalizedMonths} month${normalizedMonths > 1 ? "s" : ""} of access`;
 };
 
+const getPlanPriceValue = (plan: ApiPlan) => {
+  const price = Number(plan.stripePrice ?? 0);
+  return Number.isFinite(price) ? price : 0;
+};
+
 const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
   const paidPlans = apiPlans.filter((plan) => {
     const normalizedName = (plan.planName ?? "").trim().toLowerCase();
@@ -230,7 +243,12 @@ const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
   const maxLevel = Math.max(...paidPlans.map((plan) => plan.level ?? 0), 0);
 
   return [...paidPlans]
-    .sort((a, b) => (a.level ?? 0) - (b.level ?? 0))
+    .sort(
+      (a, b) =>
+        getPlanPriceValue(a) - getPlanPriceValue(b) ||
+        (a.level ?? 0) - (b.level ?? 0) ||
+        a.planName.localeCompare(b.planName),
+    )
     .map((plan, index) => ({
       planId: plan._id ?? null,
       name: formatPlanName(plan.planName, `Plan ${index + 1}`),

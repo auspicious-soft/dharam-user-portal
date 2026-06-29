@@ -1,9 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useParams } from "react-router-dom";
-import RedDot from "@/assets/red-dot.png";
-import BlueDot from "@/assets/blue-dot.png";
-import GreenDot from "@/assets/green-dot.png";
 import { ArrowRight } from "lucide-react";
 import api from "@/lib/axios";
 
@@ -13,11 +10,85 @@ type MockExamQuestionsResponse = {
   } | null;
 };
 
+type MockExamSummary = {
+  _id?: string | null;
+  numberOfQuestions?: number | null;
+  timeInMin?: string | number | null;
+};
+
+type MockExamListResponse = {
+  data?: {
+    examData?: MockExamSummary[];
+    pausedExams?: Array<{
+      mockExamId?: MockExamSummary | null;
+    }>;
+  };
+};
+
+const formatDurationInMinutes = (value?: string | number | null) => {
+  if (value == null) return null;
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.max(0, Math.trunc(value)));
+  }
+
+  const text = String(value).trim();
+  if (!text) return null;
+
+  if (text.includes(":")) {
+    const parts = text.split(":").map((part) => Number(part));
+    if (parts.some((part) => Number.isNaN(part))) return null;
+
+    const seconds =
+      parts.length === 3
+        ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+        : parts.length === 2
+          ? parts[0] * 60 + parts[1]
+          : parts[0] * 60;
+
+    return String(Math.ceil(seconds / 60));
+  }
+
+  const numericValue = Number(text);
+  if (Number.isFinite(numericValue)) {
+    return String(Math.max(0, Math.trunc(numericValue)));
+  }
+
+  const numericMatch = text.match(/\d+/);
+  return numericMatch?.[0] ?? null;
+};
+
 const MockExams = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isStarting, setIsStarting] = useState(false);
   const [startMessage, setStartMessage] = useState("");
+  const [questionCount, setQuestionCount] = useState<number | null>(null);
+  const [durationMinutes, setDurationMinutes] = useState<string | null>(null);
+
+  useEffect(() => {
+    const courseId = localStorage.getItem("selectedCourseId");
+    if (!courseId || !id) return;
+
+    const fetchExamDetails = async () => {
+      try {
+        const response = await api.get(`/user/mock-exam/${courseId}`);
+        const payload = (response.data as MockExamListResponse)?.data;
+        const exam =
+          payload?.examData?.find((item) => item._id === id) ??
+          payload?.pausedExams
+            ?.map((item) => item.mockExamId)
+            .find((item) => item?._id === id);
+
+        setQuestionCount(exam?.numberOfQuestions ?? null);
+        setDurationMinutes(formatDurationInMinutes(exam?.timeInMin));
+      } catch (error) {
+        console.error("Failed to load mock exam details", error);
+      }
+    };
+
+    void fetchExamDetails();
+  }, [id]);
 
   const handleStartExam = async () => {
     setStartMessage("");
@@ -50,6 +121,9 @@ const MockExams = () => {
     }
   };
 
+  const displayedQuestionCount = questionCount ?? "X";
+  const displayedDuration = durationMinutes ?? "Y";
+
   return (
     <div className="flex flex-col gap-7">
       <div className="self-stretch inline-flex flex-col justify-start items-start gap-[30px]">
@@ -74,16 +148,15 @@ const MockExams = () => {
             </h2>
             <ul className="self-stretch justify-start text-paragraph text-sm space-y-1 list-disc pl-5">
               <li>
-                This exam includes X questions, to be completed within Y
-                minutes.
+                This exam includes {displayedQuestionCount} questions, to be
+                completed within {displayedDuration} minutes.
               </li>
               <li>
                 You can pause and resume the test anytime — your time and
                 progress will be saved.
               </li>
               <li>
-                Questions are randomized and may include single or multiple
-                correct answers.
+                Questions may include single or multiple correct answers.
               </li>
               <li>
                 Each question carries one mark unless mentioned otherwise.
@@ -104,15 +177,15 @@ const MockExams = () => {
             </ul>
             <div className="flex flex-wrap gap-4 pl-2 mt-1">
               <p className="text-paragraph text-sm flex flex-wrap items-center gap-1">
-                <img src={GreenDot} alt="Green Dot" className="max-w-3" />{" "}
+                <span className="h-3.5 w-3.5 rounded-full bg-primary_heading" />
                 Completed
               </p>
               <p className="text-paragraph text-sm flex flex-wrap items-center gap-1">
-                <img src={BlueDot} alt="Bule Dot" className="max-w-3" /> Not
+                <span className="h-3.5 w-3.5 rounded-full bg-paragraph" /> Not
                 Attempted
               </p>
               <p className="text-paragraph text-sm flex flex-wrap items-center gap-1">
-                <img src={RedDot} alt="Red Dot" className="max-w-3" /> Marked
+                <span className="h-3.5 w-3.5 rounded-full bg-[#ff0000]" /> Marked
                 for Review{" "}
               </p>
             </div>

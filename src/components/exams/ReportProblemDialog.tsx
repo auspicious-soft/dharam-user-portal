@@ -72,9 +72,6 @@ export const ReportProblemDialog = ({
             Report a Problem
           </DialogTitle>
 
-          <DialogDescription className="text-paragraph text-base font-medium text-center">
-            You’ll be reverted on the mail by the admin.
-          </DialogDescription>
         </DialogHeader>
         <div className="mb-4 flex flex-col gap-2">
           <Label className="text-paragraph">Add Comments</Label>

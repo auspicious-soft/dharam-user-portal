@@ -1,5 +1,4 @@
 import React from "react";
-import { Check } from "lucide-react";
 import { Plan } from "./plans";
 import PlanBg from "@/assets/plan-bg.jpg";
 import { Button } from "../ui/button";
@@ -8,9 +7,15 @@ interface PlanCardProps {
   plan: Plan;
   onSelectPlan: (plan: Plan) => void;
   isSubmitting?: boolean;
+  isPurchaseDisabled?: boolean;
 }
 
-const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) => {
+const PlanCard = ({
+  plan,
+  onSelectPlan,
+  isSubmitting = false,
+  isPurchaseDisabled = false,
+}: PlanCardProps) => {
   const formattedExpiryDate = plan.expiryDate
     ? new Date(plan.expiryDate).toLocaleDateString("en-US", {
         month: "short",
@@ -58,14 +63,19 @@ const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) =
       )}
 
       <div
-        className={`self-stretch justify-start text-[26px] font-bold pb-3 border-b-[1px]  w-full
+        className={`self-stretch justify-start pb-3 border-b-[1px] w-full
           ${
             isHighlighted
               ? "text-white border-white/20"
               : "text-primary_heading border-[#CEE2FF]"
           }`}
       >
-        {plan.name}
+        <div className="text-[26px] font-bold">{plan.name}</div>
+        {plan.isPurchased && formattedExpiryDate ? (
+          <div className="mt-2 inline-flex w-fit rounded-full bg-primary_heading/10 px-3 py-1 text-sm font-bold text-primary_heading">
+            Active until {formattedExpiryDate}
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -90,11 +100,6 @@ const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) =
               dangerouslySetInnerHTML={{ __html: plan.description }}
             />
           ) : null}
-          {plan.isPurchased && formattedExpiryDate ? (
-            <div className="text-xs font-semibold text-primary_heading">
-              Active until {formattedExpiryDate}
-            </div>
-          ) : null}
         </div>
 
         <div className="flex flex-col gap-3">
@@ -103,10 +108,9 @@ const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) =
             plan.benefits.map((benefit, i) => (
               <div
                 key={i}
-                className={`flex items-center gap-2 text-sm leading-6
+                className={`text-sm leading-6
               ${isHighlighted ? "text-white" : "text-paragraph"}`}
               >
-                <Check size={20} />
                 <span>{benefit}</span>
               </div>
             ))
@@ -120,7 +124,7 @@ const PlanCard = ({ plan, onSelectPlan, isSubmitting = false }: PlanCardProps) =
       <Button
         variant="outline"
         onClick={() => onSelectPlan(plan)}
-        disabled={isSubmitting || plan.isPurchased}
+        disabled={isPurchaseDisabled || plan.isPurchased}
         className={`mt-auto font-medium max-h-[44px]
               ${
                 plan.isPurchased
