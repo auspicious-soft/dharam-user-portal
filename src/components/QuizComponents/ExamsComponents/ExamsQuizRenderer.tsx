@@ -696,7 +696,7 @@ export const ExamsQuizRenderer = ({
       case "dragdrop":
         return "Drag each option and drop it beside the matching item.";
       case "fillblank":
-        return "Choose the correct answers and place them into the blanks.";
+        return "Fill in the blanks with the correct options from the provided list.";
       default:
         return "Read the question carefully before answering.";
     }
