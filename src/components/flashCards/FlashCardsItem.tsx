@@ -11,6 +11,9 @@ type FlashCardItemProps = {
   onPurchase?: () => void;
 };
 
+const richTextClassName =
+  "break-words text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_s]:line-through [&_strike]:line-through [&_h1]:my-1 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:leading-8 [&_h2]:my-1 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:leading-7 [&_h3]:my-1 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:leading-7 [&_h4]:my-1 [&_h4]:text-base [&_h4]:font-semibold [&_h5]:my-1 [&_h5]:text-sm [&_h5]:font-semibold [&_h6]:my-1 [&_h6]:text-xs [&_h6]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#556378] [&_td]:p-3 [&_th]:border [&_th]:border-[#556378] [&_th]:p-3 [&_th]:font-bold [&_th]:bg-slate-100 [&_tr]:hover:bg-slate-50";
+
 const FlashCardsItem = ({
   frontText,
   backText,
@@ -73,7 +76,6 @@ const FlashCardsItem = ({
     fallbackText = "No content available",
   ) => {
     const hasText = Boolean(text.trim());
-    const hasImage = Boolean(image);
 
     if (isLocked) {
       return (
@@ -81,21 +83,21 @@ const FlashCardsItem = ({
       );
     }
 
-    if (hasText && hasImage) {
+    if (hasText && image) {
       return (
         <div className="w-full h-full flex flex-col gap-3">
           <div className="w-full h-28 rounded-xl overflow-hidden bg-white/70 border border-[#556378]/20">
             {renderImageWithActions(image, "object-cover")}
           </div>
           <div
-            className="flex-1 overflow-y-auto break-words text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#556378] [&_td]:p-3 [&_th]:border [&_th]:border-[#556378] [&_th]:p-3 [&_th]:font-bold [&_th]:bg-slate-100 [&_tr]:hover:bg-slate-50"
+            className={`flex-1 overflow-y-auto ${richTextClassName}`}
             dangerouslySetInnerHTML={{ __html: text }}
           />
         </div>
       );
     }
 
-    if (hasImage) {
+    if (image) {
       return (
         <div className="w-full h-full rounded-xl overflow-hidden bg-white/70 border border-[#556378]/20">
           {renderImageWithActions(image, "object-contain")}
@@ -106,7 +108,7 @@ const FlashCardsItem = ({
     if (hasText) {
       return (
         <div
-          className="w-full max-h-full overflow-y-auto break-words text-center text-sm font-medium leading-6 text-Desc-464646 [&_p]:my-0 [&_strong]:font-bold [&_b]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#556378] [&_td]:p-3 [&_th]:border [&_th]:border-[#556378] [&_th]:p-3 [&_th]:font-bold [&_th]:bg-slate-100 [&_tr]:hover:bg-slate-50"
+          className={`w-full max-h-full overflow-y-auto ${richTextClassName}`}
           dangerouslySetInnerHTML={{ __html: text }}
         />
       );

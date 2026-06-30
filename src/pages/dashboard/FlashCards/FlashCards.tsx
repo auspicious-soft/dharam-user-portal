@@ -26,6 +26,7 @@ type FlashCard = {
   backText: string;
   frontImage?: string;
   backImage?: string;
+  order: number;
   price?: number | null;
 };
 
@@ -45,8 +46,17 @@ type FlashCardApiItem = {
   backText?: unknown;
   frontImage?: unknown;
   backImage?: unknown;
+  order?: number | string | null;
   price?: number | string | null;
 };
+
+const getOrderValue = (value: unknown) => {
+  const order = Number(value);
+  return Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
+};
+
+const isSafeCssSize = (value: string) =>
+  /^(\d+(\.\d+)?)(px|pt|rem|em|%)$/i.test(value.trim());
 
 const normalizeFlashCardHtml = (value: unknown): string => {
   const raw = String(value ?? "");
@@ -61,12 +71,20 @@ const normalizeFlashCardHtml = (value: unknown): string => {
     "B",
     "BR",
     "EM",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
     "I",
     "LI",
     "OL",
     "P",
     "SPAN",
     "STRONG",
+    "S",
+    "STRIKE",
     "U",
     "UL",
     "TABLE",
@@ -96,6 +114,7 @@ const normalizeFlashCardHtml = (value: unknown): string => {
     const color = htmlElement.style.color;
     const backgroundColor = htmlElement.style.backgroundColor;
     const textAlign = htmlElement.style.textAlign;
+    const fontSize = htmlElement.style.fontSize;
     const width = htmlElement.style.width;
     const height = htmlElement.style.height;
     const padding = htmlElement.style.padding;
@@ -110,6 +129,9 @@ const normalizeFlashCardHtml = (value: unknown): string => {
     if (color) style.push(`color: ${color}`);
     if (backgroundColor) style.push(`background-color: ${backgroundColor}`);
     if (textAlign) style.push(`text-align: ${textAlign}`);
+    if (fontSize && isSafeCssSize(fontSize)) {
+      style.push(`font-size: ${fontSize}`);
+    }
     if (width) style.push(`width: ${width}`);
     if (height) style.push(`height: ${height}`);
     if (padding) style.push(`padding: ${padding}`);
@@ -212,28 +234,36 @@ const FlashCards = () => {
         });
         const data =
           (response.data as { data?: FlashCardApiItem[] })?.data ?? [];
-        const mapped = (Array.isArray(data) ? data : []).flatMap((item) => {
-          const id = item._id ?? item.id;
-          const categoryId = item.categoryId ?? selectedCategoryId;
-          if (!id || !categoryId) return [];
+        const mapped = (Array.isArray(data) ? data : [])
+          .flatMap((item) => {
+            const id = item._id ?? item.id;
+            const categoryId = item.categoryId ?? selectedCategoryId;
+            if (!id || !categoryId) return [];
 
-          return [
-            {
-              id,
-              categoryId,
-              frontText: normalizeFlashCardHtml(item.frontText),
-              backText: normalizeFlashCardHtml(item.backText),
-              frontImage: resolveAssetUrl(item.frontImage),
-              backImage: resolveAssetUrl(item.backImage),
-              price:
-                typeof item.price === "number"
-                  ? item.price
-                  : item.price != null
-                    ? Number(item.price)
-                    : null,
-            },
-          ];
-        });
+            return [
+              {
+                id,
+                categoryId,
+                frontText: normalizeFlashCardHtml(item.frontText),
+                backText: normalizeFlashCardHtml(item.backText),
+                frontImage: resolveAssetUrl(item.frontImage),
+                backImage: resolveAssetUrl(item.backImage),
+                order: getOrderValue(item.order),
+                price:
+                  typeof item.price === "number"
+                    ? item.price
+                    : item.price != null
+                      ? Number(item.price)
+                      : null,
+              },
+            ];
+          })
+          .sort(
+            (a, b) =>
+              a.order - b.order ||
+              a.frontText.localeCompare(b.frontText) ||
+              a.id.localeCompare(b.id),
+          );
         if (isActive) {
           setCards(mapped);
         }

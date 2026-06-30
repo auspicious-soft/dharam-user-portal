@@ -1,42 +1,9 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { readSelectedCourseHasAccess } from "@/utils/courseAccess";
-import { useCallback, useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 
 const DashboardLayout = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const enforceCourseAccess = useCallback(() => {
-    const hasCourseAccess = readSelectedCourseHasAccess();
-    const isAllowedWithoutCourseAccess =
-      window.location.pathname === "/dashboard" ||
-      window.location.pathname === "/profile";
-
-    if (!hasCourseAccess && !isAllowedWithoutCourseAccess) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [navigate]);
-
-  useEffect(() => {
-    enforceCourseAccess();
-  }, [enforceCourseAccess, location.pathname]);
-
-  useEffect(() => {
-    window.addEventListener("storage", enforceCourseAccess);
-    window.addEventListener("courseChanged", enforceCourseAccess as EventListener);
-
-    return () => {
-      window.removeEventListener("storage", enforceCourseAccess);
-      window.removeEventListener(
-        "courseChanged",
-        enforceCourseAccess as EventListener,
-      );
-    };
-  }, [enforceCourseAccess]);
-
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full overflow-hidden">
