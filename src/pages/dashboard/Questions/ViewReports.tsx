@@ -18,6 +18,7 @@ type MockExamResult = {
   timeTaken?: string | null;
   score?: string | null;
   status?: string | null;
+  remarks?: string | null;
   createdAt?: string | null;
   overallPercentage?: number | null;
   correct?: number | null;
@@ -47,6 +48,7 @@ type PracticeExamBoard = {
   correct?: number | null;
   incorrect?: number | null;
   unanswered?: number | null;
+  remarks?: string | null;
   overallPercentage?: number | null;
   timeTaken?: string | null;
   scoreBreakDown?: Record<
@@ -122,6 +124,7 @@ const ViewReports = () => {
         correct: Number(payload.correct ?? 0),
         incorrect: Number(payload.incorrect ?? 0),
         unanswered: Number(payload.unanswered ?? 0),
+        remarks: payload.remarks ?? "",
         domains,
       };
 
@@ -225,6 +228,7 @@ const ViewReports = () => {
             correct: Number(item.correct ?? 0),
             incorrect: Number(item.incorrect ?? 0),
             unanswered: Number(item.unanswered ?? 0),
+            remarks: item.remarks ?? "",
             domains,
           };
 

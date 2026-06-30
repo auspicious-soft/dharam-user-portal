@@ -15,6 +15,7 @@ type PracticeExamBoard = {
   correct?: number | null;
   incorrect?: number | null;
   unanswered?: number | null;
+  remarks?: string | null;
   overallPercentage?: number | null;
   timeTaken?: string | null;
   scoreBreakDown?: Record<
@@ -273,6 +274,7 @@ const QuestionsView = () => {
         correct: Number(payload.correct ?? 0),
         incorrect: Number(payload.incorrect ?? 0),
         unanswered: Number(payload.unanswered ?? 0),
+        remarks: payload.remarks ?? "",
         domains,
       };
 
