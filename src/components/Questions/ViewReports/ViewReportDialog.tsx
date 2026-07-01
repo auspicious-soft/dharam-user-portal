@@ -90,7 +90,7 @@ const ViewReportDialog = ({
   };
 
   const getTargetLabel = (percentage: number) =>
-    percentage > 50 ? "Above Target" : "Below Target";
+    percentage >= 85 ? "Above Target" : percentage >= 70 ? "Target" : percentage >= 50 ? "Below Target":"Need Improvement";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
