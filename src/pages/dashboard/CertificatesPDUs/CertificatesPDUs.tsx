@@ -188,7 +188,7 @@ const CertificatesPDUs: React.FC = () => {
         return {
           id: item._id || String(index),
           image: imageUrl || LoginBanner,
-          title: `${courseName} - ${moduleLabel || "certificate"}`,
+          title: `${courseName}`,
           description: issuedLabel,
           badgeText: item.status ?? "-",
           pdfUrl,
