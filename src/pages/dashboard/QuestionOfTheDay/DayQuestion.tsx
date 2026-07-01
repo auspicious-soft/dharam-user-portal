@@ -29,6 +29,7 @@ const DayQuestion = () => {
   const [, setIsCorrect] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [isNotAccessible, setIsNotAccessible] = useState(false);
 
   const mapQuestion = (rawQuestion: any): QuizQuestion | null => {
     if (!rawQuestion) return null;
@@ -178,14 +179,26 @@ const DayQuestion = () => {
           payload?.dailyQuestion ??
           payload?.question ??
           null;
+        const questionStatus = String(rawQuestion?.status ?? "").toUpperCase();
+        const isQuestionNotAccessible =
+          questionStatus === "NOT_ACCESSABLE" ||
+          questionStatus === "NOT_ACCESSIBLE";
 
-        const mapped = mapQuestion(rawQuestion);
+        const mapped = isQuestionNotAccessible ? null : mapQuestion(rawQuestion);
+        setIsNotAccessible(isQuestionNotAccessible);
         setQuestion(mapped);
-        setIsCompleted(Boolean(rawQuestion?.isAttempted ?? false));
-        setAttemptId(rawQuestion?.attemptId ?? null);
+        setIsCompleted(
+          isQuestionNotAccessible
+            ? false
+            : Boolean(rawQuestion?.isAttempted ?? false),
+        );
+        setAttemptId(
+          isQuestionNotAccessible ? null : rawQuestion?.attemptId ?? null,
+        );
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to fetch question of the day", error);
+        setIsNotAccessible(false);
         setQuestion(null);
         setAttemptId(null);
       } finally {
@@ -329,6 +342,38 @@ const DayQuestion = () => {
           Question of the day
         </h2>
         <div className="p-6 text-center text-gray-500">Loading question...</div>
+      </div>
+    );
+  }
+
+  if (isNotAccessible) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className=" inline-flex flex-col justify-start min-h-[77vh]">
+          <div className="self-stretch p-4 md:p-[30px] bg-[#f0f8ff] rounded-[20px] inline-flex flex-col justify-start gap-2.5 max-w-xl w-full m-auto">
+            <div className="p-4 bg-green-50 rounded-full">
+              <img
+                src={QuestionDayIcon}
+                className="max-w-[80px] md:max-w-[100px] m-auto"
+              />
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-Black_light mb-2">
+                Question Of The Day
+              </h2>
+              <p className="text-paragraph">
+                The plan you purchased does not include Question of the Day for
+                this course.
+              </p>
+              <Button
+                className="h-[44px] flex items-center gap-1 md:gap-2 w-full mt-6"
+                onClick={() => navigate("/")}
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
