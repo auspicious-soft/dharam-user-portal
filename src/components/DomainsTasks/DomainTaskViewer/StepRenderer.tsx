@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdvancedQuiz } from "./AdvancedQuiz";
 import { Step } from "./domainQuiz.types";
 import api from "@/lib/axios";
@@ -76,6 +77,7 @@ const DomainTaskQuestions = ({
   const [isLoading, setIsLoading] = useState(true);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [allAttempted, setAllAttempted] = useState(false);
+  const navigate = useNavigate();
 
   const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
     const resolveQuestionImageUrl = (value: unknown): string | undefined => {
@@ -250,6 +252,7 @@ const DomainTaskQuestions = ({
       <QuizRenderer
         quiz={questions}
         attemptConfig={{ type: "TASK", taskId }}
+        onComplete={() => navigate("/domains-tasks")}
       />
     </div>
   );
