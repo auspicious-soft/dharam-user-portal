@@ -628,29 +628,35 @@ const LearningManagementSystem: React.FC = () => {
         {/* LEFT PANEL */}
         <div className="space-y-2.5">
           {!showBookmarks ? (
-            modules.map((module) => (
-              <ModuleSection
-                key={module.id}
-                module={{
-                  ...module,
-                  progress: getModuleProgress(module),
-                }}
-                isOpen={openModuleId === module.id}
-                onToggle={() => handleToggleModule(module.id)}
-                onSelectItem={handleSelectItem}
-                onSelectModule={handleSelectModule}
-                onBuyPremiumModule={handleBuyPremiumModule}
-                isPremiumPurchasing={purchasingModuleId === module.id}
-                userHasPremium={userHasPremium}
-                selectedId={
-                  selectedContent && "id" in selectedContent
-                    ? selectedContent.id
-                    : selectedContent?.title
-                }
-                bookmarkedItems={bookmarkedItems}
-                onToggleBookmark={handleToggleBookmark}
-              />
-            ))
+            modules.length > 0 ? (
+              modules.map((module) => (
+                <ModuleSection
+                  key={module.id}
+                  module={{
+                    ...module,
+                    progress: getModuleProgress(module),
+                  }}
+                  isOpen={openModuleId === module.id}
+                  onToggle={() => handleToggleModule(module.id)}
+                  onSelectItem={handleSelectItem}
+                  onSelectModule={handleSelectModule}
+                  onBuyPremiumModule={handleBuyPremiumModule}
+                  isPremiumPurchasing={purchasingModuleId === module.id}
+                  userHasPremium={userHasPremium}
+                  selectedId={
+                    selectedContent && "id" in selectedContent
+                      ? selectedContent.id
+                      : selectedContent?.title
+                  }
+                  bookmarkedItems={bookmarkedItems}
+                  onToggleBookmark={handleToggleBookmark}
+                />
+              ))
+            ) : (
+              <div className="bg-light-blue rounded-lg p-6 text-center text-paragraph">
+                No lesson and video available for this course.
+              </div>
+            )
           ) : (
             <div className="bg-light-blue rounded-lg p-4">
               <div className="flex justify-between items-center mb-4">
