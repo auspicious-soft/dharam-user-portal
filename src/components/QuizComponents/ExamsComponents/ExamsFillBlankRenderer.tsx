@@ -7,6 +7,7 @@ interface FillBlankRendererProps {
   setAnswers: (answers: Record<number, Record<number, string>>) => void;
   showResult: boolean;
   currentQuestionIndex: number;
+  showTemplate?: boolean;
 } 
 
 export const ExamsFillBlankRenderer = ({
@@ -15,6 +16,7 @@ export const ExamsFillBlankRenderer = ({
   setAnswers,
   showResult,
   currentQuestionIndex,
+  showTemplate = true,
 }: FillBlankRendererProps) => {
   const currentAnswers = answers[currentQuestionIndex] || {};
 
@@ -35,16 +37,6 @@ export const ExamsFillBlankRenderer = ({
     }
 
     setAnswers({ ...answers, [currentQuestionIndex]: newAnswers });
-  };
-
-  const isCorrect = (optionIndex: number): boolean | null => {
-    const selectedBlank = currentAnswers[optionIndex];
-    if (!selectedBlank) return null;
-
-    const blank = question.blanks.find((b) => b.id === selectedBlank);
-    if (!blank) return false;
-
-    return blank.correctAnswers.includes(question.options[optionIndex]);
   };
 
   const renderTemplate = () => {
@@ -91,7 +83,7 @@ export const ExamsFillBlankRenderer = ({
 
   return (
     <div className="space-y-6">
-      <div className="">{renderTemplate()}</div>
+      {showTemplate ? <div>{renderTemplate()}</div> : null}
 
       <div className="space-y-3">
         <h4 className="text-paragraph text-xs md:text-text-xs md:text-sm md:text-base font-semibold">Options:</h4>

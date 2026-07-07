@@ -248,6 +248,9 @@ const StartExam = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [results, setResults] = useState<Record<number, any>>({});
   const [marked, setMarked] = useState<Set<number>>(new Set());
+  const [visitedQuestions, setVisitedQuestions] = useState<Set<number>>(
+    new Set(),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
@@ -358,11 +361,13 @@ const StartExam = () => {
       {},
     );
 
-    setQuiz(mapped);
-    setCurrentQuestion(
+    const nextQuestionNumber =
       storedQuestionNumber ??
-        (firstUnattemptedIndex >= 0 ? firstUnattemptedIndex + 1 : 1),
-    );
+      (firstUnattemptedIndex >= 0 ? firstUnattemptedIndex + 1 : 1);
+
+    setQuiz(mapped);
+    setCurrentQuestion(nextQuestionNumber);
+    setVisitedQuestions(new Set([nextQuestionNumber - 1]));
     setResults(attemptedResults);
     setMarked(new Set());
     setIsPaused(false);
@@ -380,10 +385,12 @@ const StartExam = () => {
 
   const handleQuestionChange = (index: number) => {
     setCurrentQuestion(index + 1);
+    setVisitedQuestions((prev) => new Set(prev).add(index));
   };
 
   const handleJump = (index: number) => {
     setCurrentQuestion(index + 1);
+    setVisitedQuestions((prev) => new Set(prev).add(index));
   };
 
   const handleSubmitExam = useCallback(async (openReport = true) => {
@@ -713,6 +720,7 @@ const StartExam = () => {
             current={currentQuestion - 1}
             results={results}
             marked={marked}
+            visited={visitedQuestions}
             onJump={handleJump}
             onPauseChange={setIsPaused}
             onSubmitExam={handleSubmitWithMarkedCheck}

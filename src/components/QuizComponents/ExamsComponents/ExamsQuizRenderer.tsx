@@ -14,7 +14,6 @@ import { ExamsDragDropRenderer } from "./ExamsDragDropRenderer";
 import { ExamsFillBlankRenderer } from "./ExamsFillBlankRenderer";
 import { ExamsMCQRenderer } from "./ExamsMCQRenderer";
 import { ReportProblemDialog } from "@/components/exams/ReportProblemDialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   getMaxSelection,
   isMCQSelectionCorrect,
@@ -696,7 +695,7 @@ export const ExamsQuizRenderer = ({
       case "dragdrop":
         return "Drag each option and drop it beside the matching item.";
       case "fillblank":
-        return "Fill in the blanks with the correct options from the provided list.";
+        return "Fill in the blanks using the options provided. For each option, select the matching blank number such as #1, #2, or #3. If more than one answer seems correct, choose the most appropriate option.";
       default:
         return "Read the question carefully before answering.";
     }
@@ -705,13 +704,60 @@ export const ExamsQuizRenderer = ({
   const questionTypeLabel = getQuestionTypeLabel();
   const questionInstruction = getQuestionInstruction();
 
+  const renderFillBlankQuestionTemplate = () => {
+    if (question.type !== "fillblank") return null;
+
+    const parts = question.questionTemplate.split(/(__\d+__)/g);
+
+    return (
+      <div className="justify-start text-paragraph text-sm md:text-base leading-6 flex-1">
+        {parts.map((part, idx) => {
+          const match = part.match(/__(\d+)__/);
+
+          if (!match) {
+            return (
+              <span key={idx} className="whitespace-pre-wrap">
+                {part}
+              </span>
+            );
+          }
+
+          const blankId = match[1];
+          const selectedOptionIndex = Object.keys(fillBlankCurrentAnswers).find(
+            (key) => fillBlankCurrentAnswers[parseInt(key)] === blankId,
+          );
+          const selectedText =
+            selectedOptionIndex !== undefined
+              ? question.options[parseInt(selectedOptionIndex)]
+              : "";
+
+          return (
+            <span key={idx} className="inline-flex items-baseline mx-1">
+              <span
+                className={`inline-block min-w-[120px] text-center px-1 py-1 mb-3 border-b-1 transition-all text-paragraph text-[15px] leading-6 min-h-8
+                  ${!showResultState ? "border-b-[1px] border-dashed border-paragraph" : ""}
+                `}
+              >
+                {selectedText}
+              </span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="flex overflow-hidden flex-col gap-2.5">
       {/* HEADER */}
       <div className="flex flex-col lg:flex-row gap-5 justify-between items-start mb-1.5">
-        <p className="justify-start text-paragraph text-base leading-6 flex-1">
-          {question.question}
-        </p>
+        {question.type === "fillblank" ? (
+          renderFillBlankQuestionTemplate()
+        ) : (
+          <p className="justify-start text-paragraph text-base leading-6 flex-1">
+            {question.question}
+          </p>
+        )}
         <div className="flex flex-col justify-end items-end gap-2 w-full lg:w-auto">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -730,6 +776,17 @@ export const ExamsQuizRenderer = ({
             </div>
           </TooltipContent>
         </Tooltip>
+        {question.imageUrl ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-[10px] h-9 !py-1 !px-3"
+            onClick={() => setIsImageOpen((open) => !open)}
+          >
+            <ImageIcon className="w-4 h-4 mr-2" />
+            {isImageOpen ? "Hide Image" : "View Image"}
+          </Button>
+        ) : null}
          <Button
           onClick={() => setReportProblemExitDialog(true)}
           variant="link"
@@ -739,6 +796,16 @@ export const ExamsQuizRenderer = ({
          </Button>
       </div>
       </div>
+
+      {question.imageUrl && isImageOpen ? (
+        <div className="mb-4 rounded-[10px] border border-light-blue bg-white p-3">
+          <img
+            src={question.imageUrl}
+            alt="Question"
+            className="w-full max-h-[420px] object-contain rounded-lg"
+          />
+        </div>
+      ) : null}
 
       {/* TAG */}
       {question.type === "mcq" && (
@@ -785,6 +852,7 @@ export const ExamsQuizRenderer = ({
             setAnswers={setFillBlankAnswers}
             showResult={showResultState}
             currentQuestionIndex={currentQuestionIndex}
+            showTemplate={false}
           />
         )}
       </div>
@@ -830,39 +898,12 @@ export const ExamsQuizRenderer = ({
           </Button>
         )}
       </div>
-      {question.imageUrl ? (
-        <div className="mb-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-[10px] h-9 !py-1 !px-3"
-            onClick={() => setIsImageOpen(true)}
-          >
-            <ImageIcon className="w-4 h-4 mr-2" />
-            View Image
-          </Button>
-        </div>
-      ) : null}
       <ReportProblemDialog 
        open={reportProblemDialog}
         onClose={() => setReportProblemExitDialog(false)}
         examId={examId}
         courseId={courseId}
       />
-      <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Question Image</DialogTitle>
-          </DialogHeader>
-          {question.imageUrl ? (
-            <img
-              src={question.imageUrl}
-              alt="Question"
-              className="w-full max-h-[75vh] object-contain rounded-lg"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

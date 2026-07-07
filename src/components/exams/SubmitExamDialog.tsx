@@ -15,12 +15,16 @@ interface ExitExamDialogProps {
   open: boolean; 
   onClose: () => void;
   onSubmit?: () => void;
+  unattemptedCount?: number;
+  unattemptedQuestionNumbers?: number[];
 }
 
 export const SubmitExamDialog = ({
   open,
   onClose,
   onSubmit,
+  unattemptedCount = 0,
+  unattemptedQuestionNumbers = [],
 }: ExitExamDialogProps) => {
   const handleSubmit = () => {
     onSubmit?.();
@@ -45,6 +49,18 @@ export const SubmitExamDialog = ({
           <DialogDescription className="text-paragraph text-base font-medium text-center">
             Are you sure you want to submit the exam?
           </DialogDescription>
+
+          {unattemptedCount > 0 ? (
+            <div className="w-full rounded-[10px] border border-[#E0E0E0] bg-light-blue px-4 py-3 text-center">
+              <p className="text-paragraph text-sm font-semibold">
+                You have {unattemptedCount} unattempted{" "}
+                {unattemptedCount === 1 ? "question" : "questions"}.
+              </p>
+              <p className="mt-1 text-Desc-464646 text-xs leading-5">
+                Questions: {unattemptedQuestionNumbers.join(", ")}
+              </p>
+            </div>
+          ) : null}
         </DialogHeader>
 
         {/* Footer */}

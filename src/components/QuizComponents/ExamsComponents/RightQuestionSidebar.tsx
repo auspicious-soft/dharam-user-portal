@@ -9,6 +9,7 @@ interface Props {
   current: number;
   results: Record<number, boolean>;
   marked: Set<number>;
+  visited: Set<number>;
   onJump: (index: number) => void;
   onPauseChange?: (paused: boolean) => void;
   onSubmitExam?: () => void;
@@ -20,6 +21,7 @@ export const RightQuestionSidebar = ({
   current,
   results,
   marked,
+  visited,
   onJump,
   onPauseChange,
   onSubmitExam,
@@ -32,12 +34,12 @@ export const RightQuestionSidebar = ({
     // Completed/Answered questions (blue)
     if (results[i] !== undefined) return "bg-primary_heading text-white";
 
-    // Not attempted (visited but skipped without answering) - grey
-    if (i < current && results[i] === undefined)
+    // Not attempted (opened, then left without answering) - grey
+    if (visited.has(i) && i !== current)
       return "bg-paragraph text-white";
 
     // Default - white background for unvisited questions
-    return "bg-white border border-gray-300 text-gray-700";
+    return "bg-white border border-primary_blue text-paragraph";
   };
 
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -61,6 +63,10 @@ export const RightQuestionSidebar = ({
   // Calculate counts
   const completedCount = Object.keys(results).length;
   const markedCount = marked.size;
+  const unattemptedQuestionNumbers = Array.from({ length: total })
+    .map((_, index) => index)
+    .filter((index) => results[index] === undefined)
+    .map((index) => index + 1);
 
   return (
     <div className="w-full bg-light-blue p-3 border-t-[1px] border-white">
@@ -145,6 +151,8 @@ export const RightQuestionSidebar = ({
         open={showExitDialog}
         onClose={() => setShowExitDialog(false)}
         onSubmit={onSubmitExam}
+        unattemptedCount={unattemptedQuestionNumbers.length}
+        unattemptedQuestionNumbers={unattemptedQuestionNumbers}
       />
     </div>
   );

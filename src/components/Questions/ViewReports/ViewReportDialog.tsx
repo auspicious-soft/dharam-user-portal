@@ -164,7 +164,7 @@ const ViewReportDialog = ({
 
         {report?.remarks ? (
           <div className="px-4 py-[13px] bg-white rounded-lg border border-[#0a4ba8]/10 flex justify-between gap-2">
-            <p className="text-paragraph text-base font-medium">Remarks</p>
+            <p className="text-paragraph text-base font-medium">Overall Performance</p>
             <p className="text-primary_heading text-base font-semibold text-right">
               {report.remarks}
             </p>
