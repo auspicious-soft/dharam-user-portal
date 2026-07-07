@@ -20,6 +20,12 @@ export type DomainScore = {
   total: number;
 };
 
+export type RemarkRange = {
+  start: number;
+  end: number;
+  remarks: string;
+};
+
 export type ReportData = {
   score: number;
   timeSpent: string;
@@ -27,6 +33,7 @@ export type ReportData = {
   incorrect: number;
   unanswered: number;
   remarks?: string;
+  remarkRanges?: RemarkRange[];
   domains: DomainScore[];
 };
 
@@ -89,8 +96,25 @@ const ViewReportDialog = ({
     return formattedName || name;
   };
 
-  const getTargetLabel = (percentage: number) =>
-    percentage >= 85 ? "Above Target" : percentage >= 70 ? "Target" : percentage >= 50 ? "Below Target":"Need Improvement";
+  const getTargetLabel = (percentage: number) => {
+    const matchedRemark = report?.remarkRanges?.find((range, index, ranges) => {
+      const isLastRange = index === ranges.length - 1;
+      return (
+        percentage >= range.start &&
+        (percentage < range.end || (isLastRange && percentage <= range.end))
+      );
+    });
+
+    if (matchedRemark?.remarks) return matchedRemark.remarks;
+
+    return percentage >= 85
+      ? "Above Target"
+      : percentage >= 70
+        ? "Target"
+        : percentage >= 50
+          ? "Below Target"
+          : "Need Improvement";
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

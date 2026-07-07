@@ -8,7 +8,10 @@ import { ClockIcon, PracticeIcon } from "@/utils/svgicons";
 import { ExamsQuizRenderer } from "@/components/QuizComponents/ExamsComponents/ExamsQuizRenderer";
 import { RightQuestionSidebar } from "../../../components/QuizComponents/ExamsComponents/RightQuestionSidebar";
 import api from "@/lib/axios";
-import ViewReportDialog, { ReportData } from "@/components/Questions/ViewReports/ViewReportDialog";
+import ViewReportDialog, {
+  ReportData,
+  RemarkRange,
+} from "@/components/Questions/ViewReports/ViewReportDialog";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +49,27 @@ type MockExamResultResponse = {
 const MOCK_EXAM_SESSION_PREFIX = "mockExam:start:";
 const MOCK_EXAM_DRAFT_PREFIX = "mockExam:draft:";
 const MOCK_EXAM_TIME_PREFIX = "mockExam:time:";
+
+const mapRemarkRanges = (
+  rawRemarks?: Array<{
+    start?: number | null;
+    end?: number | null;
+    remarks?: string | null;
+  }> | null,
+): RemarkRange[] =>
+  (rawRemarks ?? [])
+    .map((remark) => ({
+      start: Number(remark.start ?? 0),
+      end: Number(remark.end ?? 0),
+      remarks: remark.remarks ?? "",
+    }))
+    .filter(
+      (remark) =>
+        Number.isFinite(remark.start) &&
+        Number.isFinite(remark.end) &&
+        Boolean(remark.remarks),
+    )
+    .sort((a, b) => a.start - b.start);
 
 const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
   const resolveQuestionImageUrl = (value: unknown): string | undefined => {
@@ -437,6 +461,7 @@ const StartExam = () => {
         incorrect: Number(payload.incorrect ?? 0),
         unanswered: Number(payload.unanswered ?? 0),
         remarks: payload.remarks ?? "",
+        remarkRanges: mapRemarkRanges(mockExamData?.remarks),
         domains,
       });
       setReportOpen(true);
@@ -445,7 +470,16 @@ const StartExam = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [examSessionKey, isSubmitting, mockExamData?.examId, navigate, timeTaken]);
+  }, [
+    examDraftKey,
+    examSessionKey,
+    examTimeKey,
+    isSubmitting,
+    mockExamData?.examId,
+    mockExamData?.remarks,
+    navigate,
+    timeTaken,
+  ]);
 
   const handleAttemptMarkedQuestions = useCallback(() => {
     const firstMarkedQuestion = Array.from(marked).sort((a, b) => a - b)[0];

@@ -4,6 +4,7 @@ import { ExamsItem } from "@/components/Questions/ViewReports/exams.data";
 import { ExamsColumns } from "@/components/Questions/ViewReports/exams.columns";
 import {
   ReportData,
+  RemarkRange,
 } from "@/components/Questions/ViewReports/ViewReportDialog";
 import api from "@/lib/axios";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -13,6 +14,11 @@ type MockExamResult = {
   attemptNumber?: number | null;
   mockExamId?: {
     name?: string | null;
+    remarks?: Array<{
+      start?: number | null;
+      end?: number | null;
+      remarks?: string | null;
+    }> | null;
   } | null;
   currentStatus?: string | null;
   timeTaken?: string | null;
@@ -60,6 +66,27 @@ type PracticeExamBoard = {
     }
   > | null;
 };
+
+const mapRemarkRanges = (
+  rawRemarks?: Array<{
+    start?: number | null;
+    end?: number | null;
+    remarks?: string | null;
+  }> | null,
+): RemarkRange[] =>
+  (rawRemarks ?? [])
+    .map((remark) => ({
+      start: Number(remark.start ?? 0),
+      end: Number(remark.end ?? 0),
+      remarks: remark.remarks ?? "",
+    }))
+    .filter(
+      (remark) =>
+        Number.isFinite(remark.start) &&
+        Number.isFinite(remark.end) &&
+        Boolean(remark.remarks),
+    )
+    .sort((a, b) => a.start - b.start);
 
 const ViewReports = () => {
   const { pathname } = useLocation();
@@ -229,6 +256,7 @@ const ViewReports = () => {
             incorrect: Number(item.incorrect ?? 0),
             unanswered: Number(item.unanswered ?? 0),
             remarks: item.remarks ?? "",
+            remarkRanges: mapRemarkRanges(item.mockExamId?.remarks),
             domains,
           };
 

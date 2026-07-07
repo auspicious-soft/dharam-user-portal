@@ -111,19 +111,19 @@ const StatsCard = ({
       {
         id: 1,
         value: stats?.inProgress ?? 0,
-        label: "In Progress",
+        label: "Exam In Progress",
         icon: <GraduationCap width={14} height={14} />,
       },
       {
         id: 2,
         value: stats?.completed ?? 0,
-        label: "Completed",
+        label: "Exams Completed",
         icon: <CheckCircle width={14} height={14} />,
       },
       {
         id: 3,
         value: stats?.timeSpent ?? "0h 0m",
-        label: "Time Spent Learning",
+        label: "Time Spent Watching Lessons",
         icon: <Timer width={14} height={14} />,
       },
       {

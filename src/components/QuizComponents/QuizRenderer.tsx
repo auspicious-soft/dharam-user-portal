@@ -52,7 +52,7 @@ export const QuizRenderer = ({
   const isAnswered = () => {
     if (isLocked) return true;
     if (question.type === "mcq") {
-      return selectedAnswers.length > 0;
+      return selectedAnswers.length === getMaxSelection(question);
     } else if (question.type === "dragdrop") {
       const currentAnswers = dragDropAnswers[currentQuestionIndex] || {};
       return Object.keys(currentAnswers).length === question.dropZones.length;
@@ -92,6 +92,8 @@ export const QuizRenderer = ({
 
   const handleSubmit = () => {
     if (isLocked) return;
+    if (!isAnswered()) return;
+
     if (question.type === "mcq") {
       setMcqAnswers({ ...mcqAnswers, [currentQuestionIndex]: selectedAnswers });
     }

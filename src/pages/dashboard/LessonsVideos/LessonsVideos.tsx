@@ -87,7 +87,7 @@ const LearningManagementSystem: React.FC = () => {
             correctAnswer,
             correctAnswers,
             maxSelection,
-            isAttempted: Boolean(question.isAttempted),
+            isAttempted: false,
           } as QuizQuestion;
         }
 
@@ -134,7 +134,7 @@ const LearningManagementSystem: React.FC = () => {
             questionTemplate,
             blanks,
             options: fibItems.map((blank: any) => blank.answer ?? ""),
-            isAttempted: Boolean(question.isAttempted),
+            isAttempted: false,
           } as QuizQuestion;
         }
 
@@ -160,7 +160,7 @@ const LearningManagementSystem: React.FC = () => {
             imageUrl: resolveQuestionImageUrl(question.image),
             draggableItems,
             dropZones,
-            isAttempted: Boolean(question.isAttempted),
+            isAttempted: false,
           } as QuizQuestion;
         }
 
