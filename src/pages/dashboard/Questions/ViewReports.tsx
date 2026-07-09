@@ -25,6 +25,11 @@ type MockExamResult = {
   score?: string | null;
   status?: string | null;
   remarks?: string | null;
+  remarksArr?: Array<{
+    start?: number | null;
+    end?: number | null;
+    remarks?: string | null;
+  }> | null;
   createdAt?: string | null;
   overallPercentage?: number | null;
   correct?: number | null;
@@ -256,7 +261,9 @@ const ViewReports = () => {
             incorrect: Number(item.incorrect ?? 0),
             unanswered: Number(item.unanswered ?? 0),
             remarks: item.remarks ?? "",
-            remarkRanges: mapRemarkRanges(item.mockExamId?.remarks),
+            remarkRanges: mapRemarkRanges(
+              item.remarksArr ?? item.mockExamId?.remarks,
+            ),
             domains,
           };
 

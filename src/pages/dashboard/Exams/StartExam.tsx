@@ -33,6 +33,11 @@ type MockExamResultResponse = {
     incorrect?: number;
     unanswered?: number;
     remarks?: string;
+    remarksArr?: Array<{
+      start?: number | null;
+      end?: number | null;
+      remarks?: string | null;
+    }> | null;
     overallPercentage?: number;
     timeTaken?: string;
     scoreBreakDown?: Record<
@@ -461,7 +466,7 @@ const StartExam = () => {
         incorrect: Number(payload.incorrect ?? 0),
         unanswered: Number(payload.unanswered ?? 0),
         remarks: payload.remarks ?? "",
-        remarkRanges: mapRemarkRanges(mockExamData?.remarks),
+        remarkRanges: mapRemarkRanges(payload.remarksArr),
         domains,
       });
       setReportOpen(true);
@@ -476,7 +481,6 @@ const StartExam = () => {
     examTimeKey,
     isSubmitting,
     mockExamData?.examId,
-    mockExamData?.remarks,
     navigate,
     timeTaken,
   ]);

@@ -96,7 +96,9 @@ const ViewReportDialog = ({
     return formattedName || name;
   };
 
-  const getTargetLabel = (percentage: number) => {
+  const overallRemark = report?.remarks?.trim() ?? "";
+
+  const getRemarkLabel = (percentage: number) => {
     const matchedRemark = report?.remarkRanges?.find((range, index, ranges) => {
       const isLastRange = index === ranges.length - 1;
       return (
@@ -106,14 +108,7 @@ const ViewReportDialog = ({
     });
 
     if (matchedRemark?.remarks) return matchedRemark.remarks;
-
-    return percentage >= 85
-      ? "Above Target"
-      : percentage >= 70
-        ? "Target"
-        : percentage >= 50
-          ? "Below Target"
-          : "Need Improvement";
+    return "";
   };
 
   return (
@@ -186,11 +181,11 @@ const ViewReportDialog = ({
           />
         </div>
 
-        {report?.remarks ? (
+        {overallRemark ? (
           <div className="px-4 py-[13px] bg-white rounded-lg border border-[#0a4ba8]/10 flex justify-between gap-2">
             <p className="text-paragraph text-base font-medium">Overall Performance</p>
             <p className="text-primary_heading text-base font-semibold text-right">
-              {report.remarks}
+              {overallRemark}
             </p>
           </div>
         ) : null}
@@ -200,11 +195,7 @@ const ViewReportDialog = ({
 
           {report?.domains?.length ? (
             report.domains.map((domain, index) => {
-              const targetLabel = getTargetLabel(domain.percentage);
-              const targetClass =
-                domain.percentage > 50
-                  ? "text-[#0751AB] "
-                  : "text-[#0751AB] ";
+              const remarkLabel = getRemarkLabel(domain.percentage);
 
               return (
               <div key={index} className="flex justify-between gap-3 py-2">
@@ -216,11 +207,13 @@ const ViewReportDialog = ({
                     {formatPercent(domain.percentage)}% Correct ({domain.correct}
                     /{domain.total})
                   </span>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${targetClass}`}
-                  >
-                    {targetLabel}
-                  </span>
+                  {remarkLabel ? (
+                    <span
+                      className="rounded-full px-2.5 py-1 text-xs font-semibold text-[#0751AB]"
+                    >
+                      {remarkLabel}
+                    </span>
+                  ) : null}
                 </div>
               </div>
               );
