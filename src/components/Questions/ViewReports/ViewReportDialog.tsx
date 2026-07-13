@@ -99,13 +99,9 @@ const ViewReportDialog = ({
   const overallRemark = report?.remarks?.trim() ?? "";
 
   const getRemarkLabel = (percentage: number) => {
-    const matchedRemark = report?.remarkRanges?.find((range, index, ranges) => {
-      const isLastRange = index === ranges.length - 1;
-      return (
-        percentage >= range.start &&
-        (percentage < range.end || (isLastRange && percentage <= range.end))
-      );
-    });
+    const matchedRemark = report?.remarkRanges
+      ?.filter((range) => percentage >= range.start && percentage <= range.end)
+      .sort((a, b) => b.start - a.start)[0];
 
     if (matchedRemark?.remarks) return matchedRemark.remarks;
     return "";
