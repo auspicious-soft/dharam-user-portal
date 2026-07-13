@@ -66,6 +66,7 @@ type HomeApiData = {
   activities?: Array<{
     type?: string;
     message?: string;
+    scheduledFor?: string;
     createdAt?: string;
     updatedAt?: string;
     userDetails?: {
@@ -101,6 +102,24 @@ const formatDate = (value?: string | null) => {
     day: "numeric",
     year: "numeric",
   });
+};
+
+const formatActivityMessage = (
+  message?: string | null,
+  scheduledFor?: string | null,
+) => {
+  const activityMessage = message?.trim() || "Activity";
+
+  if (!scheduledFor) {
+    return activityMessage;
+  }
+
+  const scheduledDate = formatDate(scheduledFor);
+  if (scheduledDate === "N/A") {
+    return activityMessage;
+  }
+
+  return `${activityMessage} ${scheduledDate}`;
 };
 
 const clampPercentage = (value: number) =>
@@ -338,7 +357,7 @@ const Dashboard = () => {
       (homeData?.activities ?? []).map((activity, index) => ({
         id: index + 1,
         type: activity.type?.trim() || "",
-        name: activity.message?.trim() || "Activity",
+        name: formatActivityMessage(activity.message, activity.scheduledFor),
         lastAccessed: formatDate(activity.updatedAt ?? activity.createdAt),
         imageUrl: resolveImageUrl(activity.userDetails?.image),
       })),
