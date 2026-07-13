@@ -87,7 +87,7 @@ const LearningManagementSystem: React.FC = () => {
             correctAnswer,
             correctAnswers,
             maxSelection,
-            isAttempted: false,
+            isAttempted: Boolean(question.isAttempted),
           } as QuizQuestion;
         }
 
@@ -134,7 +134,7 @@ const LearningManagementSystem: React.FC = () => {
             questionTemplate,
             blanks,
             options: fibItems.map((blank: any) => blank.answer ?? ""),
-            isAttempted: false,
+            isAttempted: Boolean(question.isAttempted),
           } as QuizQuestion;
         }
 
@@ -160,7 +160,7 @@ const LearningManagementSystem: React.FC = () => {
             imageUrl: resolveQuestionImageUrl(question.image),
             draggableItems,
             dropZones,
-            isAttempted: false,
+            isAttempted: Boolean(question.isAttempted),
           } as QuizQuestion;
         }
 
@@ -177,11 +177,8 @@ const LearningManagementSystem: React.FC = () => {
       const attemptedIds = mapped
         .filter((question) => question.isAttempted)
         .map((question) => question.id);
-      const availableQuestions = mapped.filter(
-        (question) => !question.isAttempted
-      );
       const allAttempted =
-        mapped.length > 0 && availableQuestions.length === 0;
+        mapped.length > 0 && attemptedIds.length === mapped.length;
 
       setAttemptedQuestionsByModule((prev) => {
         const existing = prev[moduleId] ?? new Set<string>();
@@ -189,14 +186,20 @@ const LearningManagementSystem: React.FC = () => {
         attemptedIds.forEach((id) => merged.add(id));
         return { ...prev, [moduleId]: merged };
       });
-      setModuleQuiz((prev) => ({ ...prev, [moduleId]: availableQuestions }));
-      return { questions: availableQuestions, allAttempted };
+      setModuleQuiz((prev) => ({ ...prev, [moduleId]: mapped }));
+      return { questions: mapped, allAttempted };
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Failed to fetch module questions", error);
       return { questions: [], allAttempted: false };
     }
   };
+
+  const makeQuestionsAttemptable = (questions: QuizQuestion[]) =>
+    questions.map((question) => ({
+      ...question,
+      isAttempted: false,
+    }));
 
   useEffect(() => {
     const courseId =
@@ -358,7 +361,7 @@ const LearningManagementSystem: React.FC = () => {
 
       setSelectedContent({
         ...item,
-        quiz: quizData,
+        quiz: makeQuestionsAttemptable(quizData),
         quizAllAttempted: allAttempted,
       });
     } else {
@@ -500,8 +503,12 @@ const LearningManagementSystem: React.FC = () => {
       setModuleQuiz((prevQuiz) => {
         const current = prevQuiz[moduleId];
         if (!current) return prevQuiz;
-        const filtered = current.filter((question) => question.id !== questionId);
-        return { ...prevQuiz, [moduleId]: filtered };
+        const updated = current.map((question) =>
+          question.id === questionId
+            ? { ...question, isAttempted: true }
+            : question
+        );
+        return { ...prevQuiz, [moduleId]: updated };
       });
 
       return { ...prev, [moduleId]: nextSet };

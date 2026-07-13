@@ -17,10 +17,12 @@ const LessonsQuizRenderer = ({
 }: LessonsQuizRendererProps) => {
   const [showQuizDialog, setShowQuizDialog] = useState(false);
   const [quizResults, setQuizResults] = useState({ correct: 0, incorrect: 0 });
+  const [completedQuestionCount, setCompletedQuestionCount] = useState(0);
   const navigate = useNavigate();
 
   const handleComplete = (results: { correct: number; incorrect: number }) => {
     setQuizResults(results);
+    setCompletedQuestionCount(quiz.length);
     setShowQuizDialog(true);
   };
 
@@ -45,7 +47,7 @@ const LessonsQuizRenderer = ({
       <QuizResultDialog
         isOpen={showQuizDialog}
         onClose={handleCloseDialog}
-        totalQuestions={quiz.length}
+        totalQuestions={completedQuestionCount}
         correctAnswers={quizResults.correct}
         incorrectAnswers={quizResults.incorrect}
         onGoToLessons={handleGoToLessons}

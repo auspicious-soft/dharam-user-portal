@@ -75,6 +75,7 @@ const Exams = () => {
           : []
         ).map((item) => {
           const mock = item.mockExamId ?? {};
+          const attemptNumber = item.attemptNumber ?? 0;
           return {
             id: mock._id ?? item._id ?? "",
             resumeId: item._id ?? "",
@@ -82,7 +83,7 @@ const Exams = () => {
             totalQuestions: `${mock.numberOfQuestions ?? 0} Questions`,
             questionCount: mock.numberOfQuestions ?? 0,
             examTime: item.timeLeft ?? mock.timeInMin ?? "Untimed",
-            attempts: String(item.attemptNumber ?? 0),
+            attempts: attemptNumber > 0 ? String(attemptNumber) : "",
             correctPercentage: "",
             status: "Paused",
             currentStatus: item.currentStatus ?? "PAUSED",
@@ -112,6 +113,7 @@ const Exams = () => {
                 : item.price != null
                   ? Number(item.price)
                   : null;
+            const totalAttempt = item.totalAttempt ?? 0;
 
             return {
               id: item._id ?? "",
@@ -119,7 +121,7 @@ const Exams = () => {
               totalQuestions: `${item.numberOfQuestions ?? 0} Questions`,
               questionCount: item.numberOfQuestions ?? 0,
               examTime: item.timeInMin ?? "Untimed",
-              attempts: status ? "":  String(item.totalAttempt ?? 0) ,
+              attempts: totalAttempt > 0 ? String(totalAttempt) : "",
               correctPercentage:
                 !isPremium && typeof item.correctPercentage === "number"
                   ? `${item.correctPercentage}%`

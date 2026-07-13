@@ -201,6 +201,12 @@ const DomainTaskQuestions = ({
       .filter(Boolean) as QuizQuestion[];
   };
 
+  const makeQuestionsAttemptable = (mappedQuestions: QuizQuestion[]) =>
+    mappedQuestions.map((question) => ({
+      ...question,
+      isAttempted: false,
+    }));
+
   useEffect(() => {
     if (!taskId) return;
 
@@ -212,9 +218,10 @@ const DomainTaskQuestions = ({
         );
         const data = (response.data as { data?: any[] })?.data ?? [];
         const mapped = mapQuestions(data);
-        const filtered = mapped.filter((question) => !question.isAttempted);
-        setAllAttempted(mapped.length > 0 && filtered.length === 0);
-        setQuestions(filtered);
+        setAllAttempted(
+          mapped.length > 0 && mapped.every((question) => question.isAttempted)
+        );
+        setQuestions(makeQuestionsAttemptable(mapped));
       } catch (error) {
         console.error("Failed to fetch domain task questions", error);
         setQuestions([]);
