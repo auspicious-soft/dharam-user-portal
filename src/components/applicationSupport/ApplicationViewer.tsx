@@ -8,6 +8,7 @@ import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 import { Youtube } from "iconoir-react";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 // Set up PDF.js worker (Vite-friendly)
 pdfjs.GlobalWorkerOptions.workerSrc = PdfWorker;
@@ -24,32 +25,44 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
   const [numPages, setNumPages] = useState<number>(0);
 
   const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const [pdfWidth, setPdfWidth] = useState<number | null>(null);
+  const [isPdfReady, setIsPdfReady] = useState(false);
   const pdfDevicePixelRatio =
     typeof window !== "undefined"
       ? Math.min(window.devicePixelRatio || 1, 2.5)
       : 1;
-  const pdfRenderMode: "canvas" | "svg" = "svg";
+  const pdfRenderMode: "canvas" | "svg" = "canvas";
 
   useEffect(() => {
-    if (!pdfContainerRef.current) return;
-    const element = pdfContainerRef.current;
-    const updateWidth = () => {
-      const nextWidth = Math.floor(element.clientWidth);
-      if (nextWidth > 0) setPdfWidth(nextWidth);
-    };
+    setPdfWidth((prevWidth) => {
+      if (!pdfContainerRef.current) {
+        return prevWidth;
+      }
 
-    updateWidth();
+      const nextWidth = Math.floor(pdfContainerRef.current.clientWidth);
+      if (nextWidth <= 0) {
+        return prevWidth;
+      }
 
-    const resizeObserver = new ResizeObserver(() => updateWidth());
-    resizeObserver.observe(element);
+      if (prevWidth === nextWidth) {
+        return prevWidth;
+      }
 
-    return () => resizeObserver.disconnect();
-  }, []);
+      return nextWidth;
+    });
+  }, [content.pdfUrl, content.title, currentSlideIndex]);
+
+  useEffect(() => {
+    setCurrentSlideIndex(1);
+    setNumPages(0);
+    setIsPdfReady(false);
+  }, [content.pdfUrl, content.title]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
+    setIsPdfReady(true);
   };
 
   if (!content) {
@@ -93,7 +106,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
   }
 
   // Slide/PDF View
-  if (content.type === "slide") { 
+  if (content.type === "slide") {
     const handlePreviousSlide = () => {
       if (currentSlideIndex > 1) {
         setCurrentSlideIndex(currentSlideIndex - 1);
@@ -120,36 +133,42 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
 
         {/* PDF Viewer Container */}
         <div className="flex-1 py-6 px-4 md:p-6 bg-[#EDF4FD] rounded-[20px] overflow-hidden flex flex-col gap-5">
-          {/* Navigation Controls */}
           {!isImage && (
-            <div className="flex justify-between w-full">
+            <div className="flex flex-wrap items-center justify-between gap-3 w-full">
               <Button
-                onClick={handlePreviousSlide}
-                disabled={currentSlideIndex === 1}
-                variant="link"
-                className="text-primary_heading"
+                onClick={() => setIsPdfModalOpen(true)}
+                className="bg-primary_heading text-white hover:bg-primary_heading/90"
               >
-                Previous
+                View Large
               </Button>
-              <div className="text-center">
+              <div className="text-center flex-1">
                 <p className="text-sm font-semibold text-Black_light">
                   Slide {currentSlideIndex} of {numPages || "..."}
                 </p>
               </div>
-
-              <Button
-                onClick={handleNextSlide}
-                disabled={currentSlideIndex === numPages}
-                variant="link"
-                className="text-primary_heading"
-              >
-                Next
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handlePreviousSlide}
+                  disabled={currentSlideIndex === 1}
+                  variant="link"
+                  className="text-primary_heading"
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={handleNextSlide}
+                  disabled={currentSlideIndex === numPages}
+                  variant="link"
+                  className="text-primary_heading"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
           {/* PDF Display Area */}
           <div
-            className="flex-1 flex items-center justify-center w-full"
+            className="flex-1 flex items-center justify-center w-full overflow-auto min-h-0"
             ref={pdfContainerRef}
           >
             {content.pdfUrl ? (
@@ -163,6 +182,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                 <Document
                   file={content.pdfUrl}
                   onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={() => setIsPdfReady(false)}
                   loading={
                     <div className="flex items-center justify-center">
                       <div className="text-center">
@@ -180,14 +200,25 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                     </div>
                   }
                 >
-                  <Page
-                    pageNumber={currentSlideIndex}
-                    renderMode={pdfRenderMode}
-                    renderTextLayer={pdfRenderMode === "canvas"}
-                    renderAnnotationLayer={true}
-                    width={pdfWidth ?? undefined}
-                    devicePixelRatio={pdfDevicePixelRatio}
-                  />
+                  {!isPdfReady ? (
+                    <div className="flex items-center justify-center min-h-[320px]">
+                      <div className="text-center">
+                        <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
+                        <p className="text-paragraph">
+                          Preparing PDF preview...
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Page
+                      pageNumber={currentSlideIndex}
+                      renderMode={pdfRenderMode}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      width={pdfWidth ?? undefined}
+                      devicePixelRatio={pdfDevicePixelRatio}
+                    />
+                  )}
                 </Document>
               )
             ) : (
@@ -198,6 +229,105 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
             )}
           </div>
         </div>
+
+        <Dialog open={isPdfModalOpen} onOpenChange={setIsPdfModalOpen}>
+          <DialogContent className="max-w-7xl w-[96vw] h-[94vh] p-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+              <DialogTitle className="text-xl font-semibold text-Black_light">
+                {content.title}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex flex-col flex-1 min-h-0 px-6 pb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 shrink-0">
+                <Button
+                  onClick={handlePreviousSlide}
+                  disabled={currentSlideIndex === 1}
+                  variant="outline"
+                  className="border-primary_heading text-primary_heading"
+                >
+                  Previous
+                </Button>
+                <div className="text-center flex-1">
+                  <p className="text-sm font-semibold text-Black_light">
+                    Page {currentSlideIndex} of {numPages || "..."}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleNextSlide}
+                  disabled={currentSlideIndex === numPages}
+                  variant="outline"
+                  className="border-primary_heading text-primary_heading"
+                >
+                  Next
+                </Button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-auto rounded-[16px] bg-white p-4">
+                {content.pdfUrl ? (
+                  isImage ? (
+                    <div className="flex min-h-full items-center justify-center">
+                      <img
+                        src={content.pdfUrl}
+                        alt={content.title}
+                        className="max-h-full max-w-full rounded-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex min-h-full items-center justify-center">
+                      <Document
+                        file={content.pdfUrl}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                        onLoadError={() => setIsPdfReady(false)}
+                        loading={
+                          <div className="text-center">
+                            <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
+                            <p className="text-paragraph">Loading PDF...</p>
+                          </div>
+                        }
+                        error={
+                          <div className="text-center text-red-600">
+                            <p>Failed to load PDF</p>
+                            <p className="text-sm text-paragraph mt-2">
+                              Please check the file path or URL
+                            </p>
+                          </div>
+                        }
+                      >
+                        {!isPdfReady ? (
+                          <div className="text-center">
+                            <FileText className="w-16 h-16 mx-auto mb-4 text-primary_heading animate-pulse" />
+                            <p className="text-paragraph">
+                              Preparing PDF preview...
+                            </p>
+                          </div>
+                        ) : (
+                          <Page
+                            pageNumber={currentSlideIndex}
+                            renderMode={pdfRenderMode}
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                            width={
+                              typeof window !== "undefined"
+                                ? Math.min(1200, window.innerWidth - 160)
+                                : 1200
+                            }
+                            devicePixelRatio={pdfDevicePixelRatio}
+                          />
+                        )}
+                      </Document>
+                    </div>
+                  )
+                ) : (
+                  <div className="text-center">
+                    <FileText className="w-24 h-24 mx-auto mb-4 text-primary_heading" />
+                    <p className="text-paragraph">No PDF file available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
