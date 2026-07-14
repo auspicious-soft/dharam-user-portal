@@ -54,6 +54,10 @@ type MockExamResultResponse = {
 const MOCK_EXAM_SESSION_PREFIX = "mockExam:start:";
 const MOCK_EXAM_DRAFT_PREFIX = "mockExam:draft:";
 const MOCK_EXAM_TIME_PREFIX = "mockExam:time:";
+const RESULT_FETCH_DELAY_MS = 2000;
+
+const wait = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const mapRemarkRanges = (
   rawRemarks?: Array<{
@@ -428,6 +432,9 @@ const StartExam = () => {
 
     try {
       setIsSubmitting(true);
+      if (openReport) {
+        await wait(RESULT_FETCH_DELAY_MS);
+      }
       const response = await api.get("/user/mock-exam-result", {
         params: { examId: mockExamData.examId, timeTaken },
       });
@@ -493,7 +500,7 @@ const StartExam = () => {
     toast.dismiss("marked-questions-submit");
   }, [marked]);
 
-  const handleSubmitWithMarkedCheck = useCallback((openReport = true) => {
+  const handleSubmitWithMarkedCheck = useCallback(async (openReport = true) => {
     if (marked.size > 0) {
       const markedQuestionNumbers = Array.from(marked)
         .sort((a, b) => a - b)
@@ -518,7 +525,7 @@ const StartExam = () => {
       return;
     }
 
-    void handleSubmitExam(openReport);
+    await handleSubmitExam(openReport);
   }, [handleAttemptMarkedQuestions, handleSubmitExam, marked]);
 
   const handleConfirmPause = async () => {
@@ -698,7 +705,7 @@ const StartExam = () => {
               marked={marked}
               setMarked={setMarked}
               onComplete={() => {
-                handleSubmitWithMarkedCheck();
+                return handleSubmitWithMarkedCheck();
               }}
             />
           ) : (
@@ -766,6 +773,16 @@ const StartExam = () => {
           />
         )}
       </div>
+      {isSubmitting && !reportOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-[10px] bg-white px-8 py-6 shadow-lg">
+            <span className="h-10 w-10 animate-spin rounded-full border-4 border-primary_blue/25 border-t-primary_blue" />
+            <span className="text-sm font-medium text-paragraph">
+              Getting result...
+            </span>
+          </div>
+        </div>
+      ) : null}
       <Dialog
         open={showLeaveDialog}
         onOpenChange={(open) => {

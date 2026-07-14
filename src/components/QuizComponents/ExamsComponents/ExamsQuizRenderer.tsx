@@ -21,7 +21,9 @@ import {
 
 interface QuizRendererProps {
   quiz: QuizQuestion[];
-  onComplete?: (results: { correct: number; incorrect: number }) => void;
+  onComplete?: (
+    results: { correct: number; incorrect: number },
+  ) => void | Promise<void>;
   onQuestionChange?: (index: number) => void;
   activeQuestionIndex?: number;
   examId?: string;
@@ -230,6 +232,7 @@ export const ExamsQuizRenderer = ({
   >({});
   const [isImageOpen, setIsImageOpen] = useState(false);
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
@@ -402,23 +405,23 @@ export const ExamsQuizRenderer = ({
     selectedAnswers,
   ]);
 
-  const submitQuestionResponse = (
+  const submitQuestionResponse = async (
     isCorrect: boolean | null,
     answerJson: ExamAnswerJson | null,
   ) => {
     if (!examId || isCorrect === null) return;
 
-    void api
-      .post("/user/submit-question-response", {
+    try {
+      await api.post("/user/submit-question-response", {
         questionId: question.id,
         isCorrect,
         examId,
         availableTime: typeof availableTime === "number" ? availableTime : 0,
         answerJson,
-      })
-      .catch((error) => {
-        console.error("Failed to submit question response", error);
       });
+    } catch (error) {
+      console.error("Failed to submit question response", error);
+    }
   };
 
   const moveToQuestion = useCallback((index: number) => {
@@ -539,7 +542,7 @@ export const ExamsQuizRenderer = ({
         return copy;
       });
 
-      submitQuestionResponse(isCorrect, answerJson);
+      void submitQuestionResponse(isCorrect, answerJson);
     }
 
     // ---------- MOVE ----------
@@ -562,8 +565,11 @@ export const ExamsQuizRenderer = ({
   // COMPLETE
   // ---------------------------------------------------
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (isCurrentQuestionLocked) return;
+    if (isCompleting) return;
+
+    setIsCompleting(true);
 
     let isCorrect: boolean | null = null;
 
@@ -627,18 +633,26 @@ export const ExamsQuizRenderer = ({
         return copy;
       });
 
-      submitQuestionResponse(isCorrect, answerJson);
+      await submitQuestionResponse(isCorrect, answerJson);
     }
 
-    if (!onComplete) return;
+    if (!onComplete) {
+      setIsCompleting(false);
+      return;
+    }
 
     const currentCorrect = Object.values(results).filter((r) => r).length;
     const willCountCurrent =
       isCorrect !== null && results[currentQuestionIndex] === undefined;
-    const correct = willCountCurrent && isCorrect ? currentCorrect + 1 : currentCorrect;
+    const correct =
+      willCountCurrent && isCorrect ? currentCorrect + 1 : currentCorrect;
     const incorrect = totalQuestions - correct;
 
-    onComplete({ correct, incorrect });
+    try {
+      await onComplete({ correct, incorrect });
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   // ---------------------------------------------------
@@ -881,8 +895,16 @@ export const ExamsQuizRenderer = ({
           {currentQuestionIndex === totalQuestions - 1 && !isCurrentQuestionLocked && (
             <Button onClick={handleComplete} 
              className="rounded-[10px] h-10 !py-1 !px-4"
+             disabled={isCompleting}
              >
-              Submit
+              {isCompleting ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Submit
+                </span>
+              ) : (
+                "Submit"
+              )}
             </Button>
           )}
 
