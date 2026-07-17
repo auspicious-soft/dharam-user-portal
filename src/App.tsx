@@ -5,6 +5,12 @@ import { setupForegroundNotifications, initializeFcmToken } from "./lib/fcm";
 
 function App() {
   useEffect(() => {
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu);
+
     let unsubscribe: (() => void) | undefined;
 
     // Initialize FCM token early on app load
@@ -19,6 +25,7 @@ function App() {
       });
 
     return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
       unsubscribe?.();
     };
   }, []);
