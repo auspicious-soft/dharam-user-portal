@@ -1,83 +1,86 @@
-importScripts(
-  "https://www.gstatic.com/firebasejs/12.11.0/firebase-app-compat.js",
-);
-importScripts(
-  "https://www.gstatic.com/firebasejs/12.11.0/firebase-messaging-compat.js",
-);
-
-const hasValues = (obj) =>
-  obj && Object.values(obj).some((value) => Boolean(value));
-
-const resolveConfig = async () => {
-  if (hasValues(self.firebaseConfig)) {
-    return self.firebaseConfig;
+const DEFAULT_ICON = "/favicon.ico";
+const DEFAULT_TAG = "notification";
+ 
+const getPayload = (event) => {
+  if (!event.data) {
+    return {};
   }
-
+ 
   try {
-    const response = await fetch("/firebase-config.json", {
-      cache: "no-store",
-    });
-    const data = await response.json();
-    return hasValues(data) ? data : null;
+    return event.data.json();
   } catch (error) {
-    console.error("Failed to load Firebase config:", error);
-    return null;
+    return { data: { body: event.data.text() } };
   }
 };
-
-resolveConfig().then((config) => {
-  if (!config) {
-    console.error("Firebase config not found");
-    return;
+ 
+const getValue = (payload, key) => {
+  return (
+    payload?.notification?.[key] ||
+    payload?.data?.[key] ||
+    payload?.fcmOptions?.[key] ||
+    payload?.webpush?.notification?.[key]
+  );
+};
+ 
+const normalizeUrl = (url) => {
+  if (!url) {
+    return "/";
   }
-
-  firebase.initializeApp(config);
-  const messaging = firebase.messaging();
-
-  messaging.onBackgroundMessage((payload) => {
-    console.log("🔔 Background message received:", payload);
-
-    const notification = payload.notification || {};
-    const data = payload.data || {};
-
-    // Support both notification and data-only messages
-    const title = notification.title || data.title || "Notification";
-    const body = notification.body || data.body || "You have a new message";
-    const icon = notification.icon || data.icon || "/favicon.ico";
-    const badge = data.badge || "/favicon.ico";
-
-    const options = {
+ 
+  try {
+    return new URL(url, self.location.origin).href;
+  } catch (error) {
+    return "/";
+  }
+};
+ 
+self.addEventListener("push", (event) => {
+  const payload = getPayload(event);
+  const title = getValue(payload, "title") || "Notification";
+  const body = getValue(payload, "body") || "You have a new message";
+  const icon = getValue(payload, "icon") || DEFAULT_ICON;
+  const badge = getValue(payload, "badge") || DEFAULT_ICON;
+  const tag = getValue(payload, "tag") || DEFAULT_TAG;
+  const clickUrl =
+    getValue(payload, "click_action") ||
+    getValue(payload, "clickUrl") ||
+    payload?.fcmOptions?.link ||
+    payload?.webpush?.fcm_options?.link ||
+    "/";
+ 
+  event.waitUntil(
+    self.registration.showNotification(title, {
       body,
       icon,
       badge,
-      tag: data.tag || "notification",
-      requireInteraction: data.requireInteraction === "true",
-      data: data, // Pass all data so click handler can access it
-    };
-
-    console.log("📢 Showing notification:", { title, options });
-    self.registration.showNotification(title, options);
-  });
-
-  // Handle notification click
-  self.addEventListener("notificationclick", (event) => {
-    console.log("Notification clicked:", event.notification.title);
-    event.notification.close();
-
-    // Handle custom click action
-    const urlToOpen = event.notification.data?.clickUrl || "/";
-    event.waitUntil(
-      clients.matchAll({ type: "window" }).then((clientList) => {
-        for (let i = 0; i < clientList.length; i++) {
-          const client = clientList[i];
-          if (client.url === urlToOpen && "focus" in client) {
-            return client.focus();
-          }
+      tag,
+      requireInteraction: payload?.data?.requireInteraction === "true",
+      data: {
+        ...(payload?.data || {}),
+        clickUrl: normalizeUrl(clickUrl),
+      },
+    }),
+  );
+});
+ 
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+ 
+  const urlToOpen = normalizeUrl(event.notification.data?.clickUrl);
+ 
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url === urlToOpen && "focus" in client) {
+          return client.focus();
         }
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
-        }
-      }),
-    );
-  });
+      }
+ 
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+ 
+      return undefined;
+    }),
+  );
 });
