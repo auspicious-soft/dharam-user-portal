@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -93,6 +99,29 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
     answerJson: question.answerJson ?? question.answerJSon ?? null,
   });
 
+  const resolveQuestionDomain = (question: any) => {
+    if (typeof question?.domain === "string" && question.domain.trim()) {
+      return question.domain.trim();
+    }
+
+    if (
+      typeof question?.domainName === "string" &&
+      question.domainName.trim()
+    ) {
+      return question.domainName.trim();
+    }
+
+    if (question?.domain && typeof question.domain === "object") {
+      const domainValue =
+        question.domain.name ?? question.domain.title ?? question.domain.value;
+      if (typeof domainValue === "string" && domainValue.trim()) {
+        return domainValue.trim();
+      }
+    }
+
+    return "";
+  };
+
   return (Array.isArray(rawQuestions) ? rawQuestions : [])
     .map((question) => {
       const type = String(question.type ?? "").toUpperCase();
@@ -110,8 +139,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           )
           .filter(Boolean) as string[];
         const maxSelection =
-          typeof question.maxSelection === "number" &&
-          question.maxSelection > 0
+          typeof question.maxSelection === "number" && question.maxSelection > 0
             ? question.maxSelection
             : Math.max(1, correctAnswers.length || 1);
         const correctAnswer = correctAnswers[0] ?? "a";
@@ -121,6 +149,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           type: "mcq",
           question: question.question ?? "",
           qExplanation: question.explaination ?? "",
+          domain: resolveQuestionDomain(question),
           imageUrl: resolveQuestionImageUrl(question.image),
           options,
           correctAnswer,
@@ -146,17 +175,21 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
             if (normalizedOrder < 1) return null;
             return { ...item, normalizedOrder };
           })
-          .filter(Boolean) as Array<{ answer: string; normalizedOrder: number }>;
+          .filter(Boolean) as Array<{
+          answer: string;
+          normalizedOrder: number;
+        }>;
 
         const maxSelection =
-          typeof question.maxSelection === "number" &&
-          question.maxSelection > 0
+          typeof question.maxSelection === "number" && question.maxSelection > 0
             ? question.maxSelection
             : hasExplicitBlanks && blankCount > 0
               ? blankCount
               : Math.max(
                   1,
-                  ...normalizedFibItems.map((item) => item.normalizedOrder || 0),
+                  ...normalizedFibItems.map(
+                    (item) => item.normalizedOrder || 0,
+                  ),
                 );
 
         const usableFibItems = normalizedFibItems.filter(
@@ -191,6 +224,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           type: "fillblank",
           question: question.question ?? "",
           qExplanation: question.explaination ?? "",
+          domain: resolveQuestionDomain(question),
           imageUrl: resolveQuestionImageUrl(question.image),
           questionTemplate,
           blanks,
@@ -218,6 +252,7 @@ const mapQuestions = (rawQuestions: any[]): QuizQuestion[] => {
           type: "dragdrop",
           question: question.question ?? "",
           qExplanation: question.explaination ?? "",
+          domain: resolveQuestionDomain(question),
           imageUrl: resolveQuestionImageUrl(question.image),
           draggableItems,
           dropZones,
@@ -252,7 +287,7 @@ function useTimer(initialSeconds: number, isPaused: boolean) {
 
   return { display: `${hh}:${mm}:${ss}`, seconds };
 }
- 
+
 // ─── Main Component ───
 const StartExam = () => {
   const location = useLocation();
@@ -348,7 +383,10 @@ const StartExam = () => {
 
   useEffect(() => {
     if (!locationMockExamData || typeof window === "undefined") return;
-    sessionStorage.setItem(examSessionKey, JSON.stringify(locationMockExamData));
+    sessionStorage.setItem(
+      examSessionKey,
+      JSON.stringify(locationMockExamData),
+    );
   }, [examSessionKey, locationMockExamData]);
 
   useEffect(() => {
@@ -426,71 +464,74 @@ const StartExam = () => {
     setVisitedQuestions((prev) => new Set(prev).add(index));
   };
 
-  const handleSubmitExam = useCallback(async (openReport = true) => {
-    if (!mockExamData?.examId) return;
-    if (isSubmitting) return;
+  const handleSubmitExam = useCallback(
+    async (openReport = true) => {
+      if (!mockExamData?.examId) return;
+      if (isSubmitting) return;
 
-    try {
-      setIsSubmitting(true);
-      if (openReport) {
-        await wait(RESULT_FETCH_DELAY_MS);
+      try {
+        setIsSubmitting(true);
+        if (openReport) {
+          await wait(RESULT_FETCH_DELAY_MS);
+        }
+        const response = await api.get("/user/mock-exam-result", {
+          params: { examId: mockExamData.examId, timeTaken },
+        });
+        sessionStorage.removeItem(examSessionKey);
+        sessionStorage.removeItem(examDraftKey);
+        sessionStorage.removeItem(examTimeKey);
+        if (!openReport) {
+          navigate("/exams");
+          return;
+        }
+
+        const payload = (response.data as MockExamResultResponse)?.data;
+        if (!payload) return;
+        const responseBody = response.data as MockExamResultResponse;
+        const nextReportId =
+          payload.reportId ??
+          payload._id ??
+          payload.id ??
+          responseBody.reportId ??
+          "";
+        setReportId(nextReportId);
+
+        const domains = Object.entries(payload.scoreBreakDown ?? {}).map(
+          ([name, values]) => ({
+            name,
+            percentage: Number(values?.percentage ?? 0),
+            correct: Number(values?.correct ?? 0),
+            total: Number(values?.total ?? 0),
+          }),
+        );
+
+        setReportData({
+          score: Number(payload.overallPercentage ?? 0),
+          timeSpent: payload.timeTaken ?? timeTaken,
+          correct: Number(payload.correct ?? 0),
+          incorrect: Number(payload.incorrect ?? 0),
+          unanswered: Number(payload.unanswered ?? 0),
+          remarks: payload.remarks ?? "",
+          remarkRanges: mapRemarkRanges(payload.remarksArr),
+          domains,
+        });
+        setReportOpen(true);
+      } catch (error) {
+        console.error("Failed to submit mock exam result", error);
+      } finally {
+        setIsSubmitting(false);
       }
-      const response = await api.get("/user/mock-exam-result", {
-        params: { examId: mockExamData.examId, timeTaken },
-      });
-      sessionStorage.removeItem(examSessionKey);
-      sessionStorage.removeItem(examDraftKey);
-      sessionStorage.removeItem(examTimeKey);
-      if (!openReport) {
-        navigate("/exams");
-        return;
-      }
-
-      const payload = (response.data as MockExamResultResponse)?.data;
-      if (!payload) return;
-      const responseBody = response.data as MockExamResultResponse;
-      const nextReportId =
-        payload.reportId ??
-        payload._id ??
-        payload.id ??
-        responseBody.reportId ??
-        "";
-      setReportId(nextReportId);
-
-      const domains = Object.entries(payload.scoreBreakDown ?? {}).map(
-        ([name, values]) => ({
-          name,
-          percentage: Number(values?.percentage ?? 0),
-          correct: Number(values?.correct ?? 0),
-          total: Number(values?.total ?? 0),
-        }),
-      );
-
-      setReportData({
-        score: Number(payload.overallPercentage ?? 0),
-        timeSpent: payload.timeTaken ?? timeTaken,
-        correct: Number(payload.correct ?? 0),
-        incorrect: Number(payload.incorrect ?? 0),
-        unanswered: Number(payload.unanswered ?? 0),
-        remarks: payload.remarks ?? "",
-        remarkRanges: mapRemarkRanges(payload.remarksArr),
-        domains,
-      });
-      setReportOpen(true);
-    } catch (error) {
-      console.error("Failed to submit mock exam result", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [
-    examDraftKey,
-    examSessionKey,
-    examTimeKey,
-    isSubmitting,
-    mockExamData?.examId,
-    navigate,
-    timeTaken,
-  ]);
+    },
+    [
+      examDraftKey,
+      examSessionKey,
+      examTimeKey,
+      isSubmitting,
+      mockExamData?.examId,
+      navigate,
+      timeTaken,
+    ],
+  );
 
   const handleAttemptMarkedQuestions = useCallback(() => {
     const firstMarkedQuestion = Array.from(marked).sort((a, b) => a - b)[0];
@@ -500,45 +541,44 @@ const StartExam = () => {
     toast.dismiss("marked-questions-submit");
   }, [marked]);
 
-  const handleSubmitWithMarkedCheck = useCallback(async (openReport = true) => {
-    if (marked.size > 0) {
-      const markedQuestionNumbers = Array.from(marked)
-        .sort((a, b) => a - b)
-        .map((index) => index + 1)
-        .join(", ");
+  const handleSubmitWithMarkedCheck = useCallback(
+    async (openReport = true) => {
+      if (marked.size > 0) {
+        const markedQuestionNumbers = Array.from(marked)
+          .sort((a, b) => a - b)
+          .map((index) => index + 1)
+          .join(", ");
 
-      toast.warning("You have marked questions.", {
-        id: "marked-questions-submit",
-        description: `Marked questions: ${markedQuestionNumbers}. Do you want to attempt them before submitting?`,
-        action: {
-          label: "Attempt",
-          onClick: handleAttemptMarkedQuestions,
-        },
-        cancel: {
-          label: "Submit anyway",
-          onClick: () => {
-            void handleSubmitExam(openReport);
+        toast.warning("You have marked questions.", {
+          id: "marked-questions-submit",
+          description: `Marked questions: ${markedQuestionNumbers}. Do you want to attempt them before submitting?`,
+          action: {
+            label: "Attempt",
+            onClick: handleAttemptMarkedQuestions,
           },
-        },
-        duration: 10000,
-      });
-      return;
-    }
+          cancel: {
+            label: "Submit anyway",
+            onClick: () => {
+              void handleSubmitExam(openReport);
+            },
+          },
+          duration: 10000,
+        });
+        return;
+      }
 
-    await handleSubmitExam(openReport);
-  }, [handleAttemptMarkedQuestions, handleSubmitExam, marked]);
+      await handleSubmitExam(openReport);
+    },
+    [handleAttemptMarkedQuestions, handleSubmitExam, marked],
+  );
 
   const handleConfirmPause = async () => {
     if (!mockExamData?.examId) return;
 
     try {
-      await api.put(
-        `/user/mock-exam-questions/${mockExamData.examId}`,
-        null,
-        {
-          params: { timeTaken },
-        },
-      );
+      await api.put(`/user/mock-exam-questions/${mockExamData.examId}`, null, {
+        params: { timeTaken },
+      });
       sessionStorage.removeItem(examSessionKey);
       sessionStorage.removeItem(examDraftKey);
       sessionStorage.removeItem(examTimeKey);
@@ -586,7 +626,11 @@ const StartExam = () => {
 
     const handlePopState = () => {
       handleOpenExamExitDialog();
-      window.history.pushState({ examBackGuard: true }, "", window.location.href);
+      window.history.pushState(
+        { examBackGuard: true },
+        "",
+        window.location.href,
+      );
     };
 
     window.history.pushState({ examBackGuard: true }, "", window.location.href);
@@ -631,7 +675,11 @@ const StartExam = () => {
         event.preventDefault();
       }
 
-      if (hasQuiz && (event.key === "F5" || ((event.ctrlKey || event.metaKey) && key === "r"))) {
+      if (
+        hasQuiz &&
+        (event.key === "F5" ||
+          ((event.ctrlKey || event.metaKey) && key === "r"))
+      ) {
         event.preventDefault();
         handleOpenExamExitDialog();
       }
@@ -698,6 +746,12 @@ const StartExam = () => {
               onQuestionChange={handleQuestionChange}
               examId={mockExamData?.examId}
               courseId={examCourseId}
+              courseName={
+                mockExamData?.courseName ??
+                mockExamData?.course?.name ??
+                mockExamData?.course?.courseName ??
+                ""
+              }
               availableTime={remainingSeconds}
               draftStorageKey={examDraftKey}
               results={results}
@@ -723,7 +777,7 @@ const StartExam = () => {
                   </div>
                   <div className="justify-start text-paragraph text-sm font-medium ">
                     Unseen Questions
-                  </div> 
+                  </div>
                 </div>
               </div>
               <div className="inline-flex flex-col justify-start items-start gap-2.5">
@@ -759,7 +813,7 @@ const StartExam = () => {
             </div>
           </div>
         </div>
-         {hasQuiz && (
+        {hasQuiz && (
           <RightQuestionSidebar
             total={totalQuestions}
             current={currentQuestion - 1}
@@ -797,7 +851,8 @@ const StartExam = () => {
               Exit Exam?
             </DialogTitle>
             <DialogDescription className="text-paragraph text-base font-medium text-center">
-              Refresh and back are disabled during the exam. You can pause your exam and exit, or submit it now.
+              Refresh and back are disabled during the exam. You can pause your
+              exam and exit, or submit it now.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:flex-col sm:space-x-0">

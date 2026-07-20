@@ -14,20 +14,19 @@ import { ExamsDragDropRenderer } from "./ExamsDragDropRenderer";
 import { ExamsFillBlankRenderer } from "./ExamsFillBlankRenderer";
 import { ExamsMCQRenderer } from "./ExamsMCQRenderer";
 import { ReportProblemDialog } from "@/components/exams/ReportProblemDialog";
-import {
-  getMaxSelection,
-  isMCQSelectionCorrect,
-} from "../mcqUtils";
+import { getMaxSelection, isMCQSelectionCorrect } from "../mcqUtils";
 
 interface QuizRendererProps {
   quiz: QuizQuestion[];
-  onComplete?: (
-    results: { correct: number; incorrect: number },
-  ) => void | Promise<void>;
+  onComplete?: (results: {
+    correct: number;
+    incorrect: number;
+  }) => void | Promise<void>;
   onQuestionChange?: (index: number) => void;
   activeQuestionIndex?: number;
   examId?: string;
   courseId?: string;
+  courseName?: string;
   availableTime?: number;
 
   results: Record<number, boolean>;
@@ -54,7 +53,9 @@ type ExamDraft = {
 };
 
 const normalizeAnswerText = (value: unknown) =>
-  String(value ?? "").trim().toLowerCase();
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
 
 const getAnswerJsonSelectedArray = (question: QuizQuestion) => {
   const selectedAnswer = question.answerJson?.selectedAnswer;
@@ -76,12 +77,13 @@ const getAnswerJsonSelectedArray = (question: QuizQuestion) => {
 const hydrateMcqAnswer = (question: QuizQuestion) => {
   if (question.type !== "mcq") return [];
 
-  const selectedAnswers = getAnswerJsonSelectedArray(question).map(
-    normalizeAnswerText,
-  );
+  const selectedAnswers =
+    getAnswerJsonSelectedArray(question).map(normalizeAnswerText);
 
   return question.options
-    .filter((option) => selectedAnswers.includes(normalizeAnswerText(option.text)))
+    .filter((option) =>
+      selectedAnswers.includes(normalizeAnswerText(option.text)),
+    )
     .map((option) => option.id);
 };
 
@@ -91,20 +93,24 @@ const hydrateDragDropAnswer = (question: QuizQuestion) => {
   const selectedAnswer = question.answerJson?.selectedAnswer;
   if (!selectedAnswer || Array.isArray(selectedAnswer)) return {};
 
-  return question.dropZones.reduce<Record<string, string>>((answers, zone, index) => {
-    const selectedValue = selectedAnswer[String(index)];
-    const matchedItem = question.draggableItems.find(
-      (item) =>
-        normalizeAnswerText(item.text) === normalizeAnswerText(selectedValue) ||
-        normalizeAnswerText(item.id) === normalizeAnswerText(selectedValue),
-    );
+  return question.dropZones.reduce<Record<string, string>>(
+    (answers, zone, index) => {
+      const selectedValue = selectedAnswer[String(index)];
+      const matchedItem = question.draggableItems.find(
+        (item) =>
+          normalizeAnswerText(item.text) ===
+            normalizeAnswerText(selectedValue) ||
+          normalizeAnswerText(item.id) === normalizeAnswerText(selectedValue),
+      );
 
-    if (selectedValue) {
-      answers[zone.id] = matchedItem?.id ?? selectedValue;
-    }
+      if (selectedValue) {
+        answers[zone.id] = matchedItem?.id ?? selectedValue;
+      }
 
-    return answers;
-  }, {});
+      return answers;
+    },
+    {},
+  );
 };
 
 const hydrateFillBlankAnswer = (question: QuizQuestion) => {
@@ -207,6 +213,7 @@ export const ExamsQuizRenderer = ({
   activeQuestionIndex,
   examId,
   courseId,
+  courseName,
   availableTime,
   results,
   setResults,
@@ -219,9 +226,7 @@ export const ExamsQuizRenderer = ({
 
   const [showResult, setShowResult] = useState(false);
 
-  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string[]>>(
-    {},
-  );
+  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string[]>>({});
 
   const [dragDropAnswers, setDragDropAnswers] = useState<
     Record<number, Record<string, string>>
@@ -249,8 +254,7 @@ export const ExamsQuizRenderer = ({
           ? Object.values(fillBlankCurrentAnswers).some(Boolean)
           : false;
   const isMarkAndNextDisabled =
-    isCurrentQuestionLocked ||
-    results[currentQuestionIndex] !== undefined;
+    isCurrentQuestionLocked || results[currentQuestionIndex] !== undefined;
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
@@ -289,9 +293,11 @@ export const ExamsQuizRenderer = ({
       }
     });
 
-    Object.entries(storedDraft?.mcqAnswers ?? {}).forEach(([index, answers]) => {
-      hydratedMcqAnswers[Number(index)] = answers;
-    });
+    Object.entries(storedDraft?.mcqAnswers ?? {}).forEach(
+      ([index, answers]) => {
+        hydratedMcqAnswers[Number(index)] = answers;
+      },
+    );
     Object.entries(storedDraft?.dragDropAnswers ?? {}).forEach(
       ([index, answers]) => {
         hydratedDragDropAnswers[Number(index)] = answers;
@@ -424,16 +430,20 @@ export const ExamsQuizRenderer = ({
     }
   };
 
-  const moveToQuestion = useCallback((index: number) => {
-    setCurrentQuestionIndex(index);
-    setSelectedAnswers(mcqAnswers[index] ?? []);
-    setShowResult(false);
-    onQuestionChange?.(index);
-  }, [mcqAnswers, onQuestionChange]);
+  const moveToQuestion = useCallback(
+    (index: number) => {
+      setCurrentQuestionIndex(index);
+      setSelectedAnswers(mcqAnswers[index] ?? []);
+      setShowResult(false);
+      onQuestionChange?.(index);
+    },
+    [mcqAnswers, onQuestionChange],
+  );
 
   useEffect(() => {
     if (typeof activeQuestionIndex !== "number") return;
-    if (activeQuestionIndex < 0 || activeQuestionIndex >= totalQuestions) return;
+    if (activeQuestionIndex < 0 || activeQuestionIndex >= totalQuestions)
+      return;
     if (activeQuestionIndex === currentQuestionIndex) return;
 
     moveToQuestion(activeQuestionIndex);
@@ -505,18 +515,18 @@ export const ExamsQuizRenderer = ({
     if (question.type === "fillblank") {
       const currentAnswers = fillBlankAnswers[currentQuestionIndex];
 
-        if (currentAnswers) {
-          const correct = question.blanks.every((blank) => {
-            const assignedOptionIndex = Object.keys(currentAnswers).find(
-              (key) => currentAnswers[parseInt(key)] === blank.id,
-            );
+      if (currentAnswers) {
+        const correct = question.blanks.every((blank) => {
+          const assignedOptionIndex = Object.keys(currentAnswers).find(
+            (key) => currentAnswers[parseInt(key)] === blank.id,
+          );
 
-            if (!assignedOptionIndex) return false;
+          if (!assignedOptionIndex) return false;
 
-            return blank.correctAnswers.includes(
-              question.options[parseInt(assignedOptionIndex)],
-            );
-          });
+          return blank.correctAnswers.includes(
+            question.options[parseInt(assignedOptionIndex)],
+          );
+        });
 
         isCorrect = correct;
       }
@@ -773,42 +783,42 @@ export const ExamsQuizRenderer = ({
           </p>
         )}
         <div className="flex flex-col justify-end items-end gap-2 w-full lg:w-auto">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="px-4 py-1.5 bg-Black_light text-white rounded-full text-xs flex items-center gap-2"
+                aria-label={`Show ${questionTypeLabel || "question"} instructions`}
+              >
+                <InfoCircle /> Show Instructions
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[260px] bg-Black_light text-white">
+              <div className="flex flex-col gap-1">
+                <p className="font-semibold">{questionTypeLabel}</p>
+                <p className="leading-5">{questionInstruction}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+          {question.imageUrl ? (
+            <Button
               type="button"
-              className="px-4 py-1.5 bg-Black_light text-white rounded-full text-xs flex items-center gap-2"
-              aria-label={`Show ${questionTypeLabel || "question"} instructions`}
+              variant="outline"
+              className="rounded-[10px] h-9 !py-1 !px-3"
+              onClick={() => setIsImageOpen((open) => !open)}
             >
-              <InfoCircle /> Show Instructions
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-[260px] bg-Black_light text-white">
-            <div className="flex flex-col gap-1">
-              <p className="font-semibold">{questionTypeLabel}</p>
-              <p className="leading-5">{questionInstruction}</p>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-        {question.imageUrl ? (
+              <ImageIcon className="w-4 h-4 mr-2" />
+              {isImageOpen ? "Hide Image" : "View Image"}
+            </Button>
+          ) : null}
           <Button
-            type="button"
-            variant="outline"
-            className="rounded-[10px] h-9 !py-1 !px-3"
-            onClick={() => setIsImageOpen((open) => !open)}
+            onClick={() => setReportProblemExitDialog(true)}
+            variant="link"
+            className="text-primary_blue !text-[12px]"
           >
-            <ImageIcon className="w-4 h-4 mr-2" />
-            {isImageOpen ? "Hide Image" : "View Image"}
+            Report Problem
           </Button>
-        ) : null}
-         <Button
-          onClick={() => setReportProblemExitDialog(true)}
-          variant="link"
-          className="text-primary_blue !text-[12px]"
-         >
-          Report Problem
-         </Button>
-      </div>
+        </div>
       </div>
 
       {question.imageUrl && isImageOpen ? (
@@ -877,26 +887,27 @@ export const ExamsQuizRenderer = ({
           variant="outline"
           onClick={handleBack}
           disabled={currentQuestionIndex === 0}
-           className="rounded-[10px] h-10 !py-1 !px-4"
+          className="rounded-[10px] h-10 !py-1 !px-4"
         >
           <ArrowLeft /> Previous
         </Button>
 
-          <Button
-            onClick={handleNext}
-            disabled={currentQuestionIndex === totalQuestions - 1}
-             className="rounded-[10px] h-10 !py-1 !px-4"
-          >
-           
-            Next
-             <ArrowRight /> 
-          </Button>
+        <Button
+          onClick={handleNext}
+          disabled={currentQuestionIndex === totalQuestions - 1}
+          className="rounded-[10px] h-10 !py-1 !px-4"
+        >
+          Next
+          <ArrowRight />
+        </Button>
 
-          {currentQuestionIndex === totalQuestions - 1 && !isCurrentQuestionLocked && (
-            <Button onClick={handleComplete} 
-             className="rounded-[10px] h-10 !py-1 !px-4"
-             disabled={isCompleting}
-             >
+        {currentQuestionIndex === totalQuestions - 1 &&
+          !isCurrentQuestionLocked && (
+            <Button
+              onClick={handleComplete}
+              className="rounded-[10px] h-10 !py-1 !px-4"
+              disabled={isCompleting}
+            >
               {isCompleting ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -920,11 +931,16 @@ export const ExamsQuizRenderer = ({
           </Button>
         )}
       </div>
-      <ReportProblemDialog 
-       open={reportProblemDialog}
+      <ReportProblemDialog
+        open={reportProblemDialog}
         onClose={() => setReportProblemExitDialog(false)}
         examId={examId}
         courseId={courseId}
+        questionDetails={{
+          questionText: question?.question,
+          domain: question?.domain,
+          courseName,
+        }}
       />
     </div>
   );

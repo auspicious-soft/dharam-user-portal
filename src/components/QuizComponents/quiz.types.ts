@@ -2,6 +2,7 @@ export interface BaseQuestion {
   id: string;
   question: string;
   qExplanation: string;
+  domain?: string;
   isAttempted?: boolean;
   isCorrect?: boolean | null;
   answerJson?: {

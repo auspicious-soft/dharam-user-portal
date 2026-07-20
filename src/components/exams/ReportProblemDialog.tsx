@@ -19,6 +19,11 @@ interface ReportProblemProps {
   onClose: () => void;
   examId?: string;
   courseId?: string;
+  questionDetails?: {
+    questionText?: string;
+    domain?: string;
+    courseName?: string;
+  };
 }
 
 export const ReportProblemDialog = ({
@@ -26,6 +31,7 @@ export const ReportProblemDialog = ({
   onClose,
   examId,
   courseId,
+  questionDetails,
 }: ReportProblemProps) => {
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,12 +48,25 @@ export const ReportProblemDialog = ({
     try {
       setIsSubmitting(true);
       const storedCourseId = localStorage.getItem("selectedCourseId") ?? "";
+      const questionText = questionDetails?.questionText?.trim();
+      const domain = questionDetails?.domain?.trim();
+      const courseName = questionDetails?.courseName?.trim();
+      const questionContext = [
+        questionText ? `Question: ${questionText}` : "",
+        domain ? `Domain: ${domain}` : "",
+        courseName ? `Course: ${courseName}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
       await api.post("/user/report-problem", {
         courseId: storedCourseId || courseId || "",
         type: "Mock Exam",
         relevantId: examId,
         emailSent: false,
-        comments: comments.trim(),
+        comments: [comments.trim(), questionContext]
+          .filter(Boolean)
+          .join("\n\n"),
       });
       onClose();
     } catch (error) {
@@ -71,7 +90,6 @@ export const ReportProblemDialog = ({
           <DialogTitle className="text-center text-2xl text-Black_light md:text-3xl font-bold">
             Report a Problem
           </DialogTitle>
-
         </DialogHeader>
         <div className="mb-4 flex flex-col gap-2">
           <Label className="text-paragraph">Add Comments</Label>
@@ -83,7 +101,7 @@ export const ReportProblemDialog = ({
           />
         </div>
         {/* Footer */}
-        <DialogFooter  className="gap-2">
+        <DialogFooter className="gap-2">
           <DialogClose asChild>
             <Button variant="outline" className="max-h-[44px] min-w-36">
               Cancel
