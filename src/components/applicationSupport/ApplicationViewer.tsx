@@ -1,6 +1,6 @@
 // ContentViewer.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Maximize2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { SelectedContent } from "./applicationtypes";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
@@ -27,7 +27,9 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
   const [isVideoLoading, setIsVideoLoading] = useState(true);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
+  const enlargedPdfContainerRef = useRef<HTMLDivElement | null>(null);
   const [pdfWidth, setPdfWidth] = useState<number | null>(null);
+  const [enlargedPdfWidth, setEnlargedPdfWidth] = useState<number | null>(null);
   const [isPdfReady, setIsPdfReady] = useState(false);
   const pdfDevicePixelRatio =
     typeof window !== "undefined"
@@ -59,6 +61,23 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
     setNumPages(0);
     setIsPdfReady(false);
   }, [content.pdfUrl, content.title]);
+
+  useEffect(() => {
+    if (!isPdfModalOpen || !enlargedPdfContainerRef.current) return;
+
+    const element = enlargedPdfContainerRef.current;
+    const updateWidth = () => {
+      const nextWidth = Math.floor(element.clientWidth);
+      if (nextWidth > 0) setEnlargedPdfWidth(nextWidth);
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(() => updateWidth());
+    resizeObserver.observe(element);
+
+    return () => resizeObserver.disconnect();
+  }, [isPdfModalOpen]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -137,8 +156,10 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3 w-full">
               <Button
                 onClick={() => setIsPdfModalOpen(true)}
-                className="bg-primary_heading text-white hover:bg-primary_heading/90"
+                variant="outline"
+                className="rounded-[10px] h-10 !py-1 !px-4"
               >
+                <Maximize2 className="w-4 h-4" />
                 View Large
               </Button>
               <div className="text-center flex-1">
@@ -263,7 +284,10 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                 </Button>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-auto rounded-[16px] bg-white p-4">
+              <div
+                ref={enlargedPdfContainerRef}
+                className="flex-1 min-h-0 overflow-auto rounded-[16px] bg-white p-4"
+              >
                 {content.pdfUrl ? (
                   isImage ? (
                     <div className="flex min-h-full items-center justify-center">
@@ -307,11 +331,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                             renderMode={pdfRenderMode}
                             renderTextLayer={true}
                             renderAnnotationLayer={true}
-                            width={
-                              typeof window !== "undefined"
-                                ? Math.min(1200, window.innerWidth - 160)
-                                : 1200
-                            }
+                            width={enlargedPdfWidth ?? undefined}
                             devicePixelRatio={pdfDevicePixelRatio}
                           />
                         )}
