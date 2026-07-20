@@ -33,21 +33,11 @@ const DomainTaskViewer = () => {
         const response = await api.get(`/user/domain-tasks/${courseId}`);
         const data = (response.data as { data?: any[] })?.data ?? [];
         const domains = Array.isArray(data) ? data : [];
-        const allDomainsInactive =
-          domains.length > 0 &&
-          domains.every(
-            (domain: any) =>
-              String(domain.status ?? "ACTIVE").toUpperCase() === "INACTIVE"
-          );
-
         let foundTask: any | null = null;
         let foundDomainTitle = "";
-        let foundDomainStatus = "ACTIVE";
         let foundTaskStatus = "ACTIVE";
-        let foundDomainIndex = -1;
-        let foundTaskIndex = -1;
 
-        domains.some((domain: any, domainIndex: number) => {
+        domains.some((domain: any) => {
           const tasks = Array.isArray(domain.tasks) ? domain.tasks : [];
           const taskIndex = tasks.findIndex(
             (task: any) => String(task._id ?? task.id ?? "") === taskId
@@ -56,10 +46,7 @@ const DomainTaskViewer = () => {
             const match = tasks[taskIndex];
             foundTask = match;
             foundDomainTitle = domain.domain ?? domain.title ?? "Task";
-            foundDomainStatus = String(domain.status ?? "ACTIVE").toUpperCase();
             foundTaskStatus = String(match.status ?? "ACTIVE").toUpperCase();
-            foundDomainIndex = domainIndex;
-            foundTaskIndex = taskIndex;
             return true;
           }
           return false;
@@ -71,16 +58,7 @@ const DomainTaskViewer = () => {
           return;
         }
 
-        const isFirstTaskOfFirstDomain =
-          foundDomainIndex === 0 && foundTaskIndex === 0;
-        const isPreviewTask =
-          allDomainsInactive &&
-          isFirstTaskOfFirstDomain &&
-          foundTaskStatus === "ACTIVE";
-        const locked =
-          foundTaskStatus === "INACTIVE" ||
-          (foundDomainStatus === "INACTIVE" && !isPreviewTask);
-        setIsTaskLocked(locked);
+        setIsTaskLocked(foundTaskStatus === "INACTIVE");
 
         setTask({
           id: foundTask._id,

@@ -18,7 +18,6 @@ interface Props {
 export const DomainsModuleSection = ({
   module,
   defaultOpen = false,
-  userHasPremium,
   onBuyPremiumDomain,
   isPremiumPurchasing = false,
   bookmarkedItems,
@@ -85,9 +84,7 @@ export const DomainsModuleSection = ({
           }`}
         >
           {module.items.map((item, index) => {
-            const isItemLocked =
-              Boolean(item.isLocked) ||
-              (Boolean(module.isPremium) && !userHasPremium && !isInactiveModule);
+            const isItemLocked = Boolean(item.isLocked);
             const isBookmarked = bookmarkedItems.has(item.id);
 
             return (

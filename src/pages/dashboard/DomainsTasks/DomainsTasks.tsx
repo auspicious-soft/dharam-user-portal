@@ -168,13 +168,6 @@ const DomainsTasks = () => {
         const response = await api.get(`/user/domain-tasks/${courseId}`);
         const data = (response.data as { data?: any[] })?.data ?? [];
         const rawModules = Array.isArray(data) ? data : [];
-        const allDomainsInactive =
-          rawModules.length > 0 &&
-          rawModules.every(
-            (module: any) =>
-              String(module.status ?? "ACTIVE").toUpperCase() === "INACTIVE"
-          );
-
         const nextBookmarkedItems = new Set<string>();
         const orderedRawModules = [...rawModules].sort((a: any, b: any) => {
           const firstOrder = getOrderValue(a?.order, rawModules.indexOf(a));
@@ -185,7 +178,6 @@ const DomainsTasks = () => {
         const mappedModules: Module[] = orderedRawModules.map(
           (module: any, moduleIndex: number) => {
             const moduleStatus = String(module.status ?? "ACTIVE").toUpperCase();
-            const isInactiveDomain = moduleStatus === "INACTIVE";
             const rawItems =
               (Array.isArray(module.tasks) && module.tasks) ||
               (Array.isArray(module.items) && module.items) ||
@@ -207,15 +199,7 @@ const DomainsTasks = () => {
                   item.taskId ??
                   `${module._id}-${index}`;
                 const itemStatus = String(item.status ?? "ACTIVE").toUpperCase();
-                const isFirstTaskOfFirstDomain =
-                  moduleIndex === 0 && index === 0;
-                const isPreviewTask =
-                  allDomainsInactive &&
-                  isFirstTaskOfFirstDomain &&
-                  itemStatus === "ACTIVE";
-                const isLocked =
-                  itemStatus === "INACTIVE" ||
-                  (isInactiveDomain && !isPreviewTask);
+                const isLocked = itemStatus === "INACTIVE";
 
                 if (item.isBookmarked) {
                   nextBookmarkedItems.add(String(id));
