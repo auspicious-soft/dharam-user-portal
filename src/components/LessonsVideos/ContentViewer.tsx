@@ -45,6 +45,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
   const [isPdfEnlarged, setIsPdfEnlarged] = useState(false);
 
   const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const enlargedPdfContainerRef = useRef<HTMLDivElement | null>(null);
   const [pdfWidth, setPdfWidth] = useState<number | null>(null);
@@ -58,11 +59,24 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
   const isDirectVideoUrl = (url?: string) =>
     Boolean(url && /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url));
   const contentResetKey = content.type === "module" ? content.title : content.id;
+  const mediaResetKey =
+    content.type === "video"
+      ? `${content.id}-${content.videoUrl ?? ""}`
+      : contentResetKey;
 
   useEffect(() => {
     setIsVideoLoading(true);
     setIsPdfEnlarged(false);
-  }, [contentResetKey, content.type]);
+  }, [mediaResetKey, content.type]);
+
+  useEffect(() => {
+    if (content.type !== "video" || !videoRef.current) {
+      return;
+    }
+
+    videoRef.current.pause();
+    videoRef.current.load();
+  }, [mediaResetKey, content.type]);
 
   useEffect(() => {
     if (!pdfContainerRef.current) return;
@@ -149,14 +163,18 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
           )}
           {directVideo ? (
             <video
-              src={content.videoUrl}
+              key={mediaResetKey}
+              ref={videoRef}
               className="w-full aspect-video rounded-[10px]"
               controls
               controlsList="nodownload"
               disablePictureInPicture
               playsInline
+              preload="metadata"
               onContextMenu={preventContextMenu}
+              onCanPlay={() => setIsVideoLoading(false)}
               onLoadedData={() => setIsVideoLoading(false)}
+              onError={() => setIsVideoLoading(false)}
               onTimeUpdate={(event) => {
                 const { currentTime, duration } = event.currentTarget;
                 if (!duration || !Number.isFinite(duration) || duration <= 0) {
@@ -165,10 +183,13 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
                 const progressPercent = (currentTime / duration) * 100;
                 onVideoProgress?.(content.id, content.moduleId, progressPercent);
               }}
-            />
+            >
+              <source src={content.videoUrl} />
+            </video>
           ) : (
             <div onContextMenu={preventContextMenu}>
               <iframe
+                key={mediaResetKey}
                 src={content.videoUrl}
                 className="w-full aspect-video rounded-[10px]"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
