@@ -30,6 +30,7 @@ const DayQuestion = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [isNotAccessible, setIsNotAccessible] = useState(false);
+  const [isNotPurchased, setIsNotPurchased] = useState(false);
 
   const mapQuestion = (rawQuestion: any): QuizQuestion | null => {
     if (!rawQuestion) return null;
@@ -164,8 +165,7 @@ const DayQuestion = () => {
   };
 
   useEffect(() => {
-    const courseId =
-      localStorage.getItem("selectedCourseId")
+    const courseId = localStorage.getItem("selectedCourseId");
 
     const fetchQuestionOfTheDay = async () => {
       setIsLoading(true);
@@ -183,17 +183,24 @@ const DayQuestion = () => {
         const isQuestionNotAccessible =
           questionStatus === "NOT_ACCESSABLE" ||
           questionStatus === "NOT_ACCESSIBLE";
+        const isQuestionNotPurchased = questionStatus === "NOT_PURCHASED";
 
-        const mapped = isQuestionNotAccessible ? null : mapQuestion(rawQuestion);
+        const mapped =
+          isQuestionNotAccessible || isQuestionNotPurchased
+            ? null
+            : mapQuestion(rawQuestion);
         setIsNotAccessible(isQuestionNotAccessible);
+        setIsNotPurchased(isQuestionNotPurchased);
         setQuestion(mapped);
         setIsCompleted(
-          isQuestionNotAccessible
+          isQuestionNotAccessible || isQuestionNotPurchased
             ? false
             : Boolean(rawQuestion?.isAttempted ?? false),
         );
         setAttemptId(
-          isQuestionNotAccessible ? null : rawQuestion?.attemptId ?? null,
+          isQuestionNotAccessible || isQuestionNotPurchased
+            ? null
+            : (rawQuestion?.attemptId ?? null),
         );
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -271,13 +278,14 @@ const DayQuestion = () => {
     setShowResult(true);
 
     try {
-      const courseId =
-        localStorage.getItem("selectedCourseId")
+      const courseId = localStorage.getItem("selectedCourseId");
       // const payload: { id: string; attemptId?: string } = { id: question.id };
       // if (attemptId) {
       //   payload.attemptId = attemptId;
       // }
-      await api.post(`/user/question-of-the-day/${courseId}`, {id : attemptId});
+      await api.post(`/user/question-of-the-day/${courseId}`, {
+        id: attemptId,
+      });
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Failed to submit question of the day", error);
@@ -323,11 +331,11 @@ const DayQuestion = () => {
                 will unlock tomorrow.
               </p>
               <Button
-                          className="h-[44px] flex items-center gap-1 md:gap-2 w-full mt-6"
-                          onClick={() => navigate("/")}
-                        >
-                          Got It
-                        </Button>
+                className="h-[44px] flex items-center gap-1 md:gap-2 w-full mt-6"
+                onClick={() => navigate("/")}
+              >
+                Got It
+              </Button>
             </div>
           </div>
         </div>
@@ -342,6 +350,38 @@ const DayQuestion = () => {
           Question of the day
         </h2>
         <div className="p-6 text-center text-gray-500">Loading question...</div>
+      </div>
+    );
+  }
+
+  if (isNotPurchased) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className=" inline-flex flex-col justify-start min-h-[77vh]">
+          <div className="self-stretch p-4 md:p-[30px] bg-[#f0f8ff] rounded-[20px] inline-flex flex-col justify-start gap-2.5 max-w-xl w-full m-auto">
+            <div className="p-4 bg-green-50 rounded-full">
+              <img
+                src={QuestionDayIcon}
+                className="max-w-[80px] md:max-w-[100px] m-auto"
+              />
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-Black_light mb-2">
+                Question Of The Day
+              </h2>
+              <p className="text-paragraph">
+                You have not purchased any plan that contains the Question of
+                the Day for this course.
+              </p>
+              <Button
+                className="h-[44px] flex items-center gap-1 md:gap-2 w-full mt-6"
+                onClick={() => navigate("/")}
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
