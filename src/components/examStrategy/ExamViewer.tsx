@@ -245,7 +245,7 @@ export const ExamViewer: React.FC<ContentViewerProps> = ({ content }) => {
         </div>
 
         <Dialog open={isPdfEnlarged} onOpenChange={setIsPdfEnlarged}>
-          <DialogContent className="w-[96vw] max-w-[1200px] h-[92vh] overflow-hidden p-4 md:p-5 flex flex-col">
+          <DialogContent className="max-w-[98vw] w-[98vw] max-h-[98vh] h-[98vh] p-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
             <DialogHeader className="pr-8">
               <DialogTitle className="text-Black_light text-lg font-bold">
                 {content.title}

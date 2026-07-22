@@ -67,16 +67,26 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
 
     const element = enlargedPdfContainerRef.current;
     const updateWidth = () => {
-      const nextWidth = Math.floor(element.clientWidth);
-      if (nextWidth > 0) setEnlargedPdfWidth(nextWidth);
+      const rectWidth = element.getBoundingClientRect().width;
+      const nextWidth = Math.max(0, Math.floor(rectWidth - 32));
+      if (nextWidth > 0) {
+        setEnlargedPdfWidth((prevWidth) =>
+          prevWidth === nextWidth ? prevWidth : nextWidth,
+        );
+      }
     };
+
+    const frameId = window.requestAnimationFrame(updateWidth);
 
     updateWidth();
 
     const resizeObserver = new ResizeObserver(() => updateWidth());
     resizeObserver.observe(element);
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      window.cancelAnimationFrame(frameId);
+    };
   }, [isPdfModalOpen]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -252,24 +262,24 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
         </div>
 
         <Dialog open={isPdfModalOpen} onOpenChange={setIsPdfModalOpen}>
-          <DialogContent className="max-w-7xl w-[96vw] h-[94vh] p-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
-            <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogContent className="max-w-[98vw] w-[98vw] max-h-[98vh] h-[98vh] p-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
+            <DialogHeader className="pb-2 shrink-0">
               <DialogTitle className="text-xl font-semibold text-Black_light">
                 {content.title}
               </DialogTitle>
             </DialogHeader>
 
-            <div className="flex flex-col flex-1 min-h-0 px-6 pb-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 shrink-0">
+            <div className="flex flex-col flex-1 min-h-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 h-10 mb-4 shrink-0">
                 <Button
                   onClick={handlePreviousSlide}
                   disabled={currentSlideIndex === 1}
                   variant="outline"
-                  className="border-primary_heading text-primary_heading"
+                  className="border-primary_heading h-10 text-primary_heading"
                 >
                   Previous
                 </Button>
-                <div className="text-center flex-1">
+                <div className="text-center h-10 flex-1">
                   <p className="text-sm font-semibold text-Black_light">
                     Page {currentSlideIndex} of {numPages || "..."}
                   </p>
@@ -278,7 +288,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                   onClick={handleNextSlide}
                   disabled={currentSlideIndex === numPages}
                   variant="outline"
-                  className="border-primary_heading text-primary_heading"
+                  className="border-primary_heading h-10 text-primary_heading"
                 >
                   Next
                 </Button>
@@ -286,7 +296,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
 
               <div
                 ref={enlargedPdfContainerRef}
-                className="flex-1 min-h-0 overflow-auto rounded-[16px] bg-white p-4"
+                className="flex-1 min-h-0 w-full overflow-auto rounded-[16px] bg-[#EDF4FD] "
               >
                 {content.pdfUrl ? (
                   isImage ? (
@@ -298,7 +308,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                       />
                     </div>
                   ) : (
-                    <div className="flex min-h-full items-center justify-center">
+                    <div className="flex w-full justify-center">
                       <Document
                         file={content.pdfUrl}
                         onLoadSuccess={onDocumentLoadSuccess}
