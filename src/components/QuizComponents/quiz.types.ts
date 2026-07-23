@@ -8,7 +8,7 @@ export interface BaseQuestion {
   answerJson?: {
     questionId?: string;
     type?: string;
-    selectedAnswer?: string[] | Record<string, string>;
+    selectedAnswer?: string | string[] | Record<string, string>;
   } | null;
   imageUrl?: string;
 }

@@ -40,7 +40,7 @@ interface QuizRendererProps {
 type ExamAnswerJson = {
   questionId: string;
   type: "MCQ" | "DND" | "FIB";
-  selectedAnswer: string[] | Record<string, string>;
+  selectedAnswer: string | string[] | Record<string, string>;
 };
 
 type ExamDraft = {
@@ -59,6 +59,10 @@ const normalizeAnswerText = (value: unknown) =>
 
 const getAnswerJsonSelectedArray = (question: QuizQuestion) => {
   const selectedAnswer = question.answerJson?.selectedAnswer;
+
+  if (typeof selectedAnswer === "string") {
+    return selectedAnswer ? [selectedAnswer] : [];
+  }
 
   if (Array.isArray(selectedAnswer)) {
     return selectedAnswer.map((answer) => String(answer ?? "")).filter(Boolean);
@@ -91,7 +95,13 @@ const hydrateDragDropAnswer = (question: QuizQuestion) => {
   if (question.type !== "dragdrop") return {};
 
   const selectedAnswer = question.answerJson?.selectedAnswer;
-  if (!selectedAnswer || Array.isArray(selectedAnswer)) return {};
+  if (
+    !selectedAnswer ||
+    typeof selectedAnswer === "string" ||
+    Array.isArray(selectedAnswer)
+  ) {
+    return {};
+  }
 
   return question.dropZones.reduce<Record<string, string>>(
     (answers, zone, index) => {
@@ -206,6 +216,18 @@ const buildAnswerJson = (
   return null;
 };
 
+const getAnswerJsonType = (question: QuizQuestion): ExamAnswerJson["type"] => {
+  if (question.type === "dragdrop") return "DND";
+  if (question.type === "fillblank") return "FIB";
+  return "MCQ";
+};
+
+const buildMarkNextAnswerJson = (question: QuizQuestion): ExamAnswerJson => ({
+  questionId: question.id,
+  type: getAnswerJsonType(question),
+  selectedAnswer: "markNext",
+});
+
 export const ExamsQuizRenderer = ({
   quiz,
   onComplete,
@@ -253,8 +275,7 @@ export const ExamsQuizRenderer = ({
         : question.type === "fillblank"
           ? Object.values(fillBlankCurrentAnswers).some(Boolean)
           : false;
-  const isMarkAndNextDisabled =
-    isCurrentQuestionLocked || results[currentQuestionIndex] !== undefined;
+  const isMarkAndNextDisabled = false;
 
   const [reportProblemDialog, setReportProblemExitDialog] = useState(false);
 
@@ -427,6 +448,24 @@ export const ExamsQuizRenderer = ({
       });
     } catch (error) {
       console.error("Failed to submit question response", error);
+    }
+  };
+
+  const submitMarkNextQuestionResponse = async (
+    answerJson: ExamAnswerJson,
+  ) => {
+    if (!examId) return;
+
+    try {
+      await api.post("/user/submit-question-response", {
+        examId,
+        isCorrect: false,
+        questionId: question.id,
+        isAttempted: false,
+        answerJson,
+      });
+    } catch (error) {
+      console.error("Failed to submit mark and next response", error);
     }
   };
 
@@ -691,6 +730,11 @@ export const ExamsQuizRenderer = ({
       delete copy[currentQuestionIndex];
       return copy;
     });
+
+    if (isCurrentQuestionLocked) {
+      const answerJson = buildMarkNextAnswerJson(question);
+      void submitMarkNextQuestionResponse(answerJson);
+    }
 
     moveToQuestion(currentQuestionIndex + 1);
   };
