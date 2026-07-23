@@ -264,6 +264,8 @@ export const ExamsQuizRenderer = ({
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
   const isCurrentQuestionLocked = Boolean(question?.isAttempted);
+  const isCurrentQuestionSubmitted =
+    results[currentQuestionIndex] !== undefined;
   const showResultState = showResult || isCurrentQuestionLocked;
   const dragDropCurrentAnswers = dragDropAnswers[currentQuestionIndex] ?? {};
   const fillBlankCurrentAnswers = fillBlankAnswers[currentQuestionIndex] ?? {};
@@ -731,7 +733,7 @@ export const ExamsQuizRenderer = ({
       return copy;
     });
 
-    if (isCurrentQuestionLocked) {
+    if (isCurrentQuestionLocked || isCurrentQuestionSubmitted) {
       const answerJson = buildMarkNextAnswerJson(question);
       void submitMarkNextQuestionResponse(answerJson);
     }
