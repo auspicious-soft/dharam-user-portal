@@ -227,6 +227,19 @@ const PurchasePlanCard = ({
 
   return (
     <div className="flex flex-col gap-6 lg:px-2.5 ">
+       {freeTrialNotice ? (
+        <div className="rounded-[12px] border border-primary_heading/30 bg-white px-4 py-3 text-center shadow-sm">
+          <p className="text-sm font-semibold text-primary_heading">
+            {freeTrialNotice}
+          </p>
+          {hasActiveFreeTrialForSelectedCourse &&
+          formattedFreeTrialExpiryDate ? (
+            <p className="mt-1 text-xs font-semibold text-primary_heading">
+              Active until {formattedFreeTrialExpiryDate}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex gap-3 flex-wrap items-center justify-between">
         <h2 className="text-Black_light text-lg font-bold">
           What you'll access - find the right plan for you
@@ -269,19 +282,7 @@ const PurchasePlanCard = ({
         </div>
       )}
 
-      {freeTrialNotice ? (
-        <div className="rounded-[12px] border border-primary_heading/30 bg-white px-4 py-3 text-center shadow-sm">
-          <p className="text-sm font-semibold text-primary_heading">
-            {freeTrialNotice}
-          </p>
-          {hasActiveFreeTrialForSelectedCourse &&
-          formattedFreeTrialExpiryDate ? (
-            <p className="mt-1 text-xs font-semibold text-primary_heading">
-              Active until {formattedFreeTrialExpiryDate}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+     
 
       {!hasUsedFreeTrialForSelectedCourse ? (
         <StartFreeTrial
