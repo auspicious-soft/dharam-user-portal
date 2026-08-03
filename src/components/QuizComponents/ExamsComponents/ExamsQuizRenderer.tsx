@@ -216,17 +216,6 @@ const buildAnswerJson = (
   return null;
 };
 
-const getAnswerJsonType = (question: QuizQuestion): ExamAnswerJson["type"] => {
-  if (question.type === "dragdrop") return "DND";
-  if (question.type === "fillblank") return "FIB";
-  return "MCQ";
-};
-
-const buildMarkNextAnswerJson = (question: QuizQuestion): ExamAnswerJson => ({
-  questionId: question.id,
-  type: getAnswerJsonType(question),
-  selectedAnswer: "markNext",
-});
 
 export const ExamsQuizRenderer = ({
   quiz,
@@ -453,23 +442,6 @@ export const ExamsQuizRenderer = ({
     }
   };
 
-  const submitMarkNextQuestionResponse = async (
-    answerJson: ExamAnswerJson,
-  ) => {
-    if (!examId) return;
-
-    try {
-      await api.post("/user/submit-question-response", {
-        examId,
-        isCorrect: false,
-        questionId: question.id,
-        isAttempted: false,
-        answerJson,
-      });
-    } catch (error) {
-      console.error("Failed to submit mark and next response", error);
-    }
-  };
 
   const moveToQuestion = useCallback(
     (index: number) => {
@@ -733,10 +705,6 @@ export const ExamsQuizRenderer = ({
       return copy;
     });
 
-    if (isCurrentQuestionLocked || isCurrentQuestionSubmitted) {
-      const answerJson = buildMarkNextAnswerJson(question);
-      void submitMarkNextQuestionResponse(answerJson);
-    }
 
     moveToQuestion(currentQuestionIndex + 1);
   };
@@ -991,3 +959,4 @@ export const ExamsQuizRenderer = ({
     </div>
   );
 };
+

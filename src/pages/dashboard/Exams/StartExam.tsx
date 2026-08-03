@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getPublicUrlForKey } from "@/utils/s3Upload";
+import { getMaxSelection, isMCQSelectionCorrect } from "@/components/QuizComponents/mcqUtils";
 
 type MockExamResultResponse = {
   reportId?: string;
@@ -289,6 +290,152 @@ function useTimer(initialSeconds: number, isPaused: boolean) {
 }
 
 // ─── Main Component ───
+
+type ExamAnswerJson = {
+  questionId: string;
+  type: "MCQ" | "DND" | "FIB";
+  selectedAnswer: string | string[] | Record<string, string>;
+};
+
+type ExamDraft = {
+  mcqAnswers?: Record<string, string[]>;
+  dragDropAnswers?: Record<string, Record<string, string>>;
+  fillBlankAnswers?: Record<string, Record<string, string>>;
+};
+
+const getDraftMcqAnswerIds = (question: QuizQuestion, rawAnswers?: string[]) => {
+  if (question.type !== "mcq" || !Array.isArray(rawAnswers)) return [];
+
+  const validOptionIds = new Set(question.options.map((option) => option.id));
+  const selectedIds: string[] = [];
+
+  rawAnswers.forEach((answerId) => {
+    if (validOptionIds.has(answerId) && !selectedIds.includes(answerId)) {
+      selectedIds.push(answerId);
+    }
+  });
+
+  return selectedIds.slice(0, getMaxSelection(question));
+};
+
+const buildDraftAnswerJson = (
+  question: QuizQuestion,
+  index: number,
+  draft: ExamDraft,
+): ExamAnswerJson | null => {
+  const questionIndex = String(index);
+
+  if (question.type === "mcq") {
+    const selectedOptionIds = getDraftMcqAnswerIds(
+      question,
+      draft.mcqAnswers?.[questionIndex],
+    );
+    const selectedAnswer = selectedOptionIds
+      .map((optionId) =>
+        question.options.find((option) => option.id === optionId)?.text,
+      )
+      .filter((answer): answer is string => Boolean(answer));
+
+    if (selectedAnswer.length === 0) return null;
+
+    return {
+      questionId: question.id,
+      type: "MCQ",
+      selectedAnswer,
+    };
+  }
+
+  if (question.type === "dragdrop") {
+    const currentAnswers = draft.dragDropAnswers?.[questionIndex] ?? {};
+    const selectedAnswer = question.dropZones.reduce<Record<string, string>>(
+      (answers, zone, zoneIndex) => {
+        const droppedItemId = currentAnswers[zone.id];
+        const droppedItem = question.draggableItems.find(
+          (item) => item.id === droppedItemId,
+        );
+
+        if (droppedItem?.text) {
+          answers[String(zoneIndex)] = droppedItem.text;
+        }
+
+        return answers;
+      },
+      {},
+    );
+
+    if (Object.keys(selectedAnswer).length === 0) return null;
+
+    return {
+      questionId: question.id,
+      type: "DND",
+      selectedAnswer,
+    };
+  }
+
+  if (question.type === "fillblank") {
+    const currentAnswers = draft.fillBlankAnswers?.[questionIndex] ?? {};
+    const selectedAnswer = question.blanks
+      .map((blank) => {
+        const assignedOptionIndex = Object.keys(currentAnswers).find(
+          (key) => currentAnswers[key] === blank.id,
+        );
+
+        if (assignedOptionIndex === undefined) return "";
+
+        return question.options[Number(assignedOptionIndex)] ?? "";
+      })
+      .filter(Boolean);
+
+    if (selectedAnswer.length === 0) return null;
+
+    return {
+      questionId: question.id,
+      type: "FIB",
+      selectedAnswer,
+    };
+  }
+
+  return null;
+};
+
+const getDraftAnswerIsCorrect = (
+  question: QuizQuestion,
+  index: number,
+  draft: ExamDraft,
+) => {
+  const questionIndex = String(index);
+
+  if (question.type === "mcq") {
+    return isMCQSelectionCorrect(
+      question,
+      getDraftMcqAnswerIds(question, draft.mcqAnswers?.[questionIndex]),
+    );
+  }
+
+  if (question.type === "dragdrop") {
+    const currentAnswers = draft.dragDropAnswers?.[questionIndex] ?? {};
+    return question.dropZones.every(
+      (zone) => currentAnswers[zone.id] === zone.correctItemId,
+    );
+  }
+
+  if (question.type === "fillblank") {
+    const currentAnswers = draft.fillBlankAnswers?.[questionIndex] ?? {};
+    return question.blanks.every((blank) => {
+      const assignedOptionIndex = Object.keys(currentAnswers).find(
+        (key) => currentAnswers[key] === blank.id,
+      );
+
+      if (assignedOptionIndex === undefined) return false;
+
+      return blank.correctAnswers.includes(
+        question.options[Number(assignedOptionIndex)],
+      );
+    });
+  }
+
+  return false;
+};
 const StartExam = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -464,6 +611,54 @@ const StartExam = () => {
     setVisitedQuestions((prev) => new Set(prev).add(index));
   };
 
+  const flushMarkedDraftAnswers = useCallback(async () => {
+    if (!mockExamData?.examId || marked.size === 0) return;
+    if (typeof window === "undefined") return;
+
+    let draft: ExamDraft | null = null;
+    try {
+      const rawDraft = sessionStorage.getItem(examDraftKey);
+      draft = rawDraft ? (JSON.parse(rawDraft) as ExamDraft) : null;
+    } catch {
+      draft = null;
+    }
+
+    if (!draft) return;
+
+    const markedIndexes = Array.from(marked).sort((a, b) => a - b);
+
+    for (const questionIndex of markedIndexes) {
+      if (results[questionIndex] !== undefined) continue;
+
+      const markedQuestion = quiz[questionIndex];
+      if (!markedQuestion || markedQuestion.isAttempted) continue;
+
+      const answerJson = buildDraftAnswerJson(
+        markedQuestion,
+        questionIndex,
+        draft,
+      );
+      if (!answerJson) continue;
+
+      const isCorrect = getDraftAnswerIsCorrect(
+        markedQuestion,
+        questionIndex,
+        draft,
+      );
+
+      try {
+        await api.post("/user/submit-question-response", {
+          questionId: markedQuestion.id,
+          isCorrect,
+          examId: mockExamData.examId,
+          availableTime: remainingSeconds,
+          answerJson,
+        });
+      } catch (error) {
+        console.error("Failed to submit marked question response", error);
+      }
+    }
+  }, [examDraftKey, marked, mockExamData?.examId, quiz, remainingSeconds, results]);
   const handleSubmitExam = useCallback(
     async (openReport = true) => {
       if (!mockExamData?.examId) return;
@@ -471,6 +666,7 @@ const StartExam = () => {
 
       try {
         setIsSubmitting(true);
+        await flushMarkedDraftAnswers();
         if (openReport) {
           await wait(RESULT_FETCH_DELAY_MS);
         }
@@ -526,6 +722,7 @@ const StartExam = () => {
       examDraftKey,
       examSessionKey,
       examTimeKey,
+      flushMarkedDraftAnswers,
       isSubmitting,
       mockExamData?.examId,
       navigate,
@@ -898,3 +1095,9 @@ const StartExam = () => {
 };
 
 export default StartExam;
+
+
+
+
+
+
