@@ -24,6 +24,7 @@ const LearningManagementSystem: React.FC = () => {
   const [selectedContent, setSelectedContent] = useState<SelectedContent | null>(null);
 
   const [userHasPremium] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [bookmarkedItems, setBookmarkedItems] = useState<Set<string>>(
     new Set()
   );
@@ -206,6 +207,7 @@ const LearningManagementSystem: React.FC = () => {
       localStorage.getItem("selectedCourseId") 
 
     const fetchLessonsVideos = async () => {
+      setIsLoading(true);
       try {
         const response = await api.get(`/user/lessons-videos/${courseId}`);
         const data = (response.data as { data?: any[] })?.data ?? [];
@@ -308,6 +310,8 @@ const LearningManagementSystem: React.FC = () => {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to fetch lessons videos", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -635,7 +639,11 @@ const LearningManagementSystem: React.FC = () => {
         {/* LEFT PANEL */}
         <div className="space-y-2.5">
           {!showBookmarks ? (
-            modules.length > 0 ? (
+            isLoading ? (
+              <div className="p-4 text-sm text-paragraph">
+                Data is loading
+              </div>
+            ) : modules.length > 0 ? (
               modules.map((module) => (
                 <ModuleSection
                   key={module.id}
@@ -742,3 +750,5 @@ const LearningManagementSystem: React.FC = () => {
 };
 
 export default LearningManagementSystem;
+
+
