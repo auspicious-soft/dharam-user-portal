@@ -115,11 +115,16 @@ const getPreviewType = (item: ResourceItem): ResourcePreviewType => {
   ) {
     return "pdf";
   }
-  if (DIRECT_VIDEO_REGEX.test(item.url) || VIDEO_PROVIDER_REGEX.test(item.url)) {
+  if (
+    DIRECT_VIDEO_REGEX.test(item.url) ||
+    VIDEO_PROVIDER_REGEX.test(item.url)
+  ) {
     return "video";
   }
 
-  const normalizedFileType = String(item.fileType ?? "").trim().toUpperCase();
+  const normalizedFileType = String(item.fileType ?? "")
+    .trim()
+    .toUpperCase();
   if (normalizedFileType === "PDF") {
     return "pdf";
   }
@@ -166,14 +171,16 @@ const CourseIntroduction = () => {
   const [course, setCourse] = useState<Course>(defaultCourse);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedResource, setSelectedResource] = useState<ResourceItem | null>(
-    null
+    null,
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [pdfWidth, setPdfWidth] = useState<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const pdfDevicePixelRatio =
-    typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+    typeof window !== "undefined"
+      ? Math.min(window.devicePixelRatio || 1, 3)
+      : 1;
   const pdfRenderMode: "canvas" | "svg" = "canvas";
 
   const selectedResourceType = selectedResource
@@ -205,8 +212,7 @@ const CourseIntroduction = () => {
   }, [selectedResource, selectedResourceType]);
 
   useEffect(() => {
-    const courseId =
-      localStorage.getItem("selectedCourseId")
+    const courseId = localStorage.getItem("selectedCourseId");
 
     const fetchCourseIntro = async () => {
       try {
@@ -248,8 +254,9 @@ const CourseIntroduction = () => {
                 title: item.title ?? "",
                 content: item.description ?? "",
               }))
-              .filter((item: { title: string; content: string }) =>
-                item.title || item.content
+              .filter(
+                (item: { title: string; content: string }) =>
+                  item.title || item.content,
               ),
           });
         }
@@ -264,8 +271,9 @@ const CourseIntroduction = () => {
                 title: item.title ?? "",
                 content: item.description ?? "",
               }))
-              .filter((item: { title: string; content: string }) =>
-                item.title || item.content
+              .filter(
+                (item: { title: string; content: string }) =>
+                  item.title || item.content,
               ),
           });
         }
@@ -312,7 +320,11 @@ const CourseIntroduction = () => {
     setNumPages(0);
   };
 
-  const onDocumentLoadSuccess = ({ numPages: loadedPages }: { numPages: number }) => {
+  const onDocumentLoadSuccess = ({
+    numPages: loadedPages,
+  }: {
+    numPages: number;
+  }) => {
     setNumPages(loadedPages);
     setCurrentPage(1);
   };
@@ -332,13 +344,25 @@ const CourseIntroduction = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6">
         {/* LEFT PANEL */}
         <div className="flex flex-col gap-7">
-          {course.sections.map((section) => (
-            <SectionRenderer
-              key={section.id}
-              section={section}
-              onLinkClick={section.type === "links" ? handleOpenResource : undefined}
-            />
-          ))}
+          {isLoading ? (
+            <div className="rounded-[20px] bg-[#EDF4FD] p-6 text-center text-sm text-paragraph">
+              Loading course introduction...
+            </div>
+          ) : course.sections.length === 0 ? (
+            <div className="rounded-[20px] bg-[#EDF4FD] p-6 text-center text-sm text-paragraph">
+              No course introduction content is available at the moment.
+            </div>
+          ) : (
+            course.sections.map((section) => (
+              <SectionRenderer
+                key={section.id}
+                section={section}
+                onLinkClick={
+                  section.type === "links" ? handleOpenResource : undefined
+                }
+              />
+            ))
+          )}
         </div>
 
         {/* RIGHT PANEL */}
@@ -385,7 +409,9 @@ const CourseIntroduction = () => {
                       <Button
                         variant="link"
                         className="text-primary_heading"
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(1, prev - 1))
+                        }
                         disabled={currentPage === 1}
                       >
                         Previous
@@ -451,13 +477,13 @@ const CourseIntroduction = () => {
                 )}
               </div>
             </>
-          ) : (
+          ) : course.sections.length > 0 ? (
             <div className="flex-1 min-h-[220px] bg-[#EDF4FD] rounded-[20px] flex items-center justify-center px-4">
               <p className="text-sm text-paragraph text-center">
                 Select a file from Course Material to preview it here.
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

@@ -6,7 +6,6 @@ import { DragDropRenderer } from "./DragDropRenderer";
 import { FillBlankRenderer } from "./FillBlankRenderer";
 import { ImageIcon } from "lucide-react";
 import api from "@/lib/axios";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   formatCorrectAnswerLabel,
   getCorrectAnswerIds,
@@ -212,11 +211,21 @@ export const QuizRenderer = ({
             type="button"
             variant="outline"
             className="rounded-[10px] h-9 !py-1 !px-3"
-            onClick={() => setIsImageOpen(true)}
+            onClick={() => setIsImageOpen((open) => !open)}
           >
             <ImageIcon className="w-4 h-4 mr-2" />
-            View Image
+            {isImageOpen ? "Hide Image" : "View Image"}
           </Button>
+        </div>
+      ) : null}
+
+      {question.imageUrl && isImageOpen ? (
+        <div className="mb-4 rounded-[10px] border border-light-blue bg-white p-3">
+          <img
+            src={question.imageUrl}
+            alt="Question"
+            className="w-full max-h-[420px] object-contain rounded-lg"
+          />
         </div>
       ) : null}
 
@@ -349,21 +358,6 @@ export const QuizRenderer = ({
           </p>
         </div>
       )}
-
-      <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Question Image</DialogTitle>
-          </DialogHeader>
-          {question.imageUrl ? (
-            <img
-              src={question.imageUrl}
-              alt="Question"
-              className="w-full max-h-[75vh] object-contain rounded-lg"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

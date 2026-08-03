@@ -123,7 +123,7 @@ const Exams = () => {
               examTime: item.timeInMin ?? "Untimed",
               attempts: totalAttempt > 0 ? String(totalAttempt) : "",
               correctPercentage:
-                !isPremium && typeof item.correctPercentage === "number"
+                !isPremium && typeof item.correctPercentage === "number" && totalAttempt > 0
                   ? `${item.correctPercentage}%`
                   : "",
               status: item.currentStatus ?? "",

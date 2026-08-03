@@ -201,7 +201,9 @@ const mapApiPlanToBenefits = (plan: ApiPlan): string[] => {
       plan.digitalStudyMaterial ??
       plan.expertVideoModule,
   );
-  const hasExamStrategy = Boolean(plan.examStrategy ?? plan.hasExamStrategy);
+  const hasExamStrategy = Boolean(
+    plan.examStrategy ?? plan.hasExamStrategy ?? plan.expertVideoModule,
+  );
   const benefits: string[] = [];
 
   if (hasLessonsAndVideos) benefits.push("Lessons and Videos");

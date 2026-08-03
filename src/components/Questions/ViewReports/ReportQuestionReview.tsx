@@ -31,7 +31,11 @@ const getSelectedAnswerArray = (currentQuestion: ReportQuestionItem) => {
 const getSelectedAnswerRecord = (currentQuestion: ReportQuestionItem) => {
   const selectedAnswer = currentQuestion.answerJson?.selectedAnswer;
 
-  if (selectedAnswer && !Array.isArray(selectedAnswer)) {
+  if (
+    selectedAnswer &&
+    typeof selectedAnswer === "object" &&
+    !Array.isArray(selectedAnswer)
+  ) {
     return selectedAnswer;
   }
 

@@ -37,16 +37,21 @@ const getUniqueId = () => {
 };
 
 const buildPublicUrl = (bucket: string, region: string, key: string) => {
+  const normalizedKey = key.replace(/^\//, "");
   if (AWS_PUBLIC_BASE_URL) {
-    return `${AWS_PUBLIC_BASE_URL.replace(/\/$/, "")}/${key}`;
+    return `${AWS_PUBLIC_BASE_URL.replace(/\/$/, "")}/${normalizedKey}`;
   }
   if (region === "us-east-1") {
-    return `https://${bucket}.s3.amazonaws.com/${key}`;
+    return `https://${bucket}.s3.amazonaws.com/${normalizedKey}`;
   }
-  return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+  return `https://${bucket}.s3.${region}.amazonaws.com/${normalizedKey}`;
 };
 
 export const getPublicUrlForKey = (key: string) => {
+  if (AWS_PUBLIC_BASE_URL) {
+    return buildPublicUrl("", "", key);
+  }
+
   const region = requireEnv("VITE_AWS_REGION", AWS_REGION);
   const bucket = requireEnv("VITE_AWS_S3_BUCKET", AWS_BUCKET);
   return buildPublicUrl(bucket, region, key);

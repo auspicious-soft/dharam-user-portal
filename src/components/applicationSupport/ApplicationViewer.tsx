@@ -248,6 +248,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                       renderAnnotationLayer={true}
                       width={pdfWidth ?? undefined}
                       devicePixelRatio={pdfDevicePixelRatio}
+                      // style={{ filter: "contrast(1.03) saturate(1.04)" }}
                     />
                   )}
                 </Document>
@@ -262,12 +263,12 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
         </div>
 
         <Dialog open={isPdfModalOpen} onOpenChange={setIsPdfModalOpen}>
-          <DialogContent className="max-w-[98vw] w-[98vw] max-h-[98vh] h-[98vh] p-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
-            <DialogHeader className="pb-2 shrink-0">
+          <DialogContent className="max-w-none w-[100vw] h-[100vh] p-0 m-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
+            {/* <DialogHeader className="pb-2 shrink-0">
               <DialogTitle className="text-xl font-semibold text-Black_light">
                 {content.title}
               </DialogTitle>
-            </DialogHeader>
+            </DialogHeader> */}
 
             <div className="flex flex-col flex-1 min-h-0">
               <div className="flex flex-wrap items-center justify-between gap-3 h-10 mb-4 shrink-0">
@@ -343,6 +344,7 @@ export const ApplicationViewer: React.FC<ContentViewerProps> = ({
                             renderAnnotationLayer={true}
                             width={enlargedPdfWidth ?? undefined}
                             devicePixelRatio={pdfDevicePixelRatio}
+                           
                           />
                         )}
                       </Document>

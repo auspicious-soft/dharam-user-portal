@@ -173,13 +173,14 @@ export const ExamViewer: React.FC<ContentViewerProps> = ({ content }) => {
           }
         >
           <Page
-            pageNumber={currentSlideIndex}
-            renderMode={pdfRenderMode}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            width={width ?? undefined}
-            devicePixelRatio={pdfDevicePixelRatio}
-          />
+              pageNumber={currentSlideIndex}
+              renderMode={pdfRenderMode}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              width={width ?? undefined}
+              devicePixelRatio={pdfDevicePixelRatio}
+              // style={{ filter: "contrast(1.03) saturate(1.04)" }}
+            />
         </Document>
       );
     };
@@ -245,12 +246,12 @@ export const ExamViewer: React.FC<ContentViewerProps> = ({ content }) => {
         </div>
 
         <Dialog open={isPdfEnlarged} onOpenChange={setIsPdfEnlarged}>
-          <DialogContent className="max-w-[98vw] w-[98vw] max-h-[98vh] h-[98vh] p-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
-            <DialogHeader className="pr-8">
+          <DialogContent className="max-w-none w-[100vw] h-[100vh] p-0 m-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
+            {/* <DialogHeader className="pr-8">
               <DialogTitle className="text-Black_light text-lg font-bold">
                 {content.title}
               </DialogTitle>
-            </DialogHeader>
+            </DialogHeader> */}
             {!isImage && (
               <div className="flex justify-between items-center gap-3 flex-wrap">
                 <Button

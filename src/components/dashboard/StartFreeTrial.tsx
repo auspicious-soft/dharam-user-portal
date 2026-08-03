@@ -20,6 +20,7 @@ type StartFreeTrialProps = {
   isSubmitting?: boolean;
   showStartTrialButton?: boolean;
   trialNotice?: string | null;
+  showTrialNotice?: boolean;
 };
 
 const StartFreeTrial = ({
@@ -27,6 +28,7 @@ const StartFreeTrial = ({
   isSubmitting = false,
   showStartTrialButton = true,
   trialNotice = null,
+  showTrialNotice = true,
 }: StartFreeTrialProps) => {
   return (
     <div
@@ -60,11 +62,11 @@ const StartFreeTrial = ({
           >
             {isSubmitting ? "Starting trial..." : content.buttonText}
           </Button>
-        ) : (
+        ) : showTrialNotice ? (
           <p className="text-sm font-semibold text-white">
             {trialNotice ?? "You already have free trial for this course."}
           </p>
-        )}
+        ) : null}
       </div>
 
       <img

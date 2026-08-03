@@ -6,7 +6,7 @@ export type ReportQuestionItem = {
   answerJson?: {
     questionId?: string;
     type?: string;
-    selectedAnswer?: string[] | Record<string, string>;
+    selectedAnswer?: string | string[] | Record<string, string>;
   };
   questionId?: {
     _id: string;
@@ -40,7 +40,11 @@ export type ReportQuestionItem = {
 
 const normalizeSelectedAnswer = (
   value: unknown,
-): string[] | Record<string, string> | undefined => {
+): string | string[] | Record<string, string> | undefined => {
+  if (typeof value === "string") {
+    return value;
+  }
+
   if (Array.isArray(value)) {
     return value.map((answer) => String(answer ?? "")).filter(Boolean);
   }
