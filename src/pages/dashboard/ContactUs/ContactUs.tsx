@@ -151,6 +151,14 @@ const ContactUs = () => {
       setIsReportSubmitting(false);
     }
   };
+
+  const hasSingleEmail =
+    !supportLoading &&
+    Boolean(supportInfo?.primaryEmail) !== Boolean(supportInfo?.secondaryEmail);
+  const hasSinglePhone =
+    !supportLoading &&
+    Boolean(supportInfo?.primaryContact) !== Boolean(supportInfo?.secondaryContact);
+
   return (
     <div className="self-stretch p-4 md:p-[30px] bg-[#f0f8ff] rounded-[20px] inline-flex flex-col justify-start gap-5 w-full">
       <div className="grid grid-cols-1 lg:grid-cols-[.7fr_1fr] w-full gap-5">
@@ -179,7 +187,11 @@ const ContactUs = () => {
                 </p>
               </div>
             </div> */}
-            <div className="self-stretch inline-flex justify-start items-start gap-4">
+            <div
+              className={`self-stretch inline-flex justify-start ${
+                hasSingleEmail ? "items-center" : "items-start"
+              } gap-4`}
+            >
               <div className="w-9 h-9 relative bg-[#4c8dea] rounded-[99px] flex items-center justify-center mt-1">
                 <EmailIcon />
               </div>
@@ -215,7 +227,11 @@ const ContactUs = () => {
                 )}
               </div>
             </div>
-            <div className="self-stretch inline-flex justify-start items-start gap-4">
+            <div
+              className={`self-stretch inline-flex justify-start ${
+                hasSinglePhone ? "items-center" : "items-start"
+              } gap-4`}
+            >
               <div className="w-9 h-9 relative bg-[#4c8dea] rounded-[99px] flex items-center justify-center mt-1">
                 <CallIcon />
               </div>
@@ -267,15 +283,18 @@ const ContactUs = () => {
           <div className="flex flex-col items-end lg:items-center gap-3 w-full">
             <div className="space-y-1 w-full">
               <Label className="text-paragraph">Subject</Label>
-              <Select value={subject} onValueChange={setSubject}>
+              <Select value={subject} onValueChange={setSubject} >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Website Issue">Website Issue</SelectItem>
-                  <SelectItem value="Account Help">Account Help</SelectItem>
-                  <SelectItem value="Payment Query">Payment Query</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="General Enquiry" className="text-sm">General Enquiry</SelectItem>
+                  <SelectItem value="Corporate Training" className="text-sm">Corporate Training</SelectItem>
+                  <SelectItem value="Individual Training" className="text-sm">Individual Training</SelectItem>
+                  <SelectItem value="Course Registration" className="text-sm">Course Registration</SelectItem>
+                  <SelectItem value="Payment & Invoice" className="text-sm">Payment & Invoice</SelectItem>
+                  <SelectItem value="Partnership" className="text-sm">Partnership</SelectItem>
+                  <SelectItem value="Other" className="text-sm">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
