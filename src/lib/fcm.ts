@@ -28,6 +28,19 @@ async function getMessagingSafe() {
 type GetFcmTokenOptions = {
   requestPermission?: boolean;
 };
+const getNotificationRoute = (type?: string | null) => {
+  const normalizedType = type?.toUpperCase();
+
+  if (normalizedType === "ANNOUNCEMENT") {
+    return "/announcements";
+  }
+
+  if (normalizedType === "NOTIFICATION") {
+    return "/notifications";
+  }
+
+  return "/";
+};
 
 /**
  * Request notification permission explicitly
@@ -229,6 +242,12 @@ export async function setupForegroundNotifications(): Promise<() => void> {
     const title = notification?.title || data?.title || "New Message";
     const body =
       notification?.body || data?.body || "You have a new notification";
+    const type = data?.type;
+    const clickUrl = getNotificationRoute(type);
+
+    console.log("Push notification body:", body);
+    console.log("Push notification type:", type);
+
     const icon = notification?.icon || data?.icon || "/favicon.ico";
 
     const options: NotificationOptions = {
@@ -237,6 +256,10 @@ export async function setupForegroundNotifications(): Promise<() => void> {
       badge: data?.badge,
       tag: data?.tag || "notification",
       requireInteraction: data?.requireInteraction === "true",
+      data: {
+        ...(data || {}),
+        clickUrl,
+      },
     };
 
     if (!("Notification" in window) || Notification.permission !== "granted") {
@@ -254,7 +277,12 @@ export async function setupForegroundNotifications(): Promise<() => void> {
         return;
       }
 
-      new Notification(title, options);
+      const browserNotification = new Notification(title, options);
+      browserNotification.onclick = () => {
+        window.focus();
+        window.location.assign(clickUrl);
+        browserNotification.close();
+      };
     } catch (error) {
       console.error("❌ Failed to show notification:", error);
     }
@@ -262,3 +290,5 @@ export async function setupForegroundNotifications(): Promise<() => void> {
 
   return foregroundUnsubscribe;
 }
+
+
