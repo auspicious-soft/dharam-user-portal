@@ -11,6 +11,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import api from "@/lib/axios";
+import { readSelectedCourseAccess, type CourseAccess } from "@/utils/courseAccess";
 import {
   BellNotification,
   BrightStar,
@@ -32,6 +33,7 @@ type SidebarItem = {
   title: string;
   url: string;
   icon: React.ComponentType;
+  accessKey?: keyof CourseAccess;
 };
 
 type NavigationItem = {
@@ -57,48 +59,56 @@ const navMain: SidebarItem[] = [
     title: "Lessons & Videos",
     url: "/lessons-videos",
     icon: MediaVideo,
+    accessKey: "hasLessons",
   },
   {
     key: "domainsTasks",
     title: "Domains and Tasks",
     url: "/domains-tasks",
     icon: TaskList,
+    accessKey: "hasDomainTask",
   },
   {
     key: "practiceQuestions",
     title: "Practice Questions",
     url: "/practice-questions",
     icon: QuestionMark,
+    accessKey: "hasPracticeQuestion",
   },
   {
     key: "mockExams",
     title: "Mock Exams",
     url: "/exams",
     icon: JournalPage,
+    accessKey: "hasMockExam",
   },
   {
     key: "flashCards",
     title: "Flash Cards",
     url: "/flash-cards",
     icon: MultiplePagesEmpty,
+    accessKey: "hasFlashCards",
   },
   {
     key: "applicationSupport",
     title: "Application Support",
     url: "/application-support",
     icon: HeadsetHelp,
+    accessKey: "hasApplicationSupport",
   },
   {
     key: "examStrategy",
     title: "Exam Strategy",
     url: "/exam-strategy",
     icon: Strategy,
+    accessKey: "hasExamStrategy",
   },
   {
     key: "myCertificatesPdus",
     title: "My Certificates/PDUs",
     url: "/certificates-pdus",
     icon: EmptyPage,
+    accessKey: "hasCertificates",
   },
   {
     key: "announcements",
@@ -124,6 +134,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [navigationLabels, setNavigationLabels] = React.useState<
     Record<string, string>
   >({});
+  const [courseAccess, setCourseAccess] = React.useState<CourseAccess>(() =>
+    readSelectedCourseAccess(),
+  );
+
+  React.useEffect(() => {
+    const updateCourseAccess = () => setCourseAccess(readSelectedCourseAccess());
+
+    window.addEventListener("storage", updateCourseAccess);
+    window.addEventListener("courseChanged", updateCourseAccess as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", updateCourseAccess);
+      window.removeEventListener(
+        "courseChanged",
+        updateCourseAccess as EventListener,
+      );
+    };
+  }, []);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -168,11 +196,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const visibleNavItems = React.useMemo(
     () =>
-      navMain.map((item) => ({
-        ...item,
-        title: navigationLabels[item.key] || item.title,
-      })),
-    [navigationLabels],
+      navMain
+        .filter((item) => !item.accessKey || courseAccess[item.accessKey])
+        .map((item) => ({
+          ...item,
+          title: navigationLabels[item.key] || item.title,
+        })),
+    [courseAccess, navigationLabels],
   );
 
   return (
@@ -189,7 +219,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={visibleNavItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavLink to="/contact-us" className="self-stretch p-4 bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-[#556378]/10 inline-flex justify-start items-center gap-2.5">
+        <NavLink
+          to="/contact-us"
+          className="self-stretch p-4 bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-[#556378]/10 inline-flex justify-start items-center gap-2.5"
+        >
           <img className="w-7" src={NeedHelpIcon} alt="Need Help Icon " />
           <div className="justify-start text-paragraph text-sm font-bold leading-5">
             Need Help?
