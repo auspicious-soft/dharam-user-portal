@@ -22,6 +22,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import UserReportIcon from "@/assets/user-report-icon.png";
 import api from "@/lib/axios";
+import CountryCodeSearchInput from "@/components/reusableComponents/CountryCodeSearchInput";
+import {
+  COUNTRY_CODE_FALLBACK_OPTIONS,
+  fetchCountryCodeOptions,
+  getCountryCodeOptionLabel,
+  type CountryCodeOption,
+} from "@/utils/countryCodeOptions";
 
 type SupportInfo = {
   title?: string | null;
@@ -40,6 +47,14 @@ const ContactUs = () => {
   const [subject, setSubject] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [countryCode, setCountryCode] = useState("+91");
+  const [countryCodeSearch, setCountryCodeSearch] = useState(() =>
+    getCountryCodeOptionLabel("+1", COUNTRY_CODE_FALLBACK_OPTIONS)
+  );
+  const [countryCodeOptions, setCountryCodeOptions] = useState<
+    CountryCodeOption[]
+  >(COUNTRY_CODE_FALLBACK_OPTIONS);
+  const [countryCodeLoading, setCountryCodeLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +63,38 @@ const ContactUs = () => {
   const [selectedModule, setSelectedModule] = useState("");
   const [reportComments, setReportComments] = useState("");
   const [isReportSubmitting, setIsReportSubmitting] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const loadCountryCodes = async () => {
+      try {
+        setCountryCodeLoading(true);
+        const options = await fetchCountryCodeOptions(controller.signal);
+
+        if (isMounted) {
+          setCountryCodeOptions(options);
+          setCountryCodeSearch(getCountryCodeOptionLabel(countryCode, options));
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error("Failed to load country codes", error);
+        }
+      } finally {
+        if (isMounted) {
+          setCountryCodeLoading(false);
+        }
+      }
+    };
+
+    void loadCountryCodes();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [countryCode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -115,6 +162,7 @@ const ContactUs = () => {
       await api.post("/user/enquiry", {
         fullName,
         email,
+        countryCode,
         phoneNumber,
         subject,
         message,
@@ -122,6 +170,8 @@ const ContactUs = () => {
       setSubject("");
       setFullName("");
       setEmail("");
+      setCountryCode("+91");
+      setCountryCodeSearch(getCountryCodeOptionLabel("+91", countryCodeOptions));
       setPhoneNumber("");
       setMessage("");
     } catch (error) {
@@ -318,12 +368,24 @@ const ContactUs = () => {
             </div>
             <div className="space-y-1 w-full">
               <Label className="text-paragraph">Phone Number</Label>
-              <Input
-                type="tel"
-                placeholder="Phone Number"
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-              />
+              <div className="flex w-full rounded-md border border-input bg-white focus-within:ring-1 focus-within:ring-ring">
+                <CountryCodeSearchInput
+                  id="enquiry-country-code"
+                  value={countryCode}
+                  searchValue={countryCodeSearch}
+                  options={countryCodeOptions}
+                  disabled={countryCodeLoading}
+                  onValueChange={setCountryCode}
+                  onSearchValueChange={setCountryCodeSearch}
+                />
+                <Input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  className="border-0 rounded-tl-none rounded-bl-none"
+                />
+              </div>
             </div>
             <div className="space-y-1 w-full">
               <Label className="text-paragraph">Your Message</Label>
@@ -415,3 +477,5 @@ const ContactUs = () => {
 };
 
 export default ContactUs;
+
+
