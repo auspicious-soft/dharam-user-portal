@@ -1,6 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { NotificationsType } from "./notifications.type";
 import { Button } from "../ui/button";
+import Linkify from "@/components/reusableComponents/Linkify";
 
 export const NotificationsColumns = (
   onMarkRead: (id: string) => void
@@ -16,9 +17,10 @@ export const NotificationsColumns = (
     enableSorting: false,
   },
   {
-    accessorKey: "text", 
+    accessorKey: "text",
     header: "Text",
     enableSorting: false,
+    cell: ({ row }) => <Linkify text={row.original.text} />,
   },
   {
     accessorKey: "category",

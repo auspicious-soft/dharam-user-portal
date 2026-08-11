@@ -1,6 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { AnnouncementType } from "./announcement.type";
 import { Button } from "../ui/button";
+import Linkify from "@/components/reusableComponents/Linkify";
 
 export const announcementColumns= (
   onMarkRead: (id: string) => void
@@ -17,8 +18,9 @@ export const announcementColumns= (
   },
   {
     accessorKey: "text",
-    header: "Text", 
+    header: "Text",
     enableSorting: false,
+    cell: ({ row }) => <Linkify text={row.original.text} />,
   },
   {
     accessorKey: "category",
