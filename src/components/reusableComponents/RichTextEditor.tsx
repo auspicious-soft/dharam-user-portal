@@ -13,7 +13,7 @@ const RichTextEditor = ({
 }: RichTextEditorProps) => {
   return (
     <Editor
-      apiKey="ppu54qsqckshmf36k9vivl8gi19f3thatkcvgnkhdw9nmelp"
+      apiKey="ezcxd8au6l97asb0ptxdmhd0bx95vedr0vxcfo4h4qmocica"
       value={value}
       onEditorChange={(content: string) => onChange(content)}
       init={{
