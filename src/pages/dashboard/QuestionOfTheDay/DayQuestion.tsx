@@ -563,7 +563,7 @@ const DayQuestion = () => {
                 </div>
               )}
 
-              <p className="justify-start text-paragraph text-sm font-medium">
+              <p className="whitespace-pre-line justify-start text-paragraph text-sm font-medium">
                 Explanation: {question.qExplanation}
               </p>
 

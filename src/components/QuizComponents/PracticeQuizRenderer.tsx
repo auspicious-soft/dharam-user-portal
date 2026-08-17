@@ -450,7 +450,7 @@ export const PracticeQuizRenderer = ({
               })()}
             </div>
           )}
-          <p className="justify-start text-paragraph text-sm font-medium">
+          <p className="justify-start text-paragraph text-sm font-medium whitespace-pre-line ">
             Explanation: {question.qExplanation}
           </p>
         </div>

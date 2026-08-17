@@ -353,7 +353,8 @@ const ReportQuestionReview = ({ questions }: Props) => {
               <div className="mt-4">
                 <div className="flex gap-2 justify-between flex-wrap">
                   {reviewedQuestion?.explaination ? (
-                    <p className="text-sm text-paragraph">
+                    // <p className="text-sm text-paragraph ">
+                    <p className="whitespace-pre-line text-paragraph text-sm">
                       Explanation: {reviewedQuestion.explaination}
                     </p>
                   ) : (

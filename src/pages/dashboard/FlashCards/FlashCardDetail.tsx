@@ -135,7 +135,7 @@ const FlashCardDetail = () => {
                     </div>
                   </div>
 
-                  <p className="justify-start text-paragraph text-sm font-medium">
+                  <p className="whitespace-pre-line justify-start text-paragraph text-sm font-medium">
                     Explanation: {flashCard.question.qExplanation}
                   </p>
                 </div>
