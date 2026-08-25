@@ -10,6 +10,10 @@ import PurchasePlanCard from "@/components/dashboard/PurchasePlanCard";
 import api from "@/lib/axios";
 import type { Plan } from "@/components/dashboard/plans";
 import { normalizeUserCourses } from "@/utils/userCourses";
+import {
+  hasPurchasedCourseAccess,
+  persistSelectedCoursePurchaseAccess,
+} from "@/utils/courseAccess";
 
 type PlansByDuration = {
   oneMonth: Plan[];
@@ -252,6 +256,14 @@ const getPlanPriceValue = (plan: ApiPlan) => {
   return Number.isFinite(price) ? price : 0;
 };
 
+const hasPlanPurchaseAccess = (plan: ApiPlan) =>
+  plan.isPurchased === true ||
+  plan.purchaseStatus === true ||
+  String(plan.purchaseStatus).trim().toUpperCase() === "TRUE" ||
+  hasPurchasedCourseAccess(
+    typeof plan.purchaseStatus === "string" ? plan.purchaseStatus : null,
+  );
+
 const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
   const paidPlans = apiPlans.filter((plan) => {
     const normalizedName = (plan.planName ?? "").trim().toLowerCase();
@@ -280,10 +292,7 @@ const mapApiPlansToUiPlans = (apiPlans: ApiPlan[]): Plan[] => {
       features: mapApiPlanToFeatures(plan),
       benefits: mapApiPlanToBenefits(plan),
       popular: (plan.level ?? 0) === maxLevel && maxLevel > 0,
-      isPurchased:
-        plan.isPurchased === true ||
-        plan.purchaseStatus === true ||
-        String(plan.purchaseStatus).toUpperCase() === "TRUE",
+      isPurchased: hasPlanPurchaseAccess(plan),
       expiryDate: plan.expiryDate ?? null,
     }));
 };
@@ -304,10 +313,7 @@ const getFreeTrialPlanInfo = (apiPlans: ApiPlan[]): FreeTrialPlanInfo | null => 
 
   return {
     planId: freeTrialPlan._id ?? null,
-    isPurchased:
-      freeTrialPlan.isPurchased === true ||
-      freeTrialPlan.purchaseStatus === true ||
-      String(freeTrialPlan.purchaseStatus).toUpperCase() === "TRUE",
+    isPurchased: hasPlanPurchaseAccess(freeTrialPlan),
     expiryDate: freeTrialPlan.expiryDate ?? null,
   };
 };
@@ -324,6 +330,9 @@ const Dashboard = () => {
     useState(false);
   const [homeData, setHomeData] = useState<HomeApiData | null>(null);
   const [homeSubscriptionStatus, setHomeSubscriptionStatus] = useState<
+    boolean | null
+  >(null);
+  const [courseSubscriptionStatus, setCourseSubscriptionStatus] = useState<
     boolean | null
   >(null);
   const [courseAccessNotice, setCourseAccessNotice] = useState<string | null>(
@@ -367,7 +376,10 @@ const Dashboard = () => {
   );
   const examDateValue =
     typeof homeData?.examDate === "string" ? homeData.examDate : null;
-  const shouldShowSubscribedView = homeSubscriptionStatus ?? isSubscribed;
+  const shouldShowSubscribedView =
+    courseSubscriptionStatus === true ||
+    homeSubscriptionStatus === true ||
+    isSubscribed;
   const shouldShowPlans =
     !shouldShowSubscribedView || showPlansForSubscribedUser;
 
@@ -480,10 +492,14 @@ const Dashboard = () => {
     let isCancelled = false;
 
     const fetchCourses = async () => {
+      const selectedCourseId = localStorage.getItem("selectedCourseId");
+
       try {
         const response = await api.get("/user/course");
         const list = normalizeUserCourses(response.data);
-
+        const selectedCourse = selectedCourseId
+          ? list.find((course) => course._id === selectedCourseId)
+          : null;
         const allStatusesNull =
           list.length > 0 && list.every((course) => course.status == null);
         const allPurchaseStatusesNull =
@@ -497,9 +513,12 @@ const Dashboard = () => {
         const hasAnyActivePurchasedAccess = list.some(
           (course) =>
             String(course.status ?? "").toUpperCase() === "ACTIVE" &&
-            course.purchaseStatus != null,
+            hasPurchasedCourseAccess(course.purchaseStatus),
         );
-
+        const hasSelectedCourseActivePurchasedAccess = selectedCourse
+          ? String(selectedCourse.status ?? "").toUpperCase() === "ACTIVE" &&
+            hasPurchasedCourseAccess(selectedCourse.purchaseStatus)
+          : hasAnyActivePurchasedAccess;
         let message: string | null = null;
         if (hasExpiredFreeTrial && !hasAnyActivePurchasedAccess) {
           message = "Your free trial has ended. Please purchase a course.";
@@ -512,6 +531,10 @@ const Dashboard = () => {
         }
 
         if (!isCancelled) {
+          if (selectedCourse) {
+            persistSelectedCoursePurchaseAccess(selectedCourse);
+          }
+          setCourseSubscriptionStatus(hasSelectedCourseActivePurchasedAccess);
           setCourseAccessNotice(message);
         }
       } catch (error) {
@@ -540,9 +563,16 @@ const Dashboard = () => {
       };
     }
 
-    const durationKey = selectedMonths === 1 ? "oneMonth" : "threeMonths";
+    const durationsToFetch = (
+      [selectedMonths, selectedMonths === 1 ? 3 : 1] as const
+    ).filter(
+      (months) => {
+        const durationKey = months === 1 ? "oneMonth" : "threeMonths";
+        return !fetchedByDuration[durationKey];
+      },
+    );
 
-    if (fetchedByDuration[durationKey]) {
+    if (!durationsToFetch.length) {
       return () => {
         isCancelled = true;
       };
@@ -559,35 +589,58 @@ const Dashboard = () => {
       }
 
       try {
-        const response = await api.get("/user/get-plans", {
-          params: {
-            months: selectedMonths,
-            courseId,
-          },
-        });
-        const apiPlans = ((response.data as { data?: ApiPlan[] })?.data ??
-          []) as ApiPlan[];
-        const mappedPlans = mapApiPlansToUiPlans(apiPlans);
-        const extractedFreeTrialPlanInfo = getFreeTrialPlanInfo(apiPlans);
+        const responses = await Promise.all(
+          durationsToFetch.map(async (months) => {
+            const response = await api.get("/user/get-plans", {
+              params: {
+                months,
+                courseId,
+              },
+            });
+            const apiPlans = ((response.data as { data?: ApiPlan[] })?.data ??
+              []) as ApiPlan[];
+
+            console.log(
+              `get-plans response (months=${months}, courseId=${courseId}):`,
+              response,
+            );
+
+            return {
+              durationKey: months === 1 ? "oneMonth" : "threeMonths",
+              apiPlans,
+              mappedPlans: mapApiPlansToUiPlans(apiPlans),
+              freeTrialPlanInfo: getFreeTrialPlanInfo(apiPlans),
+            } as const;
+          }),
+        );
 
         if (!isCancelled) {
-          setPlansByDuration((prev) => ({
-            ...prev,
-            [durationKey]: mappedPlans,
-          }));
+          setPlansByDuration((prev) => {
+            const next = { ...prev };
+            responses.forEach(({ durationKey, mappedPlans }) => {
+              next[durationKey] = mappedPlans;
+            });
+            return next;
+          });
+          const extractedFreeTrialPlanInfo = responses.find(
+            ({ freeTrialPlanInfo }) => freeTrialPlanInfo,
+          )?.freeTrialPlanInfo;
           if (extractedFreeTrialPlanInfo) {
             setFreeTrialPlanInfo(extractedFreeTrialPlanInfo);
           }
-          setFetchedByDuration((prev) => ({
-            ...prev,
-            [durationKey]: true,
-          }));
+          setFetchedByDuration((prev) => {
+            const next = { ...prev };
+            responses.forEach(({ durationKey }) => {
+              next[durationKey] = true;
+            });
+            return next;
+          });
+          if (
+            responses.some(({ apiPlans }) => apiPlans.some(hasPlanPurchaseAccess))
+          ) {
+            setCourseSubscriptionStatus(true);
+          }
         }
-
-        console.log(
-          `get-plans response (months=${selectedMonths}, courseId=${courseId}):`,
-          response,
-        );
       } catch (error) {
         console.error("Failed to fetch plans:", error);
       } finally {
@@ -596,7 +649,6 @@ const Dashboard = () => {
         }
       }
     };
-
     void fetchPlans();
 
     return () => {
@@ -676,3 +728,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
