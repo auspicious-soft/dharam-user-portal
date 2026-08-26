@@ -142,7 +142,7 @@ const CourseSelect = () => {
 
   return (
     <Select value={selectedId || undefined} onValueChange={handleChange}>
-      <SelectTrigger className="bg-transparent border-dark-bg text-dark-bg text-[10px] md:text-xs max-w-[70%] md:max-w-72 w-full gap-6 px-3 md:px-6 py-[10px] md:py-[10px] text-left">
+      <SelectTrigger className="w-full max-w-[70%] gap-3 border-primary_blue bg-primary_blue px-3 py-[10px] text-left text-[10px] font-semibold text-white shadow-md shadow-primary_blue/20 transition-colors hover:bg-primary_blue/90 md:max-w-80 md:px-5 md:py-[10px] md:text-xs">
         <SelectValue
           placeholder={placeholderText}
           className="truncate"
