@@ -100,7 +100,7 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
                 </h3>
                 <p className="text-paragraph text-xs font-medium">
                   • &nbsp;{module.videos} Videos &nbsp;&nbsp; •&nbsp;&nbsp;
-                  {module.slides} Slides &nbsp; •&nbsp; {module.questions}{" "}
+                  {module.slides} Study PDF &nbsp; •&nbsp; {module.questions}{" "}
                   Questions
                 </p>
               </div>
