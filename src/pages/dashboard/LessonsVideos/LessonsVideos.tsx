@@ -600,7 +600,7 @@ const LearningManagementSystem: React.FC = () => {
   return (
     <div className="flex flex-col gap-5 ">
       <div className="flex justify-between items-center flex-wrap gap-4">
-        <h2 className="justify-start text-2xl font-bold ">Lessons & Videos</h2>
+        <h2 className="justify-start text-2xl font-bold ">Learning Hub</h2>
 
         <div className="flex gap-3">
           <Button

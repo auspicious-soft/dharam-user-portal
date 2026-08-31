@@ -210,7 +210,7 @@ const mapApiPlanToBenefits = (plan: ApiPlan): string[] => {
   );
   const benefits: string[] = [];
 
-  if (hasLessonsAndVideos) benefits.push("Lessons and Videos");
+  if (hasLessonsAndVideos) benefits.push("Self-Paced Learning");
   if (mockExamsCount > 0) {
     benefits.push(`Full length Mock Exams: ${mockExamsCount}`);
   }

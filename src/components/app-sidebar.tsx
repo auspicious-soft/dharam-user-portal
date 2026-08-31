@@ -56,7 +56,7 @@ const navMain: SidebarItem[] = [
   },
   {
     key: "lessonsVideos",
-    title: "Lessons & Videos",
+    title: "Learning Hub",
     url: "/lessons-videos",
     icon: MediaVideo,
     accessKey: "hasLessons",

@@ -286,7 +286,7 @@ const PurchasePlanCard = ({
         <div className="text-center text-paragraph text-sm py-8">
           No plans available for {currentDuration}.
         </div>
-      )}
+      )}digitalStudyMaterial
 
       <StartFreeTrial
         onStartFreeTrial={() => {
