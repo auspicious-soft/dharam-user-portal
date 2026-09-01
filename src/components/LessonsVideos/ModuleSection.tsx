@@ -43,7 +43,9 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
     const hasItemLink = Boolean(item.videoUrl || item.pdfUrl || item.hasLink);
     return hasItemLink;
   };
-  const hasAnyAccessibleItems = module.items.some((item) => canAccessItem(item));
+  const hasAnyAccessibleItems = module.items.some((item) =>
+    canAccessItem(item),
+  );
 
   const handleModuleClick = () => {
     // Always show module introduction when clicking on module title
@@ -100,8 +102,10 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
                 </h3>
                 <p className="text-paragraph text-xs font-medium">
                   • &nbsp;{module.videos} Videos &nbsp;&nbsp; •&nbsp;&nbsp;
-                  {module.slides} Study PDF &nbsp; •&nbsp; {module.questions}{" "}
-                  Questions
+                  {module.slides} Study PDF &nbsp;
+                  {module.questions > 0 && (
+                    <>• &nbsp; {module.questions} Questions</>
+                  )}
                 </p>
               </div>
             </div>
