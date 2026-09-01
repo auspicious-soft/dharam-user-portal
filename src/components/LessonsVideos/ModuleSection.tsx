@@ -101,10 +101,16 @@ export const ModuleSection: React.FC<ModuleSectionProps> = ({
                   {module.title}
                 </h3>
                 <p className="text-paragraph text-xs font-medium">
-                  • &nbsp;{module.videos} Videos &nbsp;&nbsp; •&nbsp;&nbsp;
-                  {module.slides} Study PDF &nbsp;
+                  {module.videos > 0 && (
+                    <>• &nbsp;{module.videos} Videos &nbsp;&nbsp;</>
+                  )}
+
+                  {module.slides > 0 && (
+                    <>• &nbsp;{module.slides} Study PDF &nbsp;&nbsp;</>
+                  )}
+
                   {module.questions > 0 && (
-                    <>• &nbsp; {module.questions} Questions</>
+                    <>• &nbsp;{module.questions} Questions</>
                   )}
                 </p>
               </div>
