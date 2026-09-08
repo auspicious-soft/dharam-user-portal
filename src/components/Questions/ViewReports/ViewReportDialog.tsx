@@ -89,8 +89,8 @@ const ViewReportDialog = ({
 
   const formatDomainName = (name: string) => {
     const formattedName = name
-      .replace(/^(?:\s*-\s*\d+\s*-?\s*)+/, "")
-      .replace(/(?:\s*-\s*\d+\s*)+$/, "")
+      .replace(/^(?:\s*[-_]\s*\d+\s*-?\s*)+/, "")
+      .replace(/(?:\s*[-_]\s*\d+\s*)+$/, "")
       .trim();
 
     return formattedName || name;
