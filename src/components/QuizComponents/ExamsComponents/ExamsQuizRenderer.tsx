@@ -41,6 +41,7 @@ type ExamAnswerJson = {
   questionId: string;
   type: "MCQ" | "DND" | "FIB";
   selectedAnswer: string | string[] | Record<string, string>;
+  status?: "markNext";
 };
 
 type ExamDraft = {
@@ -335,7 +336,9 @@ export const ExamsQuizRenderer = ({
     }
 
     if (storedDraft?.marked) {
-      setMarked(new Set(storedDraft.marked));
+      setMarked((previousMarked) =>
+        new Set([...previousMarked, ...storedDraft.marked]),
+      );
     }
 
     const storedDraftIndex =
@@ -435,6 +438,7 @@ export const ExamsQuizRenderer = ({
         isCorrect,
         examId,
         availableTime: typeof availableTime === "number" ? availableTime : 0,
+        ...(answerJson?.status === "markNext" ? { isAttempted: false } : {}),
         answerJson,
       });
     } catch (error) {
@@ -705,6 +709,19 @@ export const ExamsQuizRenderer = ({
       return copy;
     });
 
+    if (!hasCurrentAnswer) {
+      void submitQuestionResponse(false, {
+        questionId: question.id,
+        type:
+          question.type === "mcq"
+            ? "MCQ"
+            : question.type === "dragdrop"
+              ? "DND"
+              : "FIB",
+        selectedAnswer: "markNext",
+        status: "markNext",
+      });
+    }
 
     moveToQuestion(currentQuestionIndex + 1);
   };

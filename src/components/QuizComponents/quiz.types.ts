@@ -9,6 +9,7 @@ export interface BaseQuestion {
     questionId?: string;
     type?: string;
     selectedAnswer?: string | string[] | Record<string, string>;
+    status?: "markNext";
   } | null;
   imageUrl?: string;
 }

@@ -48,6 +48,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const enlargedPdfContainerRef = useRef<HTMLDivElement | null>(null);
+  const activePdfIdRef = useRef<string | null>(null);
   const [pdfWidth, setPdfWidth] = useState<number | null>(null);
   const [enlargedPdfWidth, setEnlargedPdfWidth] = useState<number | null>(null);
   const pdfDevicePixelRatio =
@@ -68,6 +69,16 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
     setIsVideoLoading(true);
     setIsPdfEnlarged(false);
   }, [mediaResetKey, content.type]);
+
+  useEffect(() => {
+    if (content.type !== "slide") {
+      return;
+    }
+
+    activePdfIdRef.current = content.id;
+    setCurrentSlideIndex(1);
+    setNumPages(0);
+  }, [content.id, content.pdfUrl, content.type]);
 
   useEffect(() => {
     if (content.type !== "video" || !videoRef.current) {
@@ -111,7 +122,12 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
   }, [isPdfEnlarged]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    if (content.type !== "slide" || activePdfIdRef.current !== content.id) {
+      return;
+    }
+
     setNumPages(numPages);
+    setCurrentSlideIndex(1);
   };
 
   if (!content) {
@@ -220,6 +236,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
     const isImage =
       typeof content.pdfUrl === "string" &&
       /\.(png|jpe?g|gif|webp|svg)$/i.test(content.pdfUrl);
+    const slideResetKey = `${content.id}-${content.pdfUrl ?? ""}`;
 
     const renderSlideFile = (
       width: number | null,
@@ -249,6 +266,7 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
       return (
         <div onContextMenu={preventContextMenu}>
           <Document
+            key={slideResetKey}
             file={content.pdfUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             loading={
@@ -341,8 +359,8 @@ export const ContentViewer: React.FC<ContentViewerProps> = ({
         </div>
 
         <Dialog open={isPdfEnlarged} onOpenChange={setIsPdfEnlarged}>
-          <DialogContent className="w-[96vw] max-w-[1200px] h-[92vh] overflow-hidden p-4 md:p-5">
-            <DialogHeader className="pr-8">
+          <DialogContent className="max-w-none w-[100vw] h-[100vh] p-0 m-0 overflow-hidden bg-[#EDF4FD] flex flex-col">
+            <DialogHeader className="">
               <DialogTitle className="text-Black_light text-lg font-bold">
                 {content.title}
               </DialogTitle>

@@ -579,6 +579,12 @@ const StartExam = () => {
       {},
     );
 
+    const markedQuestions = new Set(
+      mapped.flatMap((question, index) =>
+        question.answerJson?.status === "markNext" ? [index] : [],
+      ),
+    );
+
     const nextQuestionNumber =
       storedQuestionNumber ??
       (firstUnattemptedIndex >= 0 ? firstUnattemptedIndex + 1 : 1);
@@ -587,7 +593,7 @@ const StartExam = () => {
     setCurrentQuestion(nextQuestionNumber);
     setVisitedQuestions(new Set([nextQuestionNumber - 1]));
     setResults(attemptedResults);
-    setMarked(new Set());
+    setMarked(markedQuestions);
     setIsPaused(false);
   }, [examDraftKey, mockExamData]);
 
