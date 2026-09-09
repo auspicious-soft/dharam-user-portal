@@ -305,11 +305,11 @@ const DomainsTasks = () => {
               Loading domains and tasks...
             </div>
           ) : modules.length ? (
-            modules.map((module, index) => (
+            modules.map((module) => (
               <DomainsModuleSection
                 key={module.id}
                 module={module}
-                defaultOpen={index === 0}
+                defaultOpen={false}
                 userHasPremium={userHasPremium}
                 onBuyPremiumDomain={handleBuyPremiumDomain}
                 isPremiumPurchasing={purchasingDomainId === module.id}

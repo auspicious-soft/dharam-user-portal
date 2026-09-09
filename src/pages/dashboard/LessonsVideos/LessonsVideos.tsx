@@ -300,7 +300,6 @@ const LearningManagementSystem: React.FC = () => {
 
         const firstModule = mappedModules[0];
         if (firstModule) {
-          setOpenModuleId(firstModule.id);
           setSelectedContent({
             type: "module",
             title: firstModule.title,
