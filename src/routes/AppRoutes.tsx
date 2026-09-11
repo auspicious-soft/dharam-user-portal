@@ -140,7 +140,7 @@ const AppRoutes = () => {
         {/* Course introduction page */}
         <Route path="/course-introduction" element={<CourseIntroduction />} />
         {/* Lessons videos page */}
-        <Route path="/lessons-videos" element={<LessonsVideos />} />
+        <Route path="/learning-hub" element={<LessonsVideos />} />
         {/* Domains tasks page */}
         <Route path="/domains-tasks" element={<DomainsTasks />} />
         <Route

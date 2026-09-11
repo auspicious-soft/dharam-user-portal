@@ -33,7 +33,7 @@ const LessonsQuizRenderer = ({
   const handleGoToLessons = () => {
     setShowQuizDialog(false);
     onClose();
-    navigate("/lessons-videos");
+    navigate("/learning-hub");
   };
 
   return (

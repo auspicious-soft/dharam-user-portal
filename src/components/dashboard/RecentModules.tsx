@@ -67,7 +67,7 @@ const RecentModules: React.FC<RecentModulesProps> = ({ modules }) => {
                 <Button
                   variant="secondary"
                   className="max-h-[44px]"
-                  onClick={() => navigate("/lessons-videos")}
+                  onClick={() => navigate("/learning-hub")}
                 >
                   Launch Course
                 </Button>

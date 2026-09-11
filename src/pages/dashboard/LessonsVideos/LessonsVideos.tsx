@@ -544,8 +544,8 @@ const LearningManagementSystem: React.FC = () => {
 
     const callbackUrl =
       typeof window !== "undefined"
-        ? `${window.location.origin}/lessons-videos`
-        : "/lessons-videos";
+        ? `${window.location.origin}/learning-hub`
+        : "/learning-hub";
 
     setPurchasingModuleId(module.id);
 
