@@ -1,6 +1,6 @@
 import Copyright from "@/components/copyright";
 import { Outlet } from "react-router-dom";
-import LoginBanner from "@/assets/login-banner.jpg";
+import LoginBanner from "@/assets/LoginPage.png";
 import AuthLogo from "@/assets/auth-logo.png";
 
 const AuthLayout = () => {
@@ -8,7 +8,10 @@ const AuthLayout = () => {
     <div className="auth-layout p-3 md:p-5  min-h-dvh flex flex-col gap-3 md:gap-5 justify-between">
       <div
         className="flex-grow bg-cover bg-center rounded-[12px] md:rounded-[20px] px-4 py-8  md:p-12"
-        style={{ backgroundImage: `url(${LoginBanner})` }}
+         style={{
+    backgroundImage: `url(${LoginBanner})`,
+    backgroundSize: "cover",
+  }}
       >
         <div className="flex flex-col gap-[90px]">
           <div className="">
