@@ -208,11 +208,11 @@ const CreateAccount = () => {
         </h2>
         <p className="text-paragraph text-base font-normal max-w-80 w-full m-auto">
           By continuing, you agree to our{" "}
-          <a href="https://dharma-web.vercel.app/terms-of-service" target="_blank" className="text-primary_heading ">
+          <a href="https://www.vcareprojectmanagement.com/pages/terms-of-service" target="_blank" className="text-primary_heading ">
             Terms
           </a>{" "}
           &{" "}
-          <a href="https://dharma-web.vercel.app/privacy-policy" target="_blank" className="text-primary_heading">
+          <a href="https://www.vcareprojectmanagement.com/pages/privacy-policy" target="_blank" className="text-primary_heading">
             Privacy Policy.
           </a>
         </p>
