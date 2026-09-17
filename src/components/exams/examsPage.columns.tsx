@@ -44,7 +44,7 @@ export const ExamColumns = ({
             const mockExamData =
               (response.data as MockExamQuestionsResponse)?.data ?? null;
             navigate(`/exams/start/${row.original.id}`, {
-              state: { mockExam: mockExamData },
+              state: { mockExam: mockExamData, isPaused: true },
             });
           } catch (error) {
             console.error("Failed to resume mock exam", error);
@@ -164,7 +164,7 @@ export const ExamColumns = ({
             const mockExamData =
               (response.data as MockExamQuestionsResponse)?.data ?? null;
             navigate(`/exams/start/${row.original.id}`, {
-              state: { mockExam: mockExamData },
+              state: { mockExam: mockExamData, isPaused: true },
             });
           } catch (error) {
             console.error("Failed to resume mock exam", error);

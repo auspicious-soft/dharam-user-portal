@@ -440,7 +440,12 @@ const StartExam = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { id: routeExamId } = useParams<{ id: string }>();
-  const locationMockExamData = (location.state as { mockExam?: any })?.mockExam;
+  const locationState = location.state as {
+    mockExam?: any;
+    isPaused?: boolean;
+  } | null;
+  const locationMockExamData = locationState?.mockExam;
+  const isResumedExam = Boolean(locationState?.isPaused);
   const examSessionKey = `${MOCK_EXAM_SESSION_PREFIX}${routeExamId ?? "current"}`;
   const examDraftKey = `${MOCK_EXAM_DRAFT_PREFIX}${routeExamId ?? "current"}`;
   const examTimeKey = `${MOCK_EXAM_TIME_PREFIX}${routeExamId ?? "current"}`;
@@ -544,6 +549,7 @@ const StartExam = () => {
   useEffect(() => {
     if (!mockExamData) return;
 
+    // Keep the API order stable so draft answers and resume indexes stay aligned.
     const mapped = mapQuestions(mockExamData.questions ?? []);
     const firstUnattemptedIndex = mapped.findIndex(
       (question) => !question.isAttempted,
@@ -595,7 +601,7 @@ const StartExam = () => {
     setResults(attemptedResults);
     setMarked(markedQuestions);
     setIsPaused(false);
-  }, [examDraftKey, mockExamData]);
+  }, [examDraftKey, isResumedExam, mockExamData]);
 
   const examTitle = mockExamData?.examName ?? "Mock Exam";
   const examCourseId = useMemo(() => {
@@ -655,10 +661,12 @@ const StartExam = () => {
       try {
         await api.post("/user/submit-question-response", {
           questionId: markedQuestion.id,
-          isCorrect,
+          isCorrect: Boolean(isCorrect),
           examId: mockExamData.examId,
           availableTime: remainingSeconds,
-          answerJson,
+          isAttempted: true,
+          status: "markNext",
+          answerJson: { ...answerJson, status: "markNext" },
         });
       } catch (error) {
         console.error("Failed to submit marked question response", error);
@@ -779,6 +787,7 @@ const StartExam = () => {
     if (!mockExamData?.examId) return;
 
     try {
+      await flushMarkedDraftAnswers();
       await api.put(`/user/mock-exam-questions/${mockExamData.examId}`, null, {
         params: { timeTaken },
       });
@@ -956,6 +965,7 @@ const StartExam = () => {
                 ""
               }
               availableTime={remainingSeconds}
+              allowEditingAttempted={isResumedExam}
               draftStorageKey={examDraftKey}
               results={results}
               setResults={setResults}

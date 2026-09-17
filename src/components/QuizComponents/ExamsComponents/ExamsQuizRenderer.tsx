@@ -28,6 +28,7 @@ interface QuizRendererProps {
   courseId?: string;
   courseName?: string;
   availableTime?: number;
+  allowEditingAttempted?: boolean;
 
   results: Record<number, boolean>;
   setResults: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
@@ -227,6 +228,7 @@ export const ExamsQuizRenderer = ({
   courseId,
   courseName,
   availableTime,
+  allowEditingAttempted = false,
   results,
   setResults,
   marked,
@@ -253,7 +255,8 @@ export const ExamsQuizRenderer = ({
 
   const question = quiz[currentQuestionIndex];
   const totalQuestions = quiz.length;
-  const isCurrentQuestionLocked = Boolean(question?.isAttempted);
+  const isCurrentQuestionLocked =
+    Boolean(question?.isAttempted) && !allowEditingAttempted;
   const isCurrentQuestionSubmitted =
     results[currentQuestionIndex] !== undefined;
   const showResultState = showResult || isCurrentQuestionLocked;
@@ -337,7 +340,7 @@ export const ExamsQuizRenderer = ({
 
     if (storedDraft?.marked) {
       setMarked((previousMarked) =>
-        new Set([...previousMarked, ...storedDraft.marked]),
+        new Set([...previousMarked, ...(storedDraft.marked ?? [])]),
       );
     }
 
@@ -438,7 +441,9 @@ export const ExamsQuizRenderer = ({
         isCorrect,
         examId,
         availableTime: typeof availableTime === "number" ? availableTime : 0,
-        ...(answerJson?.status === "markNext" ? { isAttempted: false } : {}),
+        ...(answerJson?.status === "markNext"
+          ? { isAttempted: true, status: "markNext" }
+          : {}),
         answerJson,
       });
     } catch (error) {
@@ -686,7 +691,7 @@ export const ExamsQuizRenderer = ({
   // MARK & NEXT
   // ---------------------------------------------------
 
-  const markCurrent = () => {
+  const markCurrent = async () => {
     if (currentQuestionIndex === totalQuestions - 1) return;
     if (isMarkAndNextDisabled) return;
 
@@ -710,7 +715,7 @@ export const ExamsQuizRenderer = ({
     });
 
     if (!hasCurrentAnswer) {
-      void submitQuestionResponse(false, {
+      await submitQuestionResponse(false, {
         questionId: question.id,
         type:
           question.type === "mcq"
@@ -718,7 +723,7 @@ export const ExamsQuizRenderer = ({
             : question.type === "dragdrop"
               ? "DND"
               : "FIB",
-        selectedAnswer: "markNext",
+        selectedAnswer: [],
         status: "markNext",
       });
     }
